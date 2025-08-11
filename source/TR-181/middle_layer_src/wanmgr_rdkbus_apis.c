@@ -1882,7 +1882,7 @@ ANSC_STATUS Update_Interface_Status()
     struct IFACE_INFO *head = NULL;
     DEVICE_NETWORKING_MODE devMode = GATEWAY_MODE;
     CHAR    InterfaceAvailableStatus[BUFLEN_64]  = {0};
-    CHAR    InterfaceWanUpStatus[BUFLEN_64]  = {0};
+    CHAR    InterfaceIpStatus[BUFLEN_64]  = {0};
     CHAR    InterfaceActiveStatus[BUFLEN_64]     = {0};
     CHAR    CurrentActiveInterface[BUFLEN_64] = {0};
     CHAR    CurrentStandbyInterface[BUFLEN_64] = {0};
@@ -1953,9 +1953,9 @@ ANSC_STATUS Update_Interface_Status()
                     (pWanIfaceData->IfaceType == LOCAL_IFACE &&
                      (p_VirtIf->Status == WAN_IFACE_STATUS_UP || p_VirtIf->Status == WAN_IFACE_STATUS_STANDBY || p_VirtIf->Status == WAN_IFACE_STATUS_VALID))) 
                 {
-                    snprintf(newIface->InterfaceWanUpStatus, sizeof(newIface->InterfaceWanUpStatus), "%s,1", pWanIfaceData->DisplayName);
+                    snprintf(newIface->InterfaceIpStatus, sizeof(newIface->InterfaceIpStatus), "%s,1", pWanIfaceData->DisplayName);
                 }else
-                    snprintf(newIface->InterfaceWanUpStatus, sizeof(newIface->InterfaceWanUpStatus), "%s,0", pWanIfaceData->DisplayName);
+                    snprintf(newIface->InterfaceIpStatus, sizeof(newIface->InterfaceIpStatus), "%s,0", pWanIfaceData->DisplayName);
 
                 /*
                  * In Gateway Mode, CurrentActiveInterface should be an actual virtual Interface Name
@@ -2016,11 +2016,11 @@ ANSC_STATUS Update_Interface_Status()
             strcat(InterfaceActiveStatus,"|");
         }
         strcat(InterfaceActiveStatus,pHead->ActiveStatus);
-        if(strlen(InterfaceWanUpStatus)>0 && strlen(pHead->InterfaceWanUpStatus)>0)
+        if(strlen(InterfaceIpStatus)>0 && strlen(pHead->InterfaceIpStatus)>0)
         {
-            strcat(InterfaceWanUpStatus,"|");
+            strcat(InterfaceIpStatus,"|");
         }
-        strcat(InterfaceWanUpStatus,pHead->InterfaceWanUpStatus);
+        strcat(InterfaceIpStatus,pHead->InterfaceIpStatus);
         tmp = pHead->next;
         free(pHead);
         pHead = tmp;
@@ -2049,12 +2049,12 @@ ANSC_STATUS Update_Interface_Status()
 #endif
         }
 
-        if(strcmp(pWanDmlData->InterfaceWanUpStatus,InterfaceWanUpStatus) != 0)
+        if(strcmp(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus) != 0)
         {
 #ifdef RBUS_BUILD_FLAG_ENABLE
-            WanMgr_Rbus_String_EventPublish_OnValueChange(WANMGR_EVENT_WAN_INTERFACEWANUPSTATUS, pWanDmlData->InterfaceWanUpStatus, InterfaceWanUpStatus);
+            WanMgr_Rbus_String_EventPublish_OnValueChange(WANMGR_EVENT_WAN_INTERFACEIPSTATUS, pWanDmlData->InterfaceIpStatus, InterfaceIpStatus);
 #endif
-            strncpy(pWanDmlData->InterfaceWanUpStatus,InterfaceWanUpStatus, sizeof(pWanDmlData->InterfaceWanUpStatus)-1);
+            strncpy(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus, sizeof(pWanDmlData->InterfaceIpStatus)-1);
         }
 
     	if(RETURN_OK == Update_Current_ActiveDNS(CurrentActiveDNS))

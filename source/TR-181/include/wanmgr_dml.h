@@ -606,7 +606,7 @@ typedef struct _DML_WANMGR_CONFIG_
     BOOLEAN BootToWanUp;            // Set if Wan was UP after boot
     CHAR    InterfaceAvailableStatus[BUFLEN_64];
     CHAR    InterfaceActiveStatus[BUFLEN_64];
-    CHAR    InterfaceWanUpStatus[BUFLEN_64];
+    CHAR    InterfaceIpStatus[BUFLEN_64];
     CHAR    CurrentActiveInterface[BUFLEN_64];
     CHAR    CurrentStatus[BUFLEN_16];
     CHAR    CurrentStandbyInterface[BUFLEN_64];

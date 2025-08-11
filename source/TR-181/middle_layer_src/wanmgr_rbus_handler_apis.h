@@ -38,8 +38,8 @@
 #define X_RDK_REMOTE_DEVICE_STATUS                   "Device.X_RDK_Remote.Device.%d.Status"
 #define MAX_NO_OF_RBUS_REMOTE_PARAMS                 64
 
-#define WANMGR_EVENT_INITIAL_SCAN_COMPLETED         "Device.X_RDK_WanManager.InitialScanComplete"
-#define WANMGR_EVENT_WAN_INTERFACEWANUPSTATUS       "Device.X_RDK_WanManager.InterfaceWanUpStatus"
+#define WANMGR_EVENT_INITIAL_SCAN_COMPLETED          "Device.X_RDK_WanManager.InitialScanComplete"
+#define WANMGR_EVENT_WAN_INTERFACEIPSTATUS           "Device.X_RDK_WanManager.InterfaceIpStatus"
 
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED)
 #define WANMGR_INFACE                                 "Device.X_RDK_WanManager.Interface.{i}."
