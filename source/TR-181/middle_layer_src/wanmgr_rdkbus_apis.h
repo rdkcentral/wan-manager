@@ -62,6 +62,7 @@ struct IFACE_INFO
 {
     INT     Priority;
     CHAR    AvailableStatus[BUFLEN_64];
+    CHAR    InterfaceIpStatus[BUFLEN_64];
     CHAR    ActiveStatus[BUFLEN_64];
     CHAR    CurrentActive[BUFLEN_64];
     CHAR    CurrentStandby[BUFLEN_64];
