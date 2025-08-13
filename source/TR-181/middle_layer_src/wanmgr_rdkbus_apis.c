@@ -2026,9 +2026,15 @@ ANSC_STATUS Update_Interface_Status()
 #ifdef RBUS_BUILD_FLAG_ENABLE
                 publishCurrentActiveDNS = TRUE;
 #endif
-                CcspTraceInfo(("%s %d - SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,prevCurrentActiveDNS,CurrentActiveDNS));
+				if (clock_gettime(CLOCK_MONOTONIC, &uptime) == 0)
+                {
+                    long long uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
+                }
+                CcspTraceInfo(("%s %d -  %lld ms- SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,uptime_ms,prevCurrentActiveDNS,CurrentActiveDNS));
+
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
                 t2_event_d("SYS_INFO_DNS_updated", 1);
+	            t2_event_s("SYS_INFO_DNSSTART", uptime_ms);
 #endif
             }
         }
