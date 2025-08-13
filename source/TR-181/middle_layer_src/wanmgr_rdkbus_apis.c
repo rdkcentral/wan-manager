@@ -1884,6 +1884,7 @@ ANSC_STATUS Update_Interface_Status()
     bool    publishCurrentActiveDNS = FALSE;
 #endif
     int uiLoopCount;
+	struct timespec uptime;
 
     WanMgr_Config_Data_t*   pWanConfigData = WanMgr_GetConfigData_locked();
     if (pWanConfigData != NULL)
