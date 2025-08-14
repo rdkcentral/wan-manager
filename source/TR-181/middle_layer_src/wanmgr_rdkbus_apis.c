@@ -1885,6 +1885,8 @@ ANSC_STATUS Update_Interface_Status()
 #endif
     int uiLoopCount;
 	struct timespec uptime;
+	long long uptime_ms = 0;
+	char str[32];
 
     WanMgr_Config_Data_t*   pWanConfigData = WanMgr_GetConfigData_locked();
     if (pWanConfigData != NULL)
@@ -2029,13 +2031,14 @@ ANSC_STATUS Update_Interface_Status()
 #endif
 				if (clock_gettime(CLOCK_MONOTONIC, &uptime) == 0)
                 {
-                    long long uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
+                    uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
                 }
                 CcspTraceInfo(("%s %d -  %lld ms- SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,uptime_ms,prevCurrentActiveDNS,CurrentActiveDNS));
 
+				snprintf(str, sizeof(str), "%lld", uptime_ms);
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
                 t2_event_d("SYS_INFO_DNS_updated", 1);
-	            t2_event_s("SYS_INFO_DNSSTART", uptime_ms);
+	            t2_event_s("SYS_INFO_DNSSTART", str);
 #endif
             }
         }
