@@ -2037,6 +2037,7 @@ ANSC_STATUS Update_Interface_Status()
 
 				snprintf(str, sizeof(str), "%lld", uptime_ms);
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
+	          CcspTraceInfo(("DEBUG:Inside telemetry check"));
                 t2_event_d("SYS_INFO_DNS_updated", 1);
 	            t2_event_s("SYS_INFO_DNSSTART", str);
 #endif
