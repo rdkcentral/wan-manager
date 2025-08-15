@@ -1826,6 +1826,7 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     if((fp = fopen(RESOLV_CONF_FILE, "r")) == NULL)
     {
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+		t2_event_d("SYS_ERR_DNS_FAIL", 1);
         return RETURN_ERR;
     }
 
@@ -1883,6 +1884,9 @@ ANSC_STATUS Update_Interface_Status()
     bool    publishCurrentActiveDNS = FALSE;
 #endif
     int uiLoopCount;
+	struct timespec uptime;
+	long long uptime_ms = 0;
+	char str[32];
 
     WanMgr_Config_Data_t*   pWanConfigData = WanMgr_GetConfigData_locked();
     if (pWanConfigData != NULL)
@@ -2025,9 +2029,20 @@ ANSC_STATUS Update_Interface_Status()
 #ifdef RBUS_BUILD_FLAG_ENABLE
                 publishCurrentActiveDNS = TRUE;
 #endif
+				if (clock_gettime(CLOCK_MONOTONIC, &uptime) == 0)
+                {
+                    uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
+                }
                 CcspTraceInfo(("%s %d - SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,prevCurrentActiveDNS,CurrentActiveDNS));
+
+				snprintf(str, sizeof(str), "%lld", uptime_ms);
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
+	            static int dns_start_sent = 0; 
                 t2_event_d("SYS_INFO_DNS_updated", 1);
+				if (!dns_start_sent) {
+	                t2_event_s("SYS_INFO_DNSSTART", str);
+				    dns_start_sent = 1; 
+				}
 #endif
             }
         }
