@@ -2033,11 +2033,10 @@ ANSC_STATUS Update_Interface_Status()
                 {
                     uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
                 }
-                CcspTraceInfo(("%s %d -  %lld ms- SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,uptime_ms,prevCurrentActiveDNS,CurrentActiveDNS));
+                CcspTraceInfo(("%s %d - SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,prevCurrentActiveDNS,CurrentActiveDNS));
 
 				snprintf(str, sizeof(str), "%lld", uptime_ms);
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-	          CcspTraceInfo(("DEBUG:Inside telemetry check"));
 	            static int dns_start_sent = 0; 
                 t2_event_d("SYS_INFO_DNS_updated", 1);
 				if (!dns_start_sent) {
