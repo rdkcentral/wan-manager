@@ -44,6 +44,7 @@
 #define WAN_STATUS_DOWN "down"
 
 #define WAN_IF_MARKING_MAX_LIMIT       ( 15 )
+
 typedef  struct _CONTEXT_MARKING_LINK_OBJECT
 {
     CONTEXT_LINK_CLASS_CONTENT
@@ -190,9 +191,9 @@ int isModuleLoaded(char *moduleName); // checks kernel module loaded.
  * @param vlanIf Vlan interface name
  * @return RETURN_OK in case of success else error code returned.
  ************************************************************************************/
-int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data);
+int WanManager_ProcessMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data);
 
-ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig);
+ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig);
 
 /***********************************************************************************
  * @brief This API used to display mapt feature status.
@@ -271,4 +272,7 @@ BOOL IsValidIpAddress(int32_t af, const char *address);
 
 
 int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
+#ifdef FEATURE_MAPE
+ANSC_STATUS WanManager_MAPEConfiguration(ipc_map_data_t *dhcp6cMAPEMsgBody);
+#endif
 #endif // _WANMGR_NET_UTILS_H_
