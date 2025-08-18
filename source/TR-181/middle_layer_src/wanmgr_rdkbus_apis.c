@@ -2037,7 +2037,7 @@ ANSC_STATUS Update_Interface_Status()
                 }
                 CcspTraceInfo(("%s %d - SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,prevCurrentActiveDNS,CurrentActiveDNS));
 
-				snprintf(uptime_str, sizeof(str), "%lld", uptime_ms);
+				snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
 	            static int dns_start_sent = 0; 
                 t2_event_d("SYS_INFO_DNS_updated", 1);
