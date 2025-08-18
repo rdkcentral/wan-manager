@@ -3079,6 +3079,7 @@ static eWanState_t wan_state_phy_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
         return wan_transition_exit(pWanIfaceCtrl);
     }
     
+
     //TBC: Workaround, Wait in current state if the component not ready
     if((0 == strncmp(pInterface->BaseInterface,WIFI_BASE_IFACE_PATH, strlen(WIFI_BASE_IFACE_PATH))) &&
        (access("/tmp/wifi_ready_to_process", F_OK) != 0))
