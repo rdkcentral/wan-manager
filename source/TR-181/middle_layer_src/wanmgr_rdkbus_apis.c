@@ -41,9 +41,6 @@
 #ifdef RBUS_BUILD_FLAG_ENABLE
 #include "wanmgr_rbus_handler_apis.h"
 #endif //RBUS_BUILD_FLAG_ENABLE
-#ifdef ENABLE_FEATURE_TELEMETRY2_0
-#include <telemetry_busmessage_sender.h>
-#endif
 //
 #define PSM_ENABLE_STRING_TRUE  "TRUE"
 #define PSM_ENABLE_STRING_FALSE  "FALSE"
