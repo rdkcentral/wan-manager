@@ -2034,22 +2034,23 @@ ANSC_STATUS Update_Interface_Status()
 				t2_event_d("SYS_INFO_DNS_updated", 1);
 				struct timespec uptime;
 	            long long uptime_ms = 0;
-	            char uptime_str[32];
+	            char uptime_str[32]="0";
 				static int dns_start_sent = 0; 
-				
-				if (clock_gettime(CLOCK_MONOTONIC, &uptime) == 0)
-                {
-                    uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
-                }
-				snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
+			
 	        
 				if (!dns_start_sent) {
-	             if (CurrentActiveDNS && strlen(CurrentActiveDNS) > 0 &&
-                     strcmp(CurrentActiveDNS, "127.0.0.1") != 0 &&
-                     strcmp(CurrentActiveDNS, "::1") != 0 ) { 
-	                     t2_event_s("SYST_INFO_DNSSTART", uptime_str);
-				        dns_start_sent = 1; 
-				      }
+	               if (CurrentActiveDNS && strlen(CurrentActiveDNS) > 0 &&
+                       strcmp(CurrentActiveDNS, "127.0.0.1") != 0 &&
+                       strcmp(CurrentActiveDNS, "::1") != 0 ) { 
+					   if (clock_gettime(CLOCK_MONOTONIC, &uptime) == 0)
+                       {
+                           uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
+                       }
+				       snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
+					   
+	                   t2_event_s("SYST_INFO_DNSSTART", uptime_str);
+				       dns_start_sent = 1; 
+				   }
 				}
 #endif
             }
