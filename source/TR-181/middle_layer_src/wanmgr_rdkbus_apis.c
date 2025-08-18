@@ -1827,7 +1827,7 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     {
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-		t2_event_d("SYS_ERR_DNS_FAIL", 1);
+		t2_event_d("SYST_ERROR_DNSFAIL", 1);
 #endif
         return RETURN_ERR;
     }
@@ -2042,7 +2042,7 @@ ANSC_STATUS Update_Interface_Status()
 	            static int dns_start_sent = 0; 
                 t2_event_d("SYS_INFO_DNS_updated", 1);
 				if (!dns_start_sent) {
-	                t2_event_s("SYS_INFO_DNSSTART", str);
+	                t2_event_s("SYST_INFO_DNSSTART", str);
 				    dns_start_sent = 1; 
 				}
 #endif
