@@ -56,6 +56,7 @@
 #include "wanmgr_dml.h"
 #include "wanmgr_data.h"
 #include "dhcpv6c_msg_apis.h"
+#include "wanmgr_telemetry.h"
 
 /*
  * Macro definitions
@@ -700,7 +701,15 @@ static void * WanMgr_DhcpV6MsgHandler()
                             }
                             else 
                             {
-                                WanMgr_MaptParseOpt95Response(dhcpv6_data.sitePrefix, opt95_dBuf, &dhcpv6_data);
+                                if(STATUS_SUCCESS != WanMgr_MaptParseOpt95Response(dhcpv6_data.sitePrefix, opt95_dBuf, &dhcpv6_data))
+				{
+                                    DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(dhcpv6_data.ifname);
+                                    if(pVirtIf != NULL)
+                                    {
+                                        WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_ERROR_MAPT_STATUS_FAILED);
+                                        WanMgr_VirtualIfaceData_release(pVirtIf);
+                                    }
+                                }				    
                             }
 #endif // MAPT_UNIFICATION_ENABLED
                         }
