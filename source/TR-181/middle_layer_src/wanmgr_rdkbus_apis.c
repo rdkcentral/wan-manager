@@ -1829,7 +1829,9 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     if((fp = fopen(RESOLV_CONF_FILE, "r")) == NULL)
     {
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
 		t2_event_d("SYS_ERR_DNS_FAIL", 1);
+#endif
         return RETURN_ERR;
     }
 
