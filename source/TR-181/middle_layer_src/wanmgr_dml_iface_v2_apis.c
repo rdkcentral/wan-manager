@@ -1619,7 +1619,7 @@ BOOL WanVirtualIf_SetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
                 WanMgr_SetConnectivityCheckTypeToPSM(p_VirtIf, type);
                 p_VirtIf->IP.WCC_TypeChanged = TRUE;
                 p_VirtIf->IP.ConnectivityCheckType = type;
-		WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);
+                WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);
                 ret = TRUE;
             }
         }
@@ -2090,7 +2090,7 @@ BOOL WanIfIpCfg_SetParamUlongValue(ANSC_HANDLE hInsContext, char* ParamName, ULO
                 p_VirtIf->IP.RefreshDHCP = TRUE;
                 p_VirtIf->IP.ModeForceEnable = TRUE;
                 CcspTraceInfo(("%s %d IP.%s changed for %s to %d. ModeForceEnable set and Refreshing DHCP \n", __FUNCTION__, __LINE__, ParamName, p_VirtIf->Name, p_VirtIf->IP.Mode));
-		WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_IP_MODE);
+                WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_IP_MODE);
             }
             ret = TRUE;
         }
@@ -2101,7 +2101,7 @@ BOOL WanIfIpCfg_SetParamUlongValue(ANSC_HANDLE hInsContext, char* ParamName, ULO
                 p_VirtIf->IP.IPv4Source = uValue;
                 p_VirtIf->IP.RefreshDHCP = TRUE;
                 CcspTraceInfo(("%s %d IP.%s changed for %s to %d. Refreshing DHCP \n", __FUNCTION__, __LINE__, ParamName, p_VirtIf->Name,p_VirtIf->IP.IPv4Source));
-		WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_IPv4_CONFIG_TYPE);
+                WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_IPv4_CONFIG_TYPE);
             }
             ret = TRUE;
         }
@@ -2112,7 +2112,7 @@ BOOL WanIfIpCfg_SetParamUlongValue(ANSC_HANDLE hInsContext, char* ParamName, ULO
                 p_VirtIf->IP.IPv6Source = uValue;
                 p_VirtIf->IP.RefreshDHCP = TRUE;
                 CcspTraceInfo(("%s %d IP.%s changed for %s to %d. Refreshing DHCP \n", __FUNCTION__, __LINE__, ParamName, p_VirtIf->Name,p_VirtIf->IP.IPv6Source));
-		WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_IPv6_CONFIG_TYPE);
+                WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_INFO_IPv6_CONFIG_TYPE);
             }
             ret = TRUE;
         }

@@ -799,7 +799,7 @@ void WanMgr_IfaceData_Init(WanMgr_Iface_Data_t* pIfaceData, UINT iface_index)
 
         pWanDmlIface->NoOfVirtIfs = 1; 
         pWanDmlIface->Type = WAN_IFACE_TYPE_UNCONFIGURED;
-	pWanDmlIface->bSendSelectionTimerExpired = TRUE;	
+        pWanDmlIface->bSendSelectionTimerExpired = TRUE;	
     }
 }
 
