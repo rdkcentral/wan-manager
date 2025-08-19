@@ -2035,7 +2035,7 @@ ANSC_STATUS Update_Interface_Status()
 				struct timespec uptime;
 	            long long uptime_ms = 0;
 	            char uptime_str[32]="0";
-				static int dns_start_sent = 0; 
+				static bool dns_start_sent = 0; 
 			
 	        
 				if (!dns_start_sent) {
