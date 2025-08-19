@@ -56,7 +56,9 @@
 #define PSM_WANMANAGER_IF_VIRIF_IP_INTERFACE                "dmsb.wanmanager.if.%d.VirtualInterface.%d.IPInterface"
 #define PSM_WANMANAGER_IF_VIRIF_IP_MODE                     "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.Mode"
 #define PSM_WANMANAGER_IF_VIRIF_IP_V4SOURCE                 "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.IPv4Source"
+#define PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4                   "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.DHCPV4Interface"
 #define PSM_WANMANAGER_IF_VIRIF_IP_V6SOURCE                 "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.IPv6Source"
+#define PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6                   "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.DHCPV6Interface"
 #define PSM_WANMANAGER_IF_VIRIF_IP_PREFERREDMODE            "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.PreferredMode"
 #define PSM_WANMANAGER_IF_VIRIF_IP_MODE_FORCE_ENABLE        "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.ModeForceEnable"
 #define PSM_WANMANAGER_CONNECTIVITY_CHECK_TYPE              "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.ConnectivityCheckType"
@@ -101,6 +103,7 @@
 #define PSM_SELFHEAL_REBOOT_STATUS                          "dmsb.selfheal.rebootstatus"
 
 #define PSM_MESH_WAN_IFNAME                                     "dmsb.Mesh.WAN.Interface.Name"
+#define PSM_MESH_WAN_DHCPv4                                     "dmsb.Mesh.WAN.Interface.DHCPV4Interface"
 
 /**********************************************************************
                        Interface.{i}.Marking.{i}.

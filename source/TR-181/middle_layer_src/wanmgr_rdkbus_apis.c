@@ -339,12 +339,24 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    AnscCopyString(pVirtIf->IP.DHCPv4Iface, param_value);
+
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V6SOURCE, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
         _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv6Source));
     }
+
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    AnscCopyString(pVirtIf->IP.DHCPv6Iface, param_value);
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -390,24 +402,35 @@ int get_Remote_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DM
     }
 }
 
-void WanMgr_getRemoteWanIfName(char *IfaceName,int Size)
+void WanMgr_getRemoteWanParamsFromPSM(DML_VIRTUAL_IFACE * pVirtIf)
 {
-    char* val=NULL;
-    if (PSM_Get_Record_Value2(bus_handle, g_Subsystem,PSM_MESH_WAN_IFNAME , NULL, &val) != CCSP_SUCCESS )
+    char param_value[256] = {0};
+    int retPsmGet = CCSP_SUCCESS;
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(PSM_MESH_WAN_IFNAME,param_value,sizeof(param_value));
+    if(retPsmGet == CCSP_SUCCESS)
     {
-        CcspTraceError(("%s-%d :Failed to Read PSM %s , So Set Default Remote Wan Interface Name\n", __FUNCTION__, __LINE__, PSM_MESH_WAN_IFNAME));
-    }
-    if (val)
-    {
-        snprintf(IfaceName,Size,"%s",val);
-        ((CCSP_MESSAGE_BUS_INFO *)bus_handle)->freefunc(val);
+        snprintf(pVirtIf->Name,sizeof(pVirtIf->Name),"%s",param_value);
     }
     else
     {
-        snprintf(IfaceName,Size,"%s",REMOTE_INTERFACE_NAME);
+        CcspTraceError(("%s-%d :Failed to get Remote WAN IfName from PSM, using default\n", __FUNCTION__, __LINE__));
+        snprintf(pVirtIf->Name,sizeof(pVirtIf->Name),"%s",REMOTE_INTERFACE_NAME);
     }
 
-    CcspTraceWarning(("%s-%d :Remote WAN IfName is (%s)\n", __FUNCTION__, __LINE__, IfaceName));
+    CcspTraceWarning(("%s-%d :Remote WAN IfName is (%s)\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+
+    memset(param_value, 0, sizeof(param_value));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(PSM_MESH_WAN_DHCPv4,param_value,sizeof(param_value));
+
+    if(retPsmGet == CCSP_SUCCESS)
+    {
+        snprintf(pVirtIf->IP.DHCPv4Iface,sizeof(pVirtIf->IP.DHCPv4Iface),"%s",param_value);
+    }
+    else
+    {
+        CcspTraceError(("%s-%d :Failed to get Remote WAN DHCP interface from PSM,\n", __FUNCTION__, __LINE__));
+    }
+    CcspTraceWarning(("%s-%d :Remote WAN DHCPv4Iface is (%s)\n", __FUNCTION__, __LINE__, pVirtIf->IP.DHCPv4Iface));
     return;
 }
 
@@ -584,10 +607,22 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
+    AnscCopyString(param_value, pVirtIf->IP.DHCPv4Iface);
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
+    WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+
+    memset(param_value, 0, sizeof(param_value));
+    memset(param_name, 0, sizeof(param_name));
     _ansc_sprintf(param_value, "%d", pVirtIf->IP.IPv6Source );
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V6SOURCE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
+    memset(param_value, 0, sizeof(param_value));
+    memset(param_name, 0, sizeof(param_name));
+    AnscCopyString(param_value, pVirtIf->IP.DHCPv6Iface);
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
+    WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+    
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     _ansc_sprintf(param_value, "%d", pVirtIf->IP.PreferredMode );
@@ -2068,16 +2103,23 @@ ANSC_STATUS WanMgr_Publish_WanStatus(UINT IfaceIndex, UINT VirId)
 {
     char param_name[256] = {0};
     static UINT PrevWanStatus = 0;
+    UINT tmpCurrWanStatus = 0,
+         tmpWanStatusSub  = 0;
     WanMgr_Iface_Data_t*   pWanDmlIfaceData = WanMgr_GetIfaceData_locked(IfaceIndex);
     if(pWanDmlIfaceData != NULL)
     {
         DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
         DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, VirId);
+   
+        tmpCurrWanStatus = p_VirtIf->Status; 
+        tmpWanStatusSub  = pWanIfaceData->Sub.WanStatusSub;
 
-        if (p_VirtIf->Status != PrevWanStatus)
+        WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
+
+        if (tmpCurrWanStatus != PrevWanStatus)
         {
-            PrevWanStatus = p_VirtIf->Status;
-            if (pWanIfaceData->Sub.WanStatusSub)
+            PrevWanStatus = tmpCurrWanStatus;
+            if (tmpWanStatusSub)
             {
                 memset(param_name, 0, sizeof(param_name));
                 _ansc_sprintf(param_name, WANMGR_IFACE_WAN_STATUS, (IfaceIndex+1), (VirId+1));
@@ -2092,7 +2134,6 @@ ANSC_STATUS WanMgr_Publish_WanStatus(UINT IfaceIndex, UINT VirId)
 #endif
             }
         }
-        WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
     }
     return ANSC_STATUS_SUCCESS;
 }

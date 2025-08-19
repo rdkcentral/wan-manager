@@ -64,9 +64,14 @@
 #define SYSEVENT_IPV4_DS_CURRENT_RATE "ipv4_%s_ds_current_rate_0"
 #define SYSEVENT_FIELD_SERVICE_ROUTED_STATUS "routed-status"
 #define SYSEVENT_IPV4_MTU_SIZE "ipv4_%s_mtu"
-
+#define SYSEVENT_IPV6_STATUS "ipv6-status"
+#define SYSEVENT_WAN6_IP_ADDRESS "wan6_ipaddr"
+#define SYSEVENT_IPV6_NS "ipv6_nameserver"
+#define SYSEVENT_IPV6_TIME_OFFSET "ipv6-timeoffset"
 #define SYSEVENT_IPV6_WAN_ADDRESS "tr_erouter0_dhcpv6_client_v6addr"
 #define SYSEVENT_LAN_IPV6_ADDRESS "lan_ipaddr_v6"
+#define WAN_STATUS_UP "up"
+#define WAN_STATUS_DOWN "down"
 
 #define MESH_IFNAME        "br-home"
 #if defined (RDKB_EXTENDER_ENABLED)

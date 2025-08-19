@@ -499,6 +499,18 @@
                                             <syntax>string</syntax>
                                             <writable>true</writable>
                                         </parameter>
+                                        <parameter>
+                                            <name>DHCPv4Interface</name>
+                                            <type>string</type>
+                                            <syntax>string</syntax>
+                                            <writable>true</writable>
+                                        </parameter>
+                                        <parameter>
+                                            <name>DHCPv6Interface</name>
+                                            <type>string</type>
+                                            <syntax>string</syntax>
+                                            <writable>true</writable>
+                                        </parameter>
                                     </parameters>
                                 </object>
                                 <object>

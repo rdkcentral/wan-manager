@@ -230,7 +230,25 @@ static ANSC_STATUS WanMgr_IpcNewIhcMsg(ipc_ihc_data_t *pIhcMsg)
 
 static ANSC_STATUS Wan_ForceRenewDhcpIPv4(char *ifName)
 {
-
+#if  defined( FEATURE_RDKB_DHCP_MANAGER )
+    char dmlName[256] = {0};
+    DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVirtualIfaceByName_locked(ifName);
+    if(pVirtIf != NULL)
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.Renew", pVirtIf->IP.DHCPv4Iface );
+        if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName , "true", ccsp_boolean, TRUE))
+        {
+            CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        }
+        else
+        {
+            CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        }
+        WanMgr_VirtualIfaceData_release(pVirtIf);
+        return ANSC_STATUS_SUCCESS;
+    }
+    
+#else
     /*send triggered renew request to DHCPC*/
     int pid = util_getPidByName(DHCPV4_CLIENT_NAME, ifName);
     if (pid > 0)
@@ -238,6 +256,7 @@ static ANSC_STATUS Wan_ForceRenewDhcpIPv4(char *ifName)
         CcspTraceInfo(("sending SIGUSR1 to %s[pid=%d], this will let the %s to send renew packet out \n", DHCPV4_CLIENT_NAME, pid, DHCPV4_CLIENT_NAME));
         util_signalProcess(pid, SIGUSR1);
     }
+#endif
     return  ANSC_STATUS_SUCCESS; 
 }
 
@@ -486,7 +505,7 @@ ANSC_STATUS WanMgr_StartIpcServer()
         retStatus = ANSC_STATUS_SUCCESS;
     }
 
-#if defined(WAN_MANAGER_UNIFICATION_ENABLED) && !defined( RDKB_EXTENDER_ENABLED)
+#if defined(WAN_MANAGER_UNIFICATION_ENABLED) && !defined( RDKB_EXTENDER_ENABLED) && !defined( FEATURE_RDKB_DHCP_MANAGER )
     //TODO: XLE is still using the legacy CcspPaM dhcpv6c_dbg_thrd thread
     WanMgr_DhcpV6MsgHandlerInit();
 #endif 

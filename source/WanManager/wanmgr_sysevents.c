@@ -149,6 +149,7 @@ ANSC_STATUS wanmgr_sysevents_ipv6Info_init()
 {
     sysevent_set(sysevent_fd, sysevent_token,SYSEVENT_FIELD_IPV6_DOMAIN, "", 0);
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_CONNECTION_STATE, WAN_STATUS_DOWN, 0);
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_STATUS, "down", 0);
     syscfg_set_commit(NULL, SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, "");
     return ANSC_STATUS_SUCCESS;
 }
@@ -937,8 +938,14 @@ static void *WanManagerSyseventHandler(void *args)
                         CcspTraceInfo(("%s %d - Stopping IPoE App(PID:%d) for WAN IfName:%s\n", __FUNCTION__, __LINE__, atoi(output), ifName));
                         WanManager_StopIpoeHealthCheckService(atoi(output));
 #endif /* FEATURE_IPOE_HEALTH_CHECK */
+                        //TODO: not a correct place to stop dhcpv6 client, virtual interface state machine may restart it again.  
                         CcspTraceInfo(("%s %d - Stopping DHCPv6 client for WAN IfName:%s\n", __FUNCTION__, __LINE__, ifName ));
-                        WanManager_StopDhcpv6Client(ifName, TRUE);
+                        DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVirtualIfaceByName_locked(ifName);
+                        if(pVirtIf != NULL)
+                        {
+                            WanManager_StopDhcpv6Client(pVirtIf, TRUE);
+                            WanMgr_VirtualIfaceData_release(pVirtIf);
+                        }
                     }
                 }
             }

@@ -840,6 +840,8 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     memset(pVirtIf->VLAN.VLANInUse,0, sizeof(pVirtIf->VLAN.VLANInUse));
     pVirtIf->Reset = FALSE;
     memset(pVirtIf->IP.Interface, 0, 64);
+    memset(pVirtIf->IP.DHCPv4Iface, 0, 128);
+    memset(pVirtIf->IP.DHCPv6Iface, 0, 128);
     pVirtIf->IP.Ipv4Status = WAN_IFACE_IPV4_STATE_DOWN;
     pVirtIf->IP.Ipv6Status = WAN_IFACE_IPV6_STATE_DOWN;
     pVirtIf->IP.IPv4Source= DML_WAN_IP_SOURCE_DHCP;
@@ -857,6 +859,8 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     memset(&(pVirtIf->IP.SelectedModeTimerStart), 0, sizeof(struct timespec));
     pVirtIf->IP.Ipv4Renewed = FALSE;
     pVirtIf->IP.Ipv6Renewed = FALSE;
+    pVirtIf->IP.Dhcp4cStatus = DHCPC_STATE_UNKNOWN;
+    pVirtIf->IP.Dhcp6cStatus = DHCPC_STATE_UNKNOWN;
     memset(&(pVirtIf->IP.Ipv4Data), 0, sizeof(WANMGR_IPV4_DATA));
     memset(&(pVirtIf->IP.Ipv6Data), 0, sizeof(WANMGR_IPV6_DATA));
     pVirtIf->IP.pIpcIpv4Data = NULL;

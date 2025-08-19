@@ -1623,6 +1623,7 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
                    pNewIpcMsg->dnsAssigned, pNewIpcMsg->nameserver, pNewIpcMsg->nameserver1, pNewIpcMsg->aftrAssigned, pNewIpcMsg->aftr, pNewIpcMsg->isExpired));
 
     WANMGR_IPV6_DATA Ipv6DataNew; // Holds the new lease from the IPC message
+    memset(&Ipv6DataNew, 0, sizeof(Ipv6DataNew));
     wanmgr_dchpv6_get_ipc_msg_info(&(Ipv6DataNew), pNewIpcMsg);
 
     /*Check lease expiry*/
@@ -1882,7 +1883,7 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
             {
                 //call function for changing the prlft and vallft
-                if ((WanManager_Ipv6AddrUtil(pVirtIf->Name, SET_LFT, pNewIpcMsg->prefixPltime, pNewIpcMsg->prefixVltime) < 0))
+                if ((WanManager_Ipv6PrefixUtil(pVirtIf->Name, SET_LFT, pNewIpcMsg->prefixPltime, pNewIpcMsg->prefixVltime) < 0))
                 {
                     CcspTraceError(("Life Time Setting Failed"));
                 }
@@ -2112,7 +2113,10 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
 
     CcspTraceWarning(("%s: setting lan-restart\n", __FUNCTION__));
     sysevent_set(sysevent_fd, sysevent_token, "lan-restart", "1", 0);
-
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(DHCPV6_PREFIX_FIX) 
+    CcspTraceWarning(("%s: setting dhcpv6_server-restart\n", __FUNCTION__));
+    sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_server-restart", "", 0);
+#else
     // Below code copied from CosaDmlDHCPv6sTriggerRestart(FALSE) PAm function.
     int fd = 0;
     char str[32] = "restart";
@@ -2124,6 +2128,7 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
     }
     write( fd, str, sizeof(str) );
     close(fd);
+#endif
 #endif
 #endif
     return RETURN_OK;

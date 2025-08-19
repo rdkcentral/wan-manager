@@ -131,10 +131,12 @@ static int WanManager_MaptRouteSetting()
 
     syscfg_get(NULL, "PartnerID", partnerID, sizeof(partnerID));
     int mtu_size_mapt = MTU_DEFAULT_SIZE; /* 1500 */
+#if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) // XB6 and CBR use 1500 MTU size for MAPT.
     if (strcmp("sky-uk", partnerID) != 0)
     {
         mtu_size_mapt = MAPT_MTU_SIZE; /* 1520 */
     }
+#endif
     DBG_MONITOR_PRINT("MAPT MTU Size = %d \n", mtu_size_mapt);
 
     sysevent_get(sysevent_fd, sysevent_token, MAP_WAN_IFACE, vlanIf, sizeof(vlanIf));

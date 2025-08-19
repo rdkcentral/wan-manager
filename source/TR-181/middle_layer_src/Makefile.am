@@ -32,3 +32,7 @@ libCcspWanManager_middle_layer_src_la_LDFLAGS = -lccsp_common -lsyscfg -lsyseven
 libCcspWanManager_middle_layer_src_la_CPPFLAGS += -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus
 libCcspWanManager_middle_layer_src_la_SOURCES += wanmgr_rbus_handler_apis.c
 libCcspWanManager_middle_layer_src_la_LDFLAGS += -lrbus
+
+if DHCPMANAGER_ENABLED
+libCcspWanManager_middle_layer_src_la_SOURCES += wanmgr_rbus_dhcp_client_events.c
+endif

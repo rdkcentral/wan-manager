@@ -27,14 +27,17 @@
 #include "ccsp_syslog.h"
 #include "ccsp_message_bus.h"
 #include "ccsp_base_api.h"
-#include "wanmgr_dml_iface_apis.h"
 #include "wanmgr_net_utils.h"
 #include "wanmgr_webconfig_apis.h"
 #include "wanmgr_webconfig.h"
 #include "wanmgr_data.h"
 #include "wanmgr_dml_apis.h"
 #include "messagebus_interface_helper.h"
-
+#if defined(WAN_MANAGER_UNIFICATION_ENABLED)
+#include "wanmgr_dml_iface_v2_apis.h"
+#else
+#include "wanmgr_dml_iface_apis.h"
+#endif /** WAN_MANAGER_UNIFICATION_ENABLED */
 
 /* WanMgr_Process_Webconfig_Request: */
 /**

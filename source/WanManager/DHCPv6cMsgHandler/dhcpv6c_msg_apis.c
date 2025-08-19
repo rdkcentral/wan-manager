@@ -356,6 +356,58 @@ CosaDmlMaptConvertStringToHexStream
   return STATUS_SUCCESS;
 }
 
+static RETURN_STATUS
+CosaDmlMaptValidate
+(
+    PCHAR          pPdIPv6Prefix,
+    UINT16         ui16PdPrefixLen,
+    UINT16         ui16v6PrefixLen,
+    UINT16         ui16v4PrefixLen,
+    UINT32         ui32PsidOffset
+)
+{
+  UINT8 ui8v4BitIdxLen = 0, ui8PsidBitIdxLen = 0;
+  UINT8 ui8EaLen       = 0 ;
+  struct in6_addr ipv6Addr;
+
+  MAPT_LOG_INFO("Entry");
+
+  // V4 suffix bits length
+  ui8v4BitIdxLen = BUFLEN_32 - ui16v4PrefixLen;
+
+  // EA bits length
+  ui8EaLen = ui16PdPrefixLen - ui16v6PrefixLen;
+
+  // PSID length
+  ui8PsidBitIdxLen = ui8EaLen - ui8v4BitIdxLen;
+
+  MAPT_LOG_INFO("<<<Trace>>> ui8v4BitIdxLen(IPV4 Suffix Bits): %u", ui8v4BitIdxLen);
+  MAPT_LOG_INFO("<<<Trace>>> ui8EaLen (EA bits)                    : %u", ui8EaLen);
+  MAPT_LOG_INFO("<<<Trace>>> ui8PsidBitIdxLen(PSID length)         : %u", ui8PsidBitIdxLen);
+
+  if (ui8EaLen != g_stMaptData.EaLen)
+  {
+       MAPT_LOG_INFO("Calculated EA-bits and received MAP EA-bits does not match!");
+       return STATUS_FAILURE;
+  }
+
+  if ( ui16PdPrefixLen < ui16v6PrefixLen )
+  {
+       MAPT_LOG_ERROR("Invalid MAPT option, ui16PdPrefixLen(%d) < ui16v6PrefixLen(%d)",
+               ui16PdPrefixLen, ui16v6PrefixLen);
+       return STATUS_FAILURE;
+  }
+
+  if ( inet_pton(AF_INET6, pPdIPv6Prefix, &ipv6Addr) <= 0 )
+  {
+       MAPT_LOG_ERROR("Invalid IPv6 address = %s", pPdIPv6Prefix);
+       return STATUS_FAILURE;
+  }
+
+   MAPT_LOG_INFO("MAPT validation successful.");
+  return STATUS_SUCCESS;
+}
+
 /**
  * @brief Parses the MAPT option 95 response.
  *
@@ -409,6 +461,20 @@ ANSC_STATUS WanMgr_MaptParseOpt95Response
        MAPT_LOG_ERROR("MAPT Parsing Response Failed !!");
        ret = STATUS_FAILURE;
   }
+
+  /* validate MAPT responce */
+  if ( !ret && CosaDmlMaptValidate ( g_stMaptData.PdIPv6Prefix
+                                                   , g_stMaptData.PdIPv6PrefixLen
+                                                   , g_stMaptData.RuleIPv6PrefixLen
+                                                   , g_stMaptData.RuleIPv4PrefixLen , 
+                                                g_stMaptData.PsidOffset) != STATUS_SUCCESS )
+  {
+       MAPT_LOG_ERROR("MAPT Psid and IPv4 Suffix Validation Failed !!");
+       rc = memset (&g_stMaptData, 0, sizeof(g_stMaptData));
+       ERR_CHK(rc);
+       ret = STATUS_FAILURE;
+  }
+
 
   if( ret == STATUS_SUCCESS )
   {

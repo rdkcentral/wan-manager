@@ -822,7 +822,7 @@ int WanMgr_RdkBus_GetParamValuesFromDB( char *pParamName, char *pReturnVal, int 
         retPsmGet = CCSP_FAILURE;
     }
 #endif
-    CcspTraceInfo(("PSM Read => %s : %s\n", pParamName, pReturnVal));
+    //CcspTraceInfo(("PSM Read => %s : %s\n", pParamName, pReturnVal));
 
    return retPsmGet;
 }

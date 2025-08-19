@@ -1447,7 +1447,8 @@ static WcAwPolicyState_t State_WanInterfaceActive (WanMgr_Policy_Controller_t * 
     // check if PHY is still UP
     DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
     if (pActiveInterface->BaseInterfaceStatus != WAN_IFACE_PHY_STATUS_UP ||
-            pActiveInterface->Selection.Enable == FALSE)
+            pActiveInterface->Selection.Enable == FALSE || 
+            (WanMgr_Get_ISM_RunningStatus(pWanController->activeInterfaceIdx) != TRUE)) //TBC: This check is workaround to avoid the race condition of BaseInterfaceStatus notification reception
     {
         CcspTraceInfo(("%s %d: interface:%d is BaseInterface down\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
         if (WanMgr_SetGroupSelectedIface (pWanController->GroupInst, (pWanController->activeInterfaceIdx+1)) != ANSC_STATUS_SUCCESS)

@@ -2178,6 +2178,34 @@ ULONG WanIfIpCfg_GetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, c
                 ret = 1;
             }
         }
+        else if(strcmp(ParamName, "DHCPv4Interface") == 0)
+        {
+            /* collect value */
+            if ( ( sizeof( p_VirtIf->IP.DHCPv4Iface ) - 1 ) < *pUlSize )
+            {
+                AnscCopyString( pValue, p_VirtIf->IP.DHCPv4Iface );
+                ret = 0;
+            }
+            else
+            {
+                *pUlSize = sizeof( p_VirtIf->IP.DHCPv4Iface );
+                ret = 1;
+            }
+        }
+        else if(strcmp(ParamName, "DHCPv6Interface") == 0)
+        {
+            /* collect value */
+            if ( ( sizeof( p_VirtIf->IP.DHCPv6Iface ) - 1 ) < *pUlSize )
+            {
+                AnscCopyString( pValue, p_VirtIf->IP.DHCPv6Iface );
+                ret = 0;
+            }
+            else
+            {
+                *pUlSize = sizeof( p_VirtIf->IP.DHCPv6Iface );
+                ret = 1;
+            }
+        }
 
         WanMgr_VirtualIfaceData_release(p_VirtIf);
     }
@@ -2220,6 +2248,16 @@ BOOL WanIfIpCfg_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, ch
         if (strcmp(ParamName, "Interface") == 0)
         {
             AnscCopyString(p_VirtIf->IP.Interface, pString);
+            ret = TRUE;
+        }
+        else if(strcmp(ParamName, "DHCPv4Interface") == 0)
+        {
+            AnscCopyString(p_VirtIf->IP.DHCPv4Iface, pString);
+            ret = TRUE;
+        }
+        else if(strcmp(ParamName, "DHCPv6Interface") == 0)
+        {
+            AnscCopyString(p_VirtIf->IP.DHCPv6Iface, pString);
             ret = TRUE;
         }
         WanMgr_VirtualIfaceData_release(p_VirtIf);

@@ -23,6 +23,7 @@
 #include "wanmgr_rbus_handler_apis.h"
 #include "wanmgr_rdkbus_apis.h"
 #include "dmsb_tr181_psm_definitions.h"
+
 enum {
 ENUM_PHY = 1,
 ENUM_WAN_STATUS,
@@ -31,7 +32,7 @@ ENUM_WAN_LINKSTATUS
 
 #define  ARRAY_SZ(x) (sizeof(x) / sizeof((x)[0]))
 #define  MAC_ADDR_SIZE 18
-static rbusHandle_t rbusHandle;
+rbusHandle_t rbusHandle;
 
 char componentName[32] = "WANMANAGER";
 
@@ -792,7 +793,7 @@ static void WanMgr_Rbus_EventReceiveHandler(rbusHandle_t handle, rbusEvent_t con
                     WanMgr_StringToEnum(&pWanIfaceData->VirtIfList->VLAN.Status, ENUM_WAN_LINKSTATUS, pValue);
                     if(pWanIfaceData->VirtIfList->VLAN.Status == WAN_IFACE_LINKSTATUS_UP)
                     {
-                        WanMgr_getRemoteWanIfName(pWanIfaceData->VirtIfList->Name, sizeof(pWanIfaceData->VirtIfList->Name));
+                        WanMgr_getRemoteWanParamsFromPSM(pWanIfaceData->VirtIfList);
                     }
                 }
                 else if( strstr(pParamName, WANMGR_INFACE_WAN_STATUS_SUFFIX) != NULL )
@@ -1706,6 +1707,8 @@ static void CPEInterface_AsyncMethodHandler(
                     if(pWanIfaceData->VirtIfList->VLAN.Status == WAN_IFACE_LINKSTATUS_UP)
                     {
                         strncpy(pWanIfaceData->VirtIfList->Name, REMOTE_INTERFACE_NAME, sizeof(pWanIfaceData->VirtIfList->Name));
+                        WanMgr_getRemoteWanParamsFromPSM(pWanIfaceData->VirtIfList);
+
                     }
                 }
                 else if( WANMGR_WAN_STATUS_CHECK )
@@ -2045,4 +2048,3 @@ void *WanMgr_Configure_WCC_Thread(void *arg)
     pthread_exit(NULL);
     return NULL;
 }
-
