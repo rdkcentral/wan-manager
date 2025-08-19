@@ -1832,6 +1832,9 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     if((fp = fopen(RESOLV_CONF_FILE, "r")) == NULL)
     {
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+		t2_event_d("SYST_ERROR_DNSFAIL", 1);
+#endif
         return RETURN_ERR;
     }
 
@@ -2032,8 +2035,29 @@ ANSC_STATUS Update_Interface_Status()
                 publishCurrentActiveDNS = TRUE;
 #endif
                 CcspTraceInfo(("%s %d - SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,prevCurrentActiveDNS,CurrentActiveDNS));
+				
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-                t2_event_d("SYS_INFO_DNS_updated", 1);
+				t2_event_d("SYS_INFO_DNS_updated", 1);
+				struct timespec uptime;
+	            long long uptime_ms = 0;
+	            char uptime_str[32]="0";
+				static bool dns_start_sent = 0; 
+			
+	        
+				if (!dns_start_sent) {
+	               if (CurrentActiveDNS && strlen(CurrentActiveDNS) > 0 &&
+                       strcmp(CurrentActiveDNS, "127.0.0.1") != 0 &&
+                       strcmp(CurrentActiveDNS, "::1") != 0 ) { 
+					   if (clock_gettime(CLOCK_MONOTONIC, &uptime) == 0)
+                       {
+                           uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
+                       }
+				       snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
+					   
+	                   t2_event_s("SYST_INFO_DNSSTART", uptime_str);
+				       dns_start_sent = 1; 
+				   }
+				}
 #endif
             }
         }
