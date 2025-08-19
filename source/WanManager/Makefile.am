@@ -28,10 +28,11 @@ wanmanager_CPPFLAGS = -I$(top_srcdir)/source/TR-181/middle_layer_src \
                       -I$(top_srcdir)/source/WanManager/MaptParsing \ 
                       -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus
 
-wanmanager_CFLAGS = -DFEATURE_SUPPORT_RDKLOG $(DBUS_CFLAGS) $(SYSTEMD_CFLAGS)
+wanmanager_CFLAGS = -DFEATURE_SUPPORT_RDKLOG $(SYSTEMD_CFLAGS)
 wanmanager_CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
+
 wanmanager_SOURCES = wanmgr_webconfig_apis.c wanmgr_webconfig.c wanmgr_main.c  wanmgr_ssp_action.c wanmgr_ssp_messagebus_interface.c wanmgr_core.c wanmgr_controller.c wanmgr_data.c wanmgr_sysevents.c wanmgr_interface_sm.c wanmgr_utils.c wanmgr_net_utils.c wanmgr_dhcpv4_apis.c wanmgr_dhcpv6_apis.c wanmgr_ipc.c wanmgr_dhcpv4_internal.c wanmgr_dhcpv6_internal.c wanmgr_policy_auto_impl.c dm_pack_datamodel.c wanmgr_wan_failover.c wanmgr_policy_parallel_scan_impl.c wanmgr_dhcp_legacy_apis.c 
-wanmanager_LDADD = $(wanmanager_DEPENDENCIES) -lccsp_common -lrdkloggers $(DBUS_LIBS) $(SYSTEMD_LDFLAGS) -lhal_platform -lapi_dhcpv4c -lnanomsg -lwebconfig_framework -lmsgpackc  -lprivilege -lrbus -lsecure_wrapper
+wanmanager_LDADD = $(wanmanager_DEPENDENCIES) -lccsp_common -lrdkloggers $(SYSTEMD_LDFLAGS) -lhal_platform -lapi_dhcpv4c -lnanomsg -lwebconfig_framework -lmsgpackc -lprivilege -lrbus -lsecure_wrapper
 
 
 if WAN_UNIFICATION_ENABLED 
