@@ -1642,12 +1642,21 @@ static INT StartWanClients(WanMgr_AutoWan_SMInfo_t *pSmInfo)
                         if(ret != 0) {
                             CcspTraceWarning(("%s-%d : Failure writing to /proc file\n", __FUNCTION__, __LINE__));
                         }
+#if defined(INTEL_PUMA7)
+			v_secure_system("killall ti_udhcpc");
+			ret = v_secure_system("ti_udhcpc -plugin /lib/libert_dhcpv4_plugin.so -i %s -H DocsisGateway -p /var/run/eRT_ti_udhcpc.pid -B -b 4 &",pFixedInterface->VirtIfList->Name);
+			if(ret != 0) {
+                            CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
+                        }
+			CcspTraceInfo(("%s %d - ti_udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
+#else			
                         v_secure_system("killall udhcpc");
                         ret = v_secure_system("udhcpc -i %s &", pFixedInterface->VirtIfList->Name);
                         if(ret != 0) {
                             CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
                         }
                         CcspTraceInfo(("%s %d - udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
+#endif			
                     } // (eRouterMode == ERT_MODE_IPV4 || eRouterMode == ERT_MODE_DUAL)
 
                 }
