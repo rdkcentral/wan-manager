@@ -1652,7 +1652,7 @@ static INT StartWanClients(WanMgr_AutoWan_SMInfo_t *pSmInfo)
                             }
                             CcspTraceInfo(("%s %d - ti_udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
                         }
-			else
+                        else
 #endif			
                         {
                             v_secure_system("killall udhcpc");
@@ -1714,9 +1714,9 @@ static INT StartWanClients(WanMgr_AutoWan_SMInfo_t *pSmInfo)
                         if(ret != 0) {
                             CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
                         }
-			CcspTraceInfo(("%s %d - ti_udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
+                        CcspTraceInfo(("%s %d - ti_udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
                     }
-		    else
+                    else
 #endif
                     {
                         CcspTraceInfo(("%s - mode= %s wanPhyName= %s\n",__FUNCTION__,WanModeStr(WAN_MODE_PRIMARY),wanPhyName));
