@@ -445,7 +445,7 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
         // let the caller state handle RefreshDHCP=TRUE scenario
         CcspTraceError(("%s %d: IP Mode change detected, handle RefreshDHCP & later monitor DHCP apps\n", __FUNCTION__, __LINE__));
         //reset flag here, if the IP mode and source changes are addressed.
-        if(((p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_NO_IP) && p_VirtIf->IP.Dhcp4cStatus != DHCPC_STARTED && p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)|| //TODO : check why only IP.IPv6Source checked?
+        if((((p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP && p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_SLAAC) || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_NO_IP) && p_VirtIf->IP.Dhcp4cStatus != DHCPC_STARTED && p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)|| //TODO : check why only IP.IPv6Source checked?
             (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY && p_VirtIf->IP.Dhcp4cStatus != DHCPC_STARTED && p_VirtIf->IP.Dhcp6cStatus == DHCPC_STARTED) || //IPv6 only mode, reset if DHCPv4 not running and v6 running
             (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV4_ONLY && p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED&& p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED) || //IPv4 only mode, reset if DHCPv4 running and v6 not running
             (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK && p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED && p_VirtIf->IP.Dhcp6cStatus == DHCPC_STARTED))  //Dual stack mode, reset if DHCPv4 running and v6 running
@@ -475,7 +475,7 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 
     //Check if IPv6 dhcp client is still running - handling runtime crash of dhcp client
     if ((p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK) &&  // IP.Mode supports V6
-        p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP &&                                                    // uses DHCP client
+        ( ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP ) || ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) ) &&                                                    // uses DHCP client
         (p_VirtIf->IP.Dhcp6cPid == -1 ||                                                                           // DHCP cleint failed to start
         (p_VirtIf->IP.Dhcp6cPid > 0 &&                                                                          // dhcp started by ISM
         WanMgr_IsPIDRunning(p_VirtIf->IP.Dhcp6cPid) != TRUE)))                                                   // but DHCP client not running
@@ -2050,7 +2050,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    if((p_VirtIf->IP.IPv4Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP) && (p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED) )
+    if((p_VirtIf->IP.IPv4Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && (p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED) )
     {
         /* Clear DHCP data */
         WanManager_ClearDHCPData(p_VirtIf);
@@ -2081,7 +2081,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
             WanManager_StartDhcpv4Client(p_VirtIf,pInterface->Name, pInterface->IfaceType);
         }
 
-        if(p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP && (p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED) &&
+        if(((p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP) || (p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC) ) && (p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED) &&
             (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY))
         {
             /* Start all interface with accept ra disbaled */
@@ -2576,7 +2576,7 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
         pInterface->BaseInterfaceStatus !=  WAN_IFACE_PHY_STATUS_UP ||
         (p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status ==  WAN_IFACE_LINKSTATUS_DOWN) ||
         (p_VirtIf->PPP.Enable == TRUE && p_VirtIf->PPP.LinkStatus != WAN_IFACE_PPP_LINK_STATUS_UP) ||
-        (p_VirtIf->IP.RefreshDHCP == TRUE && (p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP ||
+        (p_VirtIf->IP.RefreshDHCP == TRUE && ((p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP && p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_SLAAC) ||
         (p_VirtIf->IP.Mode != DML_WAN_IP_MODE_IPV6_ONLY && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_DUAL_STACK))))
     {
         CcspTraceInfo(("%s %d: Stopping DHCP v6\n", __FUNCTION__, __LINE__));
@@ -2704,7 +2704,7 @@ static eWanState_t wan_transition_mapt_feature_refresh(WanMgr_IfaceSM_Controller
         WanManager_ConfigurePPPSession(p_VirtIf, TRUE);
     }
 
-    if (p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP &&
+    if ((p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) &&
        (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY))
     {
         // MAPT config changed, if we got a v6 lease at this stage, send a v6 RELEASE
@@ -3208,7 +3208,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
     if(p_VirtIf->PPP.Enable == TRUE)
     {
         if(p_VirtIf->PPP.LinkStatus ==  WAN_IFACE_PPP_LINK_STATUS_UP && 
-                !((p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP && 
+                !(((p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && 
                 (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY)) && 
                 p_VirtIf->PPP.IPV6CPStatus != WAN_IFACE_IPV6CP_STATUS_UP)) //If dhcpv6 used on PPP interface wait for IPv6cp status
         {
@@ -3352,7 +3352,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
             WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
         }
 
-        if(p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP && 
+        if((p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && 
            (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK))
         {
             if(p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED) 
@@ -3514,7 +3514,7 @@ static eWanState_t wan_state_ipv4_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
 
     //Start dhcpv6 client if Ip mode changed runtime
     if(p_VirtIf->IP.RefreshDHCP == TRUE &&
-      p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP &&
+      ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) &&
       p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK &&
       p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)
     {
@@ -3648,7 +3648,7 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     else if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
              (p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status ==  WAN_IFACE_LINKSTATUS_DOWN )||
              (p_VirtIf->PPP.Enable == TRUE && p_VirtIf->PPP.LinkStatus != WAN_IFACE_PPP_LINK_STATUS_UP)|| // PPP is Enabled but DOWN
-            (p_VirtIf->IP.RefreshDHCP == TRUE && (p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP ||    // Ipv6source is not dhcp
+            (p_VirtIf->IP.RefreshDHCP == TRUE && ((p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP && p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_SLAAC ) ||    // Ipv6source is not dhcp
             (p_VirtIf->IP.Mode != DML_WAN_IP_MODE_IPV6_ONLY && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_DUAL_STACK))))
     {
         return wan_transition_ipv6_down(pWanIfaceCtrl);
@@ -3793,7 +3793,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
         }
     }
     else if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
-            (p_VirtIf->IP.RefreshDHCP == TRUE && ( p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP ||
+            (p_VirtIf->IP.RefreshDHCP == TRUE && ( ( p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_DHCP && p_VirtIf->IP.IPv6Source != DML_WAN_IP_SOURCE_SLAAC ) ||
             (p_VirtIf->IP.Mode != DML_WAN_IP_MODE_DUAL_STACK && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_IPV6_ONLY))))
     {
         /* TODO: Add IPoE Health Check failed for IPv6 here */
