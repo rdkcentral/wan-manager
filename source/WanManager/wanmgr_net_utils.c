@@ -489,6 +489,50 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
         return 0;
     }
 
+    // Make a DHCPv6 client
+    if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
+    {
+        ROUTER_ADV_FLAGS stRAFlags = { 0 };
+
+        /*
+           IPv6 Determination based on RA
+           ------------------------------
+           | M flag | O flag | PIO Autonomous | Decision                                 |
+           | -----: | :----: | :------------: | ---------------------------------------- |
+           |      1 |   \*   |       \*       | **DHCPv6 (stateful)**                    |
+           |      0 |    1   |        1       | **SLAAC + DHCPv6 (stateless)**           |
+           |      0 |    0   |        1       | **SLAAC only**                           |
+           |      0 |    1   |        0       | **DHCPv6 (stateless)** (other info only) |
+           |      0 |    0   |        0       | **Manual/No RA**                         |
+        */
+
+        if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &stRAFlags ) )
+        {
+            if ( FALSE == stRAFlags.IsRAReceived )
+            {
+                CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                return -1;
+            }
+            else
+            {
+                if ( ( FALSE == stRAFlags.IsMFlagSet ) && ( FALSE == stRAFlags.IsOFlagSet ) )
+                {
+                    CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    return -1;
+                }
+                else if ( ( TRUE == stRAFlags.IsMFlagSet ) || ( TRUE == stRAFlags.IsOFlagSet ) )
+                {
+                    CcspTraceError(("%s %d: RA has Stateful/Stateless DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                }
+                else
+                {
+                    CcspTraceError(("%s %d: RA doesn't have Stateful/Stateless DHCPv6 information '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    return -1;
+                }
+            }
+        }
+    }
+
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
     WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
@@ -2732,3 +2776,57 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
     return ret;
 }
 
+//Fetch IPv6 Configuration via RA
+int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV_FLAGS *p_RAFlags)
+{
+    FILE    *fp         = NULL;
+    char    cmd[256]    = {0},
+            line[512]   = {0};
+
+    // NULL check on received params
+    if ( ( NULL == p_VirtIf ) || ( NULL == p_RAFlags ) )
+    {
+       CcspTraceError(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+       return -1;
+    }
+
+    CcspTraceInfo(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+    
+    snprintf(cmd, sizeof(cmd), "rdisc6 -1 -r 1 -w 1000 2>/dev/null", p_VirtIf->Name);
+    fp = popen(cmd, "r");
+    if (!fp) {
+        CcspTraceError(("%s %d: Error Failed to Send Solicit for '%s' interface \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        return -1;
+    }
+
+    //Parse rdisc6 output
+    while (fgets(line, sizeof(line), fp)) {
+        // Normalize by trimming trailing newline (optional)
+        // but we can parse with strstr directly.
+        if (strstr(line, "Hop limit") ||
+            strstr(line, "Router preference") ||
+            strstr(line, "Prefix ")) {
+            p_RAFlags->IsRAReceived = TRUE; // any of these indicate an RA parsed
+        }
+        if (strstr(line, "Stateful address conf.") && strstr(line, "Yes"))
+            p_RAFlags->IsMFlagSet = TRUE;
+        if (strstr(line, "Stateful other conf.") && strstr(line, "Yes"))
+            p_RAFlags->IsOFlagSet = TRUE;
+        if (strstr(line, "Autonomous address conf.") && strstr(line, "Yes"))
+            p_RAFlags->IsAFlagSet = TRUE;
+    }
+
+    if( NULL != fp )
+    {
+        pclose(fp);
+        fp = NULL;
+    }
+
+    CcspTraceInfo(("Parsed RA Flags: M=%s, O=%s, PIO-Autonomous=%s, seen_any_ra=%s\n",
+                                                    p_RAFlags->IsMFlagSet ? "Yes" : "No",
+                                                    p_RAFlags->IsOFlagSet ? "Yes" : "No",
+                                                    p_RAFlags->IsAFlagSet ? "Yes" : "No",
+                                                    p_RAFlags->IsRAReceived ? "Yes" : "No"));
+
+    return 0;
+}

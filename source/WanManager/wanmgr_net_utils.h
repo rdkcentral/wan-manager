@@ -83,6 +83,13 @@ typedef enum {
     STOP_DHCP_WITHOUT_RELEASE,
 } DHCP_RELEASE_BEHAVIOUR;
 
+typedef struct {
+    bool IsRAReceived;           // Confirms whether RA received or not
+    bool IsMFlagSet;             // Stateful address conf. (Managed)
+    bool IsOFlagSet;             // Stateful other conf. (Other)
+    bool IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf.
+} ROUTER_ADV_FLAGS;
+
 /* ---- Global Variables -------------------------- */
 
 /* ---- Global Prototypes -------------------------- */
@@ -271,4 +278,7 @@ BOOL IsValidIpAddress(int32_t af, const char *address);
 
 
 int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
+
+int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV_FLAGS *p_RAFlags);
+
 #endif // _WANMGR_NET_UTILS_H_
