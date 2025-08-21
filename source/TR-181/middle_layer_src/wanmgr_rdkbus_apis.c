@@ -41,7 +41,8 @@
 #ifdef RBUS_BUILD_FLAG_ENABLE
 #include "wanmgr_rbus_handler_apis.h"
 #endif //RBUS_BUILD_FLAG_ENABLE
-//
+#include "wanmgr_telemetry.h"
+
 #define PSM_ENABLE_STRING_TRUE  "TRUE"
 #define PSM_ENABLE_STRING_FALSE  "FALSE"
 #define PPP_LINKTYPE_PPPOA "PPPoA"
@@ -326,6 +327,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     if (retPsmGet == CCSP_SUCCESS)
     {
         _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.Mode));
+        WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IP_MODE);	
     }
 
     _ansc_memset(param_name, 0, sizeof(param_name));
@@ -335,6 +337,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     if(retPsmGet == CCSP_SUCCESS)
     {
         _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv4Source));
+        WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv4_CONFIG_TYPE);	
     }
 
     _ansc_memset(param_name, 0, sizeof(param_name));
@@ -350,6 +353,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     if(retPsmGet == CCSP_SUCCESS)
     {
         _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv6Source));
+        WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv6_CONFIG_TYPE);	
     }
 
     _ansc_memset(param_name, 0, sizeof(param_name));
@@ -384,6 +388,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     if(retPsmGet == CCSP_SUCCESS)
     {
         _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.ConnectivityCheckType));
+        WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);	
     }
 }
 
@@ -399,6 +404,7 @@ int get_Remote_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DM
     if(retPsmGet == CCSP_SUCCESS)
     {
         _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.ConnectivityCheckType));
+        WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);	
     }
 }
 
@@ -1826,6 +1832,9 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     if((fp = fopen(RESOLV_CONF_FILE, "r")) == NULL)
     {
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+		t2_event_d("SYST_ERROR_DNSFAIL", 1);
+#endif
         return RETURN_ERR;
     }
 
@@ -2026,8 +2035,29 @@ ANSC_STATUS Update_Interface_Status()
                 publishCurrentActiveDNS = TRUE;
 #endif
                 CcspTraceInfo(("%s %d - SYS_INFO_DNS_updated - old : [%s] new : [%s]\n",__FUNCTION__,__LINE__,prevCurrentActiveDNS,CurrentActiveDNS));
+				
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-                t2_event_d("SYS_INFO_DNS_updated", 1);
+				t2_event_d("SYS_INFO_DNS_updated", 1);
+				struct timespec uptime;
+	            long long uptime_ms = 0;
+	            char uptime_str[32]="0";
+				static bool dns_start_sent = 0; 
+			
+	        
+				if (!dns_start_sent) {
+	               if (CurrentActiveDNS && strlen(CurrentActiveDNS) > 0 &&
+                       strcmp(CurrentActiveDNS, "127.0.0.1") != 0 &&
+                       strcmp(CurrentActiveDNS, "::1") != 0 ) { 
+					   if (clock_gettime(CLOCK_MONOTONIC, &uptime) == 0)
+                       {
+                           uptime_ms = (long long)uptime.tv_sec * 1000LL + (uptime.tv_nsec / 1000000LL);
+                       }
+				       snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
+					   
+	                   t2_event_s("SYST_INFO_DNSSTART", uptime_str);
+				       dns_start_sent = 1; 
+				   }
+				}
 #endif
             }
         }
@@ -2040,6 +2070,12 @@ ANSC_STATUS Update_Interface_Status()
                 strncpy(prevCurrentActiveInterface,pWanDmlData->CurrentActiveInterface, sizeof(prevCurrentActiveInterface) - 1);
                 memset(pWanDmlData->CurrentActiveInterface, 0, sizeof(pWanDmlData->CurrentActiveInterface));
                 strncpy(pWanDmlData->CurrentActiveInterface,CurrentActiveInterface, sizeof(pWanDmlData->CurrentActiveInterface) - 1);
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked((devMode == GATEWAY_MODE) ? CurrentActiveInterface : CELLULARMGR_WAN_NAME);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_WAN_UP);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }			
 #ifdef RBUS_BUILD_FLAG_ENABLE
                 publishCurrentActiveInf = TRUE;
 #endif //RBUS_BUILD_FLAG_ENABLE

@@ -124,8 +124,6 @@ dnl Checks for library functions.
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([memset strdup strerror])
 
-PKG_CHECK_MODULES([DBUS],[dbus-1 >= 1.6.18])
-
 AC_CONFIG_FILES([Makefile
 		source/Makefile
 		source/TR-181/Makefile
