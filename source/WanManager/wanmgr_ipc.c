@@ -431,7 +431,7 @@ static void WanMgr_RemoveSingleQuote(char *buf)
     return 0;
 }
 
-ANSC_STATUS WanMgr_SendMsgToIHC (ipoe_msg_type_t msgType, char *ifName)
+ANSC_STATUS WanMgr_SendMsgToIHC (ipoe_msg_type_t msgType, DML_VIRTUAL_IFACE *p_VirtIf )
 {
     int sock = -1;
     int conn = -1;
@@ -444,25 +444,7 @@ ANSC_STATUS WanMgr_SendMsgToIHC (ipoe_msg_type_t msgType, char *ifName)
     if (msgType == IPOE_MSG_WAN_CONNECTION_IPV6_UP)
     {
         // V6 UP Message needs Wan V6 IP
-        char* pattern = NULL;
-        char ipv6_prefix[INET6_ADDRSTRLEN] = {0};
-
-        sysevent_get(sysevent_fd, sysevent_token, SYSCFG_FIELD_IPV6_PREFIX, ipv6_prefix, sizeof(ipv6_prefix));
-        if(ipv6_prefix == NULL  || *ipv6_prefix == '\0'|| (0 == strncmp(ipv6_prefix, "(null)", strlen("(null)"))))
-        {
-            CcspTraceError(("[%s-%d] Unable to get ipv6_prefix..\n",  __FUNCTION__, __LINE__));
-            return ANSC_STATUS_FAILURE;
-        }
-
-        pattern = strstr(ipv6_prefix, "/");
-        if (pattern == NULL)
-        {
-            CcspTraceError(("[%s-%d] Invalid ipv6_prefix :%s\n", __FUNCTION__, __LINE__, ipv6_prefix));
-            return ANSC_STATUS_FAILURE;
-        }
-        sprintf(pattern, "%c%c", '1', '\0'); //Form the global address with ::1
-        strncpy(msgBody.ipv6Address, ipv6_prefix, sizeof(ipv6_prefix));
-
+        strncpy(msgBody.ipv6Address, p_VirtIf->IP.Ipv6Data.address, sizeof(msgBody.ipv6Address) - 1);
         if( 0 == syscfg_get( NULL, "ntp_server1", domainName, sizeof(domainName)) )
         {
             WanMgr_RemoveSingleQuote(domainName);
@@ -477,16 +459,7 @@ ANSC_STATUS WanMgr_SendMsgToIHC (ipoe_msg_type_t msgType, char *ifName)
     }
     else if (msgType == IPOE_MSG_WAN_CONNECTION_UP)
     {
-        char ipv4_wan_address[IP_ADDR_LENGTH] = {0};
-        char sysevent_param_name[BUFLEN_64] = {0};
-        snprintf(sysevent_param_name, sizeof(sysevent_param_name), SYSEVENT_IPV4_IP_ADDRESS, ifName);
-        sysevent_get(sysevent_fd, sysevent_token, sysevent_param_name, ipv4_wan_address, sizeof(ipv4_wan_address));
-        if(ipv4_wan_address == NULL  || *ipv4_wan_address == '\0'|| (0 == strncmp(ipv4_wan_address, "(null)", strlen("(null)"))))
-        {
-            CcspTraceError(("[%s-%d] Unable to get ipv4_erouter0_ipaddr..\n",  __FUNCTION__, __LINE__));
-            return ANSC_STATUS_FAILURE;
-        }
-        strncpy(msgBody.ipv4Address, ipv4_wan_address, sizeof(ipv4_wan_address));
+        strncpy(msgBody.ipv4Address, p_VirtIf->IP.Ipv4Data.ip, sizeof(msgBody.ipv4Address)-1);
 
         if( 0 == syscfg_get( NULL, "ntp_server1", domainName, sizeof(domainName)) )
         {
@@ -500,9 +473,9 @@ ANSC_STATUS WanMgr_SendMsgToIHC (ipoe_msg_type_t msgType, char *ifName)
 
         CcspTraceInfo(("[%s-%d] Sending IPOE_MSG_WAN_CONNECTION_UP msg with addr :%s and domainName: [%s] \n", __FUNCTION__, __LINE__, msgBody.ipv4Address, msgBody.domainName));
     }
-    strncpy(msgBody.ifName, ifName, IFNAME_LENGTH-1);
+    strncpy(msgBody.ifName, p_VirtIf->Name, IFNAME_LENGTH-1);
 
-    CcspTraceInfo(("[%s-%d] Sending msg = %d for interface %s  \n", __FUNCTION__, __LINE__, msgType, ifName));
+    CcspTraceInfo(("[%s-%d] Sending msg = %d for interface %s  \n", __FUNCTION__, __LINE__, msgType, p_VirtIf->Name));
 
     int bytes = 0;
     int msgSize = sizeof(ipc_ihc_data_t);
