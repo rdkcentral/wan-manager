@@ -511,6 +511,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
             if ( FALSE == stRAFlags.IsRAReceived )
             {
                 CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                pVirtIf->IP.Dhcp6cPid = -1;
                 return -1;
             }
             else
@@ -518,6 +519,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                 if ( ( FALSE == stRAFlags.IsMFlagSet ) && ( FALSE == stRAFlags.IsOFlagSet ) )
                 {
                     CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    pVirtIf->IP.Dhcp6cPid = -1;
                     return -1;
                 }
                 else if ( ( TRUE == stRAFlags.IsMFlagSet ) || ( TRUE == stRAFlags.IsOFlagSet ) )
@@ -527,6 +529,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                 else
                 {
                     CcspTraceError(("%s %d: RA doesn't have Stateful/Stateless DHCPv6 information '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    pVirtIf->IP.Dhcp6cPid = -1;
                     return -1;
                 }
             }
@@ -2791,7 +2794,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV
     }
 
     CcspTraceInfo(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-    
+
     snprintf(cmd, sizeof(cmd), "rdisc6 -1 -r 1 -w 1000 2>/dev/null", p_VirtIf->Name);
     fp = popen(cmd, "r");
     if (!fp) {
