@@ -2795,7 +2795,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV
 
     CcspTraceInfo(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
 
-    snprintf(cmd, sizeof(cmd), "rdisc6 -1 -r 1 -w 1000 2>/dev/null", p_VirtIf->Name);
+    snprintf(cmd, sizeof(cmd), "rdisc6 -1 -r 1 -w 1000 %s 2>/dev/null", p_VirtIf->Name);
     fp = popen(cmd, "r");
     if (!fp) {
         CcspTraceError(("%s %d: Error Failed to Send Solicit for '%s' interface \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
