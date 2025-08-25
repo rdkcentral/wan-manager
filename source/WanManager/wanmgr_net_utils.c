@@ -116,7 +116,7 @@ extern int stop_dhcpv4_client (dhcp_params * params);
 #define SET_MAX_RETRY_COUNT 10 // max. retry count for set requests
 
 #ifdef FEATURE_MAPE
-#define TUNNEL_MTU            1500
+#define TUNNEL_MTU            1440
 #define TUNNEL_NAME           "ip6tnl"
 #define BUFF_SIZE_16          16
 #define BUFF_SIZE_64          64
@@ -2894,6 +2894,8 @@ ANSC_STATUS WanManager_MAPEConfiguration(ipc_map_data_t *dhcp6cMAPEMsgBody)
     {
         CcspTraceError(("%s: syscfg_set failed for parameter mape_config_flag\n", __FUNCTION__));
     }
+
+    v_secure_system("/bin/echo '%d,%d,%u' > /proc/nat_port", psid_offset, psidLen, psidValue);
 
     //Restart firewall
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
