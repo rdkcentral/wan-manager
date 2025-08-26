@@ -2858,8 +2858,8 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
             char dns[64];
             if (sscanf(line, "  Recursive DNS server : %63s", dns) == 1) {
                 if (p_RAInfo->iDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
-                    strncpy(p_RAInfo->rdnss[p_RAInfo->iDnssCount], dns, 63);
-                    p_RAInfo->rdnss[p_RAInfo->iDnssCount][63] = '\0';
+                    strncpy(p_RAInfo->acDnss[p_RAInfo->iDnssCount], dns, 63);
+                    p_RAInfo->acDnss[p_RAInfo->iDnssCount][63] = '\0';
                     p_RAInfo->iDnssCount++;
                 }
             }
