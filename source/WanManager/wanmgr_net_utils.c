@@ -492,7 +492,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     // Make a DHCPv6 client
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
     {
-        ROUTER_ADV_FLAGS stRAFlags = { 0 };
+        WanMgr_IPv6_RA_Info stRAInfo = { 0 };
 
         /*
            IPv6 Determination based on RA
@@ -506,9 +506,9 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
            |      0 |    0   |        0       | **Manual/No RA**                         |
         */
 
-        if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &stRAFlags ) )
+        if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &stRAInfo ) )
         {
-            if ( FALSE == stRAFlags.IsRAReceived )
+            if ( FALSE == stRAInfo.IsRAReceived )
             {
                 CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                 pVirtIf->IP.Dhcp6cPid = -1;
@@ -516,13 +516,13 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
             }
             else
             {
-                if ( ( FALSE == stRAFlags.IsMFlagSet ) && ( FALSE == stRAFlags.IsOFlagSet ) )
+                if ( ( FALSE == stRAInfo.IsMFlagSet ) && ( FALSE == stRAInfo.IsOFlagSet ) )
                 {
                     CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     pVirtIf->IP.Dhcp6cPid = -1;
                     return -1;
                 }
-                else if ( ( TRUE == stRAFlags.IsMFlagSet ) || ( TRUE == stRAFlags.IsOFlagSet ) )
+                else if ( ( TRUE == stRAInfo.IsMFlagSet ) || ( TRUE == stRAInfo.IsOFlagSet ) )
                 {
                     CcspTraceError(("%s %d: RA has Stateful/Stateless DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                 }
@@ -2780,20 +2780,21 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
 }
 
 //Fetch IPv6 Configuration via RA
-int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV_FLAGS *p_RAFlags)
+int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv6_RA_Info *p_RAInfo)
 {
     FILE    *fp         = NULL;
     char    cmd[256]    = {0},
             line[512]   = {0};
 
     // NULL check on received params
-    if ( ( NULL == p_VirtIf ) || ( NULL == p_RAFlags ) )
+    if ( ( NULL == p_VirtIf ) || ( NULL == p_RAInfo ) )
     {
        CcspTraceError(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
        return -1;
     }
 
     CcspTraceInfo(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+    memset(p_RAInfo, 0, sizeof(WanMgr_IPv6_RA_Info));
 
     snprintf(cmd, sizeof(cmd), "rdisc6 -1 -r 1 -w 1000 %s 2>/dev/null", p_VirtIf->Name);
     fp = popen(cmd, "r");
@@ -2802,6 +2803,8 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV
         return -1;
     }
 
+    p_RAInfo->iDnssCount = 0;
+
     //Parse rdisc6 output
     while (fgets(line, sizeof(line), fp)) {
         // Normalize by trimming trailing newline (optional)
@@ -2809,14 +2812,58 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV
         if (strstr(line, "Hop limit") ||
             strstr(line, "Router preference") ||
             strstr(line, "Prefix ")) {
-            p_RAFlags->IsRAReceived = TRUE; // any of these indicate an RA parsed
+            p_RAInfo->IsRAReceived = TRUE; // any of these indicate an RA parsed
         }
-        if (strstr(line, "Stateful address conf.") && strstr(line, "Yes"))
-            p_RAFlags->IsMFlagSet = TRUE;
-        if (strstr(line, "Stateful other conf.") && strstr(line, "Yes"))
-            p_RAFlags->IsOFlagSet = TRUE;
-        if (strstr(line, "Autonomous address conf.") && strstr(line, "Yes"))
-            p_RAFlags->IsAFlagSet = TRUE;
+
+        if (strstr(line, "Stateful address conf.") && strstr(line, "Yes")){
+            p_RAInfo->IsMFlagSet = TRUE;
+        }
+        else if (strstr(line, "Stateful other conf.") && strstr(line, "Yes")){
+            p_RAInfo->IsOFlagSet = TRUE;
+        }
+        else if (strstr(line, "Autonomous address conf.") && strstr(line, "Yes")){
+            p_RAInfo->IsAFlagSet = TRUE;
+        }
+        else if (strstr(line, "Hop limit")) {
+            sscanf(line, "  Hop limit           : %d", &p_RAInfo->hop_limit);
+        }
+        else if (strstr(line, "MTU")) {
+            sscanf(line, "  MTU                 : %d", &p_RAInfo->mtu);
+        }
+        else if (strstr(line, "Router lifetime")) {
+            sscanf(line, "  Router lifetime     : %d", &p_RAInfo->router_lifetime);
+        }
+        else if (strstr(line, "Reachable time")) {
+            sscanf(line, "  Reachable time      : %d", &p_RAInfo->reachable_time);
+        }
+        else if (strstr(line, "Retransmit time")) {
+            sscanf(line, "  Retransmit time     : %d", &p_RAInfo->retransmit_time);
+        }
+        else if (strstr(line, "Prefix")) {
+            sscanf(line, "  Prefix              : %127s", p_RAInfo->prefix);
+        }
+        else if (strstr(line, "Valid time")) {
+            sscanf(line, "      Valid time      : %d", &p_RAInfo->valid_lifetime);
+        }
+        else if (strstr(line, "Pref. time")) {
+            sscanf(line, "      Pref. time      : %d", &p_RAInfo->preferred_lifetime);
+        }
+        else if (strstr(line, "from")) { 
+            char gw[64];
+            if (sscanf(line, "from %s)", gw) == 1) {
+                strncpy(p_RAInfo->acDefaultGw, gw, sizeof(p_RAInfo->acDefaultGw)-1);
+            }
+        }
+        else if (strstr(line, "Recursive DNS server")) {
+            char dns[64];
+            if (sscanf(line, "  Recursive DNS server : %63s", dns) == 1) {
+                if (p_RAInfo->iDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
+                    strncpy(p_RAInfo->rdnss[p_RAInfo->iDnssCount], dns, 63);
+                    p_RAInfo->rdnss[p_RAInfo->iDnssCount][63] = '\0';
+                    p_RAInfo->iDnssCount++;
+                }
+            }
+        }
     }
 
     if( NULL != fp )
@@ -2825,11 +2872,30 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV
         fp = NULL;
     }
 
-    CcspTraceInfo(("Parsed RA Flags: M=%s, O=%s, PIO-Autonomous=%s, seen_any_ra=%s\n",
-                                                    p_RAFlags->IsMFlagSet ? "Yes" : "No",
-                                                    p_RAFlags->IsOFlagSet ? "Yes" : "No",
-                                                    p_RAFlags->IsAFlagSet ? "Yes" : "No",
-                                                    p_RAFlags->IsRAReceived ? "Yes" : "No"));
+    CcspTraceInfo(("*************************** RA Info ***********************************\n"));
+    CcspTraceInfo(("Parsed RA Flags: M(Managed flag)=%s, O(OtherConfig flag)=%s, A(PIO-Autoconf flag)=%s, seen_any_ra=%s\n",
+                                                    p_RAInfo->IsMFlagSet ? "Yes" : "No",
+                                                    p_RAInfo->IsOFlagSet ? "Yes" : "No",
+                                                    p_RAInfo->IsAFlagSet ? "Yes" : "No",
+                                                    p_RAInfo->IsRAReceived ? "Yes" : "No"));
+    CcspTraceInfo(("Interface: %s\n", p_RAInfo->acInterface));
+    CcspTraceInfo(("Default GW: %s\n", p_RAInfo->acDefaultGw[0] ? p_RAInfo->acDefaultGw : "(none)"));
+    CcspTraceInfo(("Hop limit: %d\n", p_RAInfo->iHopLimit));
+    CcspTraceInfo(("MTU: %d\n", p_RAInfo->iMTUSize));
+    CcspTraceInfo(("Router lifetime: %d\n", p_RAInfo->iRouterLifetime));
+    CcspTraceInfo(("Reachable time: %d\n", p_RAInfo->iReachableTime));
+    CcspTraceInfo(("Retransmit time: %d\n", p_RAInfo->iRetransmitTime));
+    CcspTraceInfo(("Prefix: %s\n", p_RAInfo->acPrefix[0] ? ip_RAInfo->acPrefix : "(none)"));
+    CcspTraceInfo(("  Valid lifetime: %d\n", p_RAInfo->iValidLfetime));
+    CcspTraceInfo(("  Preferred lifetime: %d\n", p_RAInfo->iPreferredLifetime));
+    CcspTraceInfo(("Recursive DNS servers:\n"));
+    for (int i = 0; i < p_RAInfo->iDnssCount; i++) {
+        CcspTraceInfo(("  %s\n", p_RAInfo->acDnss[i]));
+    }
+    if (p_RAInfo->iDnssCount == 0) {
+        CcspTraceInfo(("  (none)\n"));
+    }
+    CcspTraceInfo(("***********************************************************************\n"));
 
     return 0;
 }

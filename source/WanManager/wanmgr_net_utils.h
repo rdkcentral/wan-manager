@@ -83,12 +83,27 @@ typedef enum {
     STOP_DHCP_WITHOUT_RELEASE,
 } DHCP_RELEASE_BEHAVIOUR;
 
+#define WANMGR_MAX_RA_DNS_SUPPORT       5   // Up to 5 DNS servers
+
 typedef struct {
-    bool IsRAReceived;           // Confirms whether RA received or not
-    bool IsMFlagSet;             // Stateful address conf. (Managed)
-    bool IsOFlagSet;             // Stateful other conf. (Other)
-    bool IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf.
-} ROUTER_ADV_FLAGS;
+    bool        IsRAReceived;           // Confirms whether RA received or not
+    bool        IsMFlagSet;             // Stateful address conf. (Managed) M-flag
+    bool        IsOFlagSet;             // Stateful other conf. (Other) O-flag
+    bool        IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
+    char        acInterface[BUFLEN_64];
+    char        acRouter[INET6_ADDRSTRLEN];
+    int         iHopLimit;
+    int         iMTUSize;
+    int         iRouterLifetime;
+    int         iReachableTime;
+    int         iRetransmitTime;
+    char        acPrefix[BUFLEN_128];
+    int         iValidLfetime;
+    int         iPreferredLifetime;
+    char        acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
+    char        acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
+    int         iDnssCount;
+} WanMgr_IPv6_RA_Info;
 
 /* ---- Global Variables -------------------------- */
 
@@ -279,6 +294,6 @@ BOOL IsValidIpAddress(int32_t af, const char *address);
 
 int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
 
-int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, ROUTER_ADV_FLAGS *p_RAFlags);
+int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv6_RA_Info *p_RAInfo);
 
 #endif // _WANMGR_NET_UTILS_H_
