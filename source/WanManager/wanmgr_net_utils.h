@@ -98,7 +98,7 @@ typedef struct {
     int         iReachableTime;
     int         iRetransmitTime;
     char        acPrefix[BUFLEN_128];
-    int         iValidLfetime;
+    int         iValidLifetime;
     int         iPreferredLifetime;
     char        acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
     char        acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers

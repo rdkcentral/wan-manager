@@ -2825,28 +2825,28 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
             p_RAInfo->IsAFlagSet = TRUE;
         }
         else if (strstr(line, "Hop limit")) {
-            sscanf(line, "  Hop limit           : %d", &p_RAInfo->hop_limit);
+            sscanf(line, "  Hop limit           : %d", &p_RAInfo->iHopLimit);
         }
         else if (strstr(line, "MTU")) {
-            sscanf(line, "  MTU                 : %d", &p_RAInfo->mtu);
+            sscanf(line, "  MTU                 : %d", &p_RAInfo->iMTUSize);
         }
         else if (strstr(line, "Router lifetime")) {
-            sscanf(line, "  Router lifetime     : %d", &p_RAInfo->router_lifetime);
+            sscanf(line, "  Router lifetime     : %d", &p_RAInfo->iRouterLifetime);
         }
         else if (strstr(line, "Reachable time")) {
-            sscanf(line, "  Reachable time      : %d", &p_RAInfo->reachable_time);
+            sscanf(line, "  Reachable time      : %d", &p_RAInfo->iReachableTime);
         }
         else if (strstr(line, "Retransmit time")) {
-            sscanf(line, "  Retransmit time     : %d", &p_RAInfo->retransmit_time);
+            sscanf(line, "  Retransmit time     : %d", &p_RAInfo->iRetransmitTime);
         }
         else if (strstr(line, "Prefix")) {
-            sscanf(line, "  Prefix              : %127s", p_RAInfo->prefix);
+            sscanf(line, "  Prefix              : %127s", p_RAInfo->acPrefix);
         }
         else if (strstr(line, "Valid time")) {
-            sscanf(line, "      Valid time      : %d", &p_RAInfo->valid_lifetime);
+            sscanf(line, "      Valid time      : %d", &p_RAInfo->iValidLifetime);
         }
         else if (strstr(line, "Pref. time")) {
-            sscanf(line, "      Pref. time      : %d", &p_RAInfo->preferred_lifetime);
+            sscanf(line, "      Pref. time      : %d", &p_RAInfo->iPreferredLifetime);
         }
         else if (strstr(line, "from")) { 
             char gw[64];
@@ -2886,7 +2886,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
     CcspTraceInfo(("Reachable time: %d\n", p_RAInfo->iReachableTime));
     CcspTraceInfo(("Retransmit time: %d\n", p_RAInfo->iRetransmitTime));
     CcspTraceInfo(("Prefix: %s\n", p_RAInfo->acPrefix[0] ? ip_RAInfo->acPrefix : "(none)"));
-    CcspTraceInfo(("  Valid lifetime: %d\n", p_RAInfo->iValidLfetime));
+    CcspTraceInfo(("  Valid lifetime: %d\n", p_RAInfo->iValidLifetime));
     CcspTraceInfo(("  Preferred lifetime: %d\n", p_RAInfo->iPreferredLifetime));
     CcspTraceInfo(("Recursive DNS servers:\n"));
     for (int i = 0; i < p_RAInfo->iDnssCount; i++) {
