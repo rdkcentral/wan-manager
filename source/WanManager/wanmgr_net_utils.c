@@ -505,7 +505,6 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
            |      0 |    1   |        0       | **DHCPv6 (stateless)** (other info only) |
            |      0 |    0   |        0       | **Manual/No RA**                         |
         */
-
         if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &stRAInfo ) )
         {
             if ( FALSE == stRAInfo.IsRAReceived )
@@ -519,16 +518,6 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                 if ( ( FALSE == stRAInfo.IsMFlagSet ) && ( FALSE == stRAInfo.IsOFlagSet ) )
                 {
                     CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                    pVirtIf->IP.Dhcp6cPid = -1;
-                    return -1;
-                }
-                else if ( ( TRUE == stRAInfo.IsMFlagSet ) || ( TRUE == stRAInfo.IsOFlagSet ) )
-                {
-                    CcspTraceError(("%s %d: RA has Stateful/Stateless DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                }
-                else
-                {
-                    CcspTraceError(("%s %d: RA doesn't have Stateful/Stateless DHCPv6 information '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     pVirtIf->IP.Dhcp6cPid = -1;
                     return -1;
                 }
