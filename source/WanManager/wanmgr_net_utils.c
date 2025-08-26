@@ -2885,7 +2885,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
     CcspTraceInfo(("Router lifetime: %d\n", p_RAInfo->iRouterLifetime));
     CcspTraceInfo(("Reachable time: %d\n", p_RAInfo->iReachableTime));
     CcspTraceInfo(("Retransmit time: %d\n", p_RAInfo->iRetransmitTime));
-    CcspTraceInfo(("Prefix: %s\n", p_RAInfo->acPrefix[0] ? ip_RAInfo->acPrefix : "(none)"));
+    CcspTraceInfo(("Prefix: %s\n", p_RAInfo->acPrefix[0] ? p_RAInfo->acPrefix : "(none)"));
     CcspTraceInfo(("  Valid lifetime: %d\n", p_RAInfo->iValidLifetime));
     CcspTraceInfo(("  Preferred lifetime: %d\n", p_RAInfo->iPreferredLifetime));
     CcspTraceInfo(("Recursive DNS servers:\n"));
