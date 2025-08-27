@@ -2768,7 +2768,7 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
     return ret;
 }
 
-//Fetch IPv6 Configuration via RA
+/** WanManager_Get_IPv6_RA_Configuration() */
 int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv6_RA_Info *p_RAInfo)
 {
     FILE    *fp         = NULL;
@@ -2779,6 +2779,13 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
     if ( ( NULL == p_VirtIf ) || ( NULL == p_RAInfo ) )
     {
        CcspTraceError(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+       return -1;
+    }
+
+    //Wait until interface ready
+    if ( ANSC_STATUS_FAILURE == WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse( p_VirtIf->Name, INTF_V6LL_TIMEOUT_IN_MSEC ) )
+    {
+       CcspTraceError(("%s %d: Interface not ready to use for IPv6 request so ignoring solicit request for '%s' \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
        return -1;
     }
 
@@ -2887,4 +2894,54 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
     CcspTraceInfo(("***********************************************************************\n"));
 
     return 0;
+}
+
+/** WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse() */
+ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout)
+{
+    ANSC_STATUS  returnStatus = ANSC_STATUS_FAILURE;
+
+    // NULL check on received params
+    if ( NULL == pInterfaceName )
+    {
+       CcspTraceError(("%s %d: Invalid argument\n", __FUNCTION__, __LINE__));
+       return returnStatus;
+    }
+
+    //Check if interface is ipv6 ready with a link-local address
+    unsigned int waitTime = uiTimeout;
+    char cmd[BUFLEN_128] = {0};
+    snprintf(cmd, sizeof(cmd), "ip address show dev %s tentative", pInterfaceName);
+    while (waitTime > 0) 
+    {
+        FILE *fp_dad   = NULL;
+        char buffer[BUFLEN_256] = {0};
+ 
+        fp_dad = popen(cmd, "r");
+        if(fp_dad != NULL) 
+        {
+            if ((fgets(buffer, BUFLEN_256, fp_dad) == NULL) || (strlen(buffer) == 0))
+            {
+                pclose(fp_dad);
+                break;
+            }
+            CcspTraceError(("%s %d: Interface(%s) still tentative: %s\n", __FUNCTION__, __LINE__, pInterfaceName, buffer));
+            pclose(fp_dad);
+        }
+        usleep(INTF_V6LL_INTERVAL_IN_MSEC * USECS_IN_MSEC);
+        waitTime -= INTF_V6LL_INTERVAL_IN_MSEC;
+    }
+
+    if (waitTime <= 0)
+    {
+        CcspTraceError(("%s %d: Interface %s doesnt have link local address\n", __FUNCTION__, __LINE__, pInterfaceName));
+        returnStatus = ANSC_STATUS_FAILURE;
+    }
+    else
+    {
+        CcspTraceError(("%s %d: interface %s has valid link local address\n", __FUNCTION__, __LINE__, pInterfaceName));
+        returnStatus = ANSC_STATUS_SUCCESS;
+    }
+
+    return returnStatus;
 }
