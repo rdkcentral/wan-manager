@@ -511,6 +511,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
             {
                 CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                 pVirtIf->IP.Dhcp6cPid = -1;
+                pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
                 return -1;
             }
             else
@@ -519,10 +520,15 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                 {
                     CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     pVirtIf->IP.Dhcp6cPid = -1;
+                    pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
                     return -1;
                 }
             }
         }
+    }
+    else
+    {
+        WanManager_send_and_receive_rs(pVirtIf);
     }
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
@@ -556,7 +562,6 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     params.ifType = IfaceType;
 
     CcspTraceInfo(("Enter WanManager_StartDhcpv6Client for  %s \n", pVirtIf->Name));
-    WanManager_send_and_receive_rs(pVirtIf);
     pid = start_dhcpv6_client(&params);
     if (pid == 0) 
     {
