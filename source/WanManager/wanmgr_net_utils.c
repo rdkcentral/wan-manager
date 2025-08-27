@@ -2772,8 +2772,8 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
 int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv6_RA_Info *p_RAInfo)
 {
     FILE    *fp         = NULL;
-    char    cmd[256]    = {0},
-            line[512]   = {0};
+    char    cmd[BUFLEN_256]    = {0},
+            line[BUFLEN_512]   = {0};
 
     // NULL check on received params
     if ( ( NULL == p_VirtIf ) || ( NULL == p_RAInfo ) )
@@ -2845,13 +2845,13 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
             sscanf(line, "      Pref. time      : %d", &p_RAInfo->iPreferredLifetime);
         }
         else if (strstr(line, "from")) { 
-            char gw[64];
-            if (sscanf(line, "from %s)", gw) == 1) {
+            char gw[INET6_ADDRSTRLEN] = {0};
+            if (sscanf(line, " from %s)", gw) == 1) {
                 strncpy(p_RAInfo->acDefaultGw, gw, sizeof(p_RAInfo->acDefaultGw)-1);
             }
         }
         else if (strstr(line, "Recursive DNS server")) {
-            char dns[64];
+            char dns[BUFLEN_64] = {0};
             if (sscanf(line, "  Recursive DNS server : %63s", dns) == 1) {
                 if (p_RAInfo->iDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
                     strncpy(p_RAInfo->acDnss[p_RAInfo->iDnssCount], dns, 63);
