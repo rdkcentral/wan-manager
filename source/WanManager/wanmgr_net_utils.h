@@ -272,7 +272,4 @@ BOOL IsValidIpAddress(int32_t af, const char *address);
 
 
 int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
-#ifdef FEATURE_MAPE
-ANSC_STATUS WanManager_MAPEConfiguration(ipc_map_data_t *dhcp6cMAPEMsgBody);
-#endif
 #endif // _WANMGR_NET_UTILS_H_
