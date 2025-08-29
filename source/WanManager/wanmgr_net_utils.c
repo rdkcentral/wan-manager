@@ -523,6 +523,21 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                     pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
                     return -1;
                 }
+                else if( TRUE == stRAInfo.IsMFlagSet )
+                {
+                    CcspTraceError(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to aquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                }
+                else if( TRUE == stRAInfo.IsOFlagSet )
+                {
+                    char  acIPv6Address[INET6_ADDRSTRLEN] = {0};
+
+                    CcspTraceError(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to aquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    
+                    //To do collect RA information and go ahead of DHCPv6
+                    //pVirtIf->IP.Ipv6Data.addrAssigned = TRUE;
+                    //pVirtIf->IP.Ipv6Data.addrCmd = IFADDRCONF_ADD;
+                    WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address);
+                }
             }
         }
     }
@@ -2852,7 +2867,11 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
         else if (strstr(line, "from")) { 
             char gw[INET6_ADDRSTRLEN] = {0};
             if (sscanf(line, " from %s)", gw) == 1) {
-                strncpy(p_RAInfo->acDefaultGw, gw, sizeof(p_RAInfo->acDefaultGw)-1);
+                struct in6_addr addr;
+                if (inet_pton(AF_INET6, gw, &addr) == 1)  //check parsed value is a valid ipv6 address
+                {
+                    strncpy(p_RAInfo->acDefaultGw, gw, sizeof(p_RAInfo->acDefaultGw)-1);
+                }
             }
         }
         else if (strstr(line, "Recursive DNS server")) {
@@ -2947,6 +2966,54 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
         CcspTraceError(("%s %d: interface %s has valid link local address\n", __FUNCTION__, __LINE__, pInterfaceName));
         returnStatus = ANSC_STATUS_SUCCESS;
     }
+
+    return returnStatus;
+}
+
+/** WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface() */
+ANSC_STATUS WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface(char *pInterfaceName, char *pIPv6Address)
+{
+    ANSC_STATUS     returnStatus = ANSC_STATUS_FAILURE;
+    struct ifaddrs *ifaddr, *ifa;
+    char            addr_str[INET6_ADDRSTRLEN] = {0};
+
+    // NULL check on received params
+    if ( ( NULL == pInterfaceName ) || ( NULL == pIPv6Address ) )
+    {
+       CcspTraceError(("%s %d: Invalid argument\n", __FUNCTION__, __LINE__));
+       return returnStatus;
+    }
+
+    //Get All Linux Interfaces
+    if ( getifaddrs(&ifaddr) == -1 ) 
+    {
+        CcspTraceError(("%s %d: Failed to fetch linux interface addresses\n", __FUNCTION__, __LINE__));
+        return returnStatus;
+    }
+
+    //Iterate all interfaces and fetch IPv6 address
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) 
+    {
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        if ((ifa->ifa_addr->sa_family == AF_INET6) &&
+            (strcmp(ifa->ifa_name, argv[1]) == 0))
+        {
+                struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+                inet_ntop(AF_INET6, &sin6->sin6_addr, addr_str, sizeof(addr_str));
+
+                //Skip link-local addresses (fe80::/10)
+                if (strncmp(addr_str, "fe80", 4) != 0) {
+                    snprintf(pIPv6Address, "%s/%d", addr_str, ifa->ifa_prefixlen);
+                    CcspTraceInfo(("%s-%d Global IPv6 address on %s: %s/%d,[%s]\n", pInterfaceName, addr_str, ifa->ifa_prefixlen, pIPv6Address));
+                    returnStatus = ANSC_STATUS_SUCCESS;
+                    break;
+                }
+        }
+    }
+
+    freeifaddrs(ifaddr);
 
     return returnStatus;
 }
