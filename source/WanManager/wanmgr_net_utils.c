@@ -2998,15 +2998,15 @@ ANSC_STATUS WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface(char *pInter
             continue;
 
         if ((ifa->ifa_addr->sa_family == AF_INET6) &&
-            (strcmp(ifa->ifa_name, argv[1]) == 0))
+            (strcmp(ifa->ifa_name, pInterfaceName) == 0))
         {
                 struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
                 inet_ntop(AF_INET6, &sin6->sin6_addr, addr_str, sizeof(addr_str));
 
                 //Skip link-local addresses (fe80::/10)
                 if (strncmp(addr_str, "fe80", 4) != 0) {
-                    snprintf(pIPv6Address, "%s/%d", addr_str, ifa->ifa_prefixlen);
-                    CcspTraceInfo(("%s-%d Global IPv6 address on %s: %s/%d,[%s]\n", pInterfaceName, addr_str, ifa->ifa_prefixlen, pIPv6Address));
+                    sprintf(pIPv6Address, "%s", addr_str);
+                    CcspTraceInfo(("%s-%d Global IPv6 address on %s: %s/[%s]\n", pInterfaceName, addr_str, pIPv6Address));
                     returnStatus = ANSC_STATUS_SUCCESS;
                     break;
                 }
