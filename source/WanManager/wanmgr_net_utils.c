@@ -549,7 +549,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                         }
 
                         pVirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_ADD;
-                        p_VirtIf->IP.Ipv6Status             = WAN_IFACE_IPV6_STATE_UP;
+                        pVirtIf->IP.Ipv6Status             = WAN_IFACE_IPV6_STATE_UP;
                     }
                     else
                     {
