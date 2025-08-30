@@ -534,11 +534,39 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                     CcspTraceError(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to aquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     
                     //To do collect RA information and go ahead of DHCPv6
-                    //pVirtIf->IP.Ipv6Data.addrAssigned = TRUE;
-                    //pVirtIf->IP.Ipv6Data.addrCmd = IFADDRCONF_ADD;
-                    WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address);
+                    if ( ANSC_STATUS_SUCCESS == WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address) )
+                    {
+                        snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
+                        pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
+
+                        if ( 0 < stRAInfo.iDnssCount )
+                        {
+                            if( '\0' != stRAInfo.acDnss[0][0] )
+                            snprintf(pVirtIf->IP.Ipv6Data.nameserver, sizeof(pVirtIf->IP.Ipv6Data.nameserver), "%s", stRAInfo.acDnss[0]);
+                            
+                            if( '\0' != stRAInfo.acDnss[1][0] )
+                            snprintf(pVirtIf->IP.Ipv6Data.nameserver1, sizeof(pVirtIf->IP.Ipv6Data.nameserver1), "%s", stRAInfo.acDnss[1]);
+                        }
+
+                        pVirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_ADD;
+                        p_VirtIf->IP.Ipv6Status             = WAN_IFACE_IPV6_STATE_UP;
+                    }
+                    else
+                    {
+                        CcspTraceError(("%s %d: Failed to fetch IPv6 global SLAAC address for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                        pVirtIf->IP.Dhcp6cPid = -1;
+                        pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
+                        return -1;
+                    }
                 }
             }
+        }
+        else
+        {
+            CcspTraceError(("%s %d: Failed to send/receive RA for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+            pVirtIf->IP.Dhcp6cPid = -1;
+            pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
+            return -1;
         }
     }
     else
@@ -3006,7 +3034,7 @@ ANSC_STATUS WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface(char *pInter
                 //Skip link-local addresses (fe80::/10)
                 if (strncmp(addr_str, "fe80", 4) != 0) {
                     sprintf(pIPv6Address, "%s", addr_str);
-                    CcspTraceInfo(("%s-%d Global IPv6 address on %s: %s/[%s]\n", pInterfaceName, addr_str, pIPv6Address));
+                    CcspTraceInfo(("%s-%d Global IPv6 address on %s: %s/[%s]\n", __FUNCTION__, __LINE__, pInterfaceName, addr_str, pIPv6Address));
                     returnStatus = ANSC_STATUS_SUCCESS;
                     break;
                 }
