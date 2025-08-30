@@ -548,8 +548,8 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                             snprintf(pVirtIf->IP.Ipv6Data.nameserver1, sizeof(pVirtIf->IP.Ipv6Data.nameserver1), "%s", stRAInfo.acDnss[1]);
                         }
 
-                        pVirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_ADD;
-                        pVirtIf->IP.Ipv6Status             = WAN_IFACE_IPV6_STATE_UP;
+                        pVirtIf->IP.Ipv6Data.addrCmd  = IFADDRCONF_ADD;
+                        pVirtIf->IP.Ipv6Status        = WAN_IFACE_IPV6_STATE_UP;
                     }
                     else
                     {
@@ -2788,9 +2788,9 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
     // Read the output line by line
     while (fgets(buffer, sizeof(buffer), fp) != NULL) 
     {
-        if (strstr(buffer, "Route lifetime")) 
+        if (strstr(buffer, "Router lifetime")) 
         {
-            sscanf(buffer, " Route lifetime : %d", &p_VirtIf->IP.Ipv6Route.defRouteLifeTime);
+            sscanf(buffer, " Router lifetime : %d", &p_VirtIf->IP.Ipv6Route.defRouteLifeTime);
         }
 
         // Look for the "from" line to identify the default route address
@@ -2848,6 +2848,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
     }
 
     p_RAInfo->iDnssCount = 0;
+    snprintf(p_RAInfo->Interface, sizeof(p_RAInfo->Interface), "%s", p_VirtIf->Name);
 
     //Parse rdisc6 output
     while (fgets(line, sizeof(line), fp)) {

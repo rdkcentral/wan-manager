@@ -1515,6 +1515,16 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         AnscTraceError(("%s %d -  Failed to remove inactive address \n", __FUNCTION__,__LINE__));
     }
 
+    //Remove the default route explitcly when SLAAC mode since no prefix
+    if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
+    {
+        char acCmdLine[BUFLEN_128] = {0};
+        CcspTraceInfo(("%s %d -  Deleting IPv6 default route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        snprintf(cmdLine, sizeof(cmdLine), "ip -6 route del default dev %s", p_VirtIf->Name);
+        if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", cmdLine) != 0)
+            CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, cmdLine));
+    }
+
     // Reset sysvevents.
     char previousPrefix[BUFLEN_48] = {0};
     char previousPrefix_vldtime[BUFLEN_48] = {0};
@@ -2610,6 +2620,9 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
     WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
 
+    //Disable accept_ra
+    WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
+
     if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
     {
         if (wan_tearDownIPv6(pWanIfaceCtrl) != RETURN_OK)
@@ -2629,8 +2642,6 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
 
     Update_Interface_Status();
     sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_IPV4_CONNECTION_STATE, buf, sizeof(buf));
-    //Disable accept_ra
-    WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
 
     if(p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP && !strcmp(buf, WAN_STATUS_UP))
     {
