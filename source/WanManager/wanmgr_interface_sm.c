@@ -3046,6 +3046,8 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
         }
     }
 
+    WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
+
     if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
     {
         CcspTraceInfo(("%s %d - Deconfiguring Ipv6 for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -3055,8 +3057,6 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
         }
         p_VirtIf->IP.Ipv6Changed = TRUE; //We have deconfigured Ipv6 from the device. set this flag to configure again when moves back to active.
     }
-
-    WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
 
     p_VirtIf->Status = WAN_IFACE_STATUS_STANDBY;
     if (pWanIfaceCtrl->interfaceIdx != -1)
