@@ -2848,7 +2848,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
     }
 
     p_RAInfo->iDnssCount = 0;
-    snprintf(p_RAInfo->Interface, sizeof(p_RAInfo->Interface), "%s", p_VirtIf->Name);
+    snprintf(p_RAInfo->acInterface, sizeof(p_RAInfo->acInterface), "%s", p_VirtIf->Name);
 
     //Parse rdisc6 output
     while (fgets(line, sizeof(line), fp)) {

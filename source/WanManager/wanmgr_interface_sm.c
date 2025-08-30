@@ -1519,10 +1519,10 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
     {
         char acCmdLine[BUFLEN_128] = {0};
-        CcspTraceInfo(("%s %d -  Deleting IPv6 default route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-        snprintf(cmdLine, sizeof(cmdLine), "ip -6 route del default dev %s", p_VirtIf->Name);
-        if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", cmdLine) != 0)
-            CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, cmdLine));
+        CcspTraceInfo(("%s %d -  Deleting IPv6 default route for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 route del default dev %s", pVirtIf->Name);
+        if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", acCmdLine) != 0)
+            CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, acCmdLine));
     }
 
     // Reset sysvevents.
