@@ -19,7 +19,11 @@
 
 /* ---- Include Files ---------------------------------------- */
 #include <unistd.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/if_addr.h>
+#include <net/if.h>
 #include "ipc_msg.h"
 #include "network_route_monitor.h"
 #include "ansc_platform.h"
@@ -190,7 +194,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
     struct rtattr *rta = IFA_RTA(ifa);
     int rta_len = IFA_PAYLOAD(nlh);
-    char ifname[IF_NAMESIZE],
+    char ifname[BUFLEN_32] = {0},
          eventInfo[BUFLEN_512] = {0};
 
     int ifindex = ifa->ifa_index;
