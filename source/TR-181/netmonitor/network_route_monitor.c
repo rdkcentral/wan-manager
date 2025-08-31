@@ -39,6 +39,7 @@ static bool g_toggle_flag = TRUE;
 
 #define LOOP_TIMEOUT 100000 // timeout in milliseconds. This is the state machine loop interval
 #define SYSEVENT_IPV6_TOGGLE        "ipv6Toggle"
+#define SYSEVENT_IPV6_ADDR_UPDATE   "ipv6AddressUpdate"
 #define SYSEVENT_OPEN_MAX_RETRIES   6
 #define SE_SERVER_WELL_KNOWN_PORT   52367
 #define SE_VERSION                  1
@@ -64,6 +65,7 @@ static bool g_toggle_flag = TRUE;
 #endif
 /* ---- Private Function Prototypes -------------------------- */
 static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len); // Parse the route entries
+static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh); // Parse the interface address entries
 static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr); // check for default gateway
 
 #if defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)
@@ -182,6 +184,61 @@ static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int l
     }
 }
 
+static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh) 
+{
+    ANSC_STATUS ret = ANSC_STATUS_FAILURE;
+    struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
+    struct rtattr *rta = IFA_RTA(ifa);
+    int rta_len = IFA_PAYLOAD(nlh);
+    char ifname[IF_NAMESIZE],
+         eventInfo[BUFLEN_512] = {0};
+
+    int ifindex = ifa->ifa_index;
+    int family  = ifa->ifa_family;
+
+    //Convert index to ifname
+    if (if_indextoname(ifindex, ifname) == NULL) 
+    {
+        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] Failed to retreive interface name for ifindex=%d\n", __FUNCTION__, __LINE__, ifindex);
+        return ret;
+    }
+
+    DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", ifindex, ifname, family);
+
+    for (; RTA_OK(rta, rta_len); rta = RTA_NEXT(rta, rta_len)) {
+        if (rta->rta_type == IFA_ADDRESS) {
+            char buf[INET6_ADDRSTRLEN];
+            if (family == AF_INET6) {
+                inet_ntop(AF_INET6, RTA_DATA(rta), buf, sizeof(buf));
+                DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] IPv6 address: %s/%d\n", buf, ifa->ifa_prefixlen);
+            }
+        }
+        if (rta->rta_type == IFA_CACHEINFO) {
+            struct ifa_cacheinfo *ci = RTA_DATA(rta);
+            DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] preferred_lft=%u sec, valid_lft=%u sec\n",
+                                                    __FUNCTION__, __LINE__,
+                                                    ci->ifa_prefered, ci->ifa_valid);
+        }
+    }
+
+    if (nlh->nlmsg_type == RTM_NEWADDR) 
+    {
+       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
+       snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s", ifname);
+       sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       ret = ANSC_STATUS_SUCCESS;
+    } 
+    else if (nlh->nlmsg_type == RTM_DELADDR) 
+    {
+       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
+       snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s", ifname);
+       sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       ret = ANSC_STATUS_SUCCESS;
+    }
+
+    return ret;
+}
+
 static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr)
 {
     struct rtmsg* route_entry = NLMSG_DATA(nlmsgHdr);
@@ -225,7 +282,7 @@ static ANSC_STATUS NetMonitor_InitNetlinkRouteMonitorFd()
 
     memset(&addr, 0, sizeof(addr));
     addr.nl_family = AF_NETLINK;
-    addr.nl_groups = RTMGRP_IPV6_ROUTE;
+    addr.nl_groups = RTMGRP_IPV6_ROUTE | RTMGRP_IPV6_IFADDR;
     if (0 > bind(netlinkRouteMonitorFd, (struct sockaddr *) &addr, sizeof(addr)))
     {
         DBG_MONITOR_PRINT("%s Failed to bind netlink socket: %s\n", __FUNCTION__, strerror(errno));
@@ -349,6 +406,12 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
                          }
                      }
                      break;
+                }
+            case RTM_NEWADDR:
+            case RTM_DELADDR:
+                {
+                    parse_addrattr(nl_msgHdr);
+                    break;
                 }
             default:
                 break;

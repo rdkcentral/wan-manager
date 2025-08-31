@@ -38,6 +38,7 @@ static token_t sysevent_msg_token;
 #define SYS_IP_ADDR                 "127.0.0.1"
 #define BUFLEN_42                   42
 #define SYSEVENT_IPV6_TOGGLE        "ipv6Toggle"
+#define SYSEVENT_IPV6_ADDR_UPDATE   "ipv6AddressUpdate"
 #define SYSEVENT_VALUE_TRUE        "true"
 #define SYSEVENT_VALUE_FALSE        "false"
 #define SYSEVENT_VALUE_READY        "ready"
@@ -618,6 +619,8 @@ static void *WanManagerSyseventHandler(void *args)
     async_id_t primary_v6ipaddress_asyncid;
 #endif
 #endif
+    async_id_t ipv6_address_change_event_asyncid;
+
 
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
@@ -698,6 +701,9 @@ static void *WanManagerSyseventHandler(void *args)
 #endif
 #endif
 
+    sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_ADDR_UPDATE, TUPLE_FLAG_EVENT);
+    sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_ADDR_UPDATE, &ipv6_address_change_event_asyncid);
+
     for(;;)
     {
         char name[BUFLEN_42] = {0};
@@ -761,6 +767,10 @@ static void *WanManagerSyseventHandler(void *args)
                     isDefaultGatewayAdded = 0;
                     CcspTraceWarning(("%s %d Netmonitor Update : IPv6 default route Deleted \n", __FUNCTION__, __LINE__ ));
                 }
+            }
+            else if ( strcmp(name, SYSEVENT_IPV6_ADDR_UPDATE) == 0 )
+            {
+                CcspTraceWarning(("%s %d Netmonitor Update : IPv6 Address Update Event:%s, Value:%s \n", __FUNCTION__, __LINE__, name, val ));
             }
             else if ( strcmp(name, SYSEVENT_ULA_ENABLE) == 0 )
             {
@@ -1216,6 +1226,7 @@ int Force_IPv6_toggle (char* wanInterface)
  */
 void WanMgr_CheckDefaultRA (DML_VIRTUAL_IFACE * pVirtIf)
 {
+
     //TODO : Move router monitor to a WanManager thread ? 
     if(!isDefaultGatewayAdded )
     {
@@ -1253,7 +1264,7 @@ void WanMgr_Configure_accept_ra(DML_VIRTUAL_IFACE * pVirtIf, BOOL EnableRa)
     {
         v_secure_system("sysctl -w net.ipv6.conf.%s.accept_ra_pinfo=0",pVirtIf->Name);
     }
-    
+
     if(EnableRa)
     {
         v_secure_system("sysctl -w net.ipv6.conf.%s.router_solicitations=3",pVirtIf->Name);
