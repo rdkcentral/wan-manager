@@ -222,7 +222,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
             struct ifa_cacheinfo *ci = RTA_DATA(rta);
             DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] preferred_lft=%u sec, valid_lft=%u sec\n",
                                                     __FUNCTION__, __LINE__,
-                                                    ci->ifa_prefered, ci->ifa_valid);
+                                                    ci->ifa_preferred, ci->ifa_valid);
         }
     }
 
