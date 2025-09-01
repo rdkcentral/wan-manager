@@ -191,34 +191,29 @@ static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int l
 static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh) 
 {
     DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
-
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
     struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
-    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
-    struct rtattr *rta = IFA_RTA(ifa);
-    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
-    int rta_len = IFA_PAYLOAD(nlh);
-    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
-    char ifname[BUFLEN_32] = {0},
+    char ifname[IF_NAMESIZE],
          eventInfo[BUFLEN_512] = {0};
-    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
-    int ifindex = ifa->ifa_index;
-    int family  = ifa->ifa_family;
-    DBG_MONITOR_PRINT("%s-%d: Trace %d\n", __FUNCTION__, __LINE__, ifindex);
 
-    //Convert index to ifname
-    if (if_indextoname(ifindex, ifname) == NULL) 
-    {
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+
+    if (if_indextoname(ifa->ifa_index, ifname) == NULL) {
         DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] Failed to retreive interface name for ifindex=%d\n", __FUNCTION__, __LINE__, ifindex);
         return ret;
     }
 
     DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", ifindex, ifname, family);
 
-    for (; RTA_OK(rta, rta_len); rta = RTA_NEXT(rta, rta_len)) {
+    int len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifa));
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+    struct rtattr *rta = IFA_RTA(ifa);
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+
+    for (; RTA_OK(rta, len); rta = RTA_NEXT(rta, len)) {
         if (rta->rta_type == IFA_ADDRESS) {
             char buf[INET6_ADDRSTRLEN];
-            if (family == AF_INET6) {
+            if (ifa->ifa_family == AF_INET6) {
                 inet_ntop(AF_INET6, RTA_DATA(rta), buf, sizeof(buf));
                 DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] IPv6 address: %s/%d\n", buf, ifa->ifa_prefixlen);
             }
@@ -231,6 +226,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
         }
     }
 
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
     if (nlh->nlmsg_type == RTM_NEWADDR) 
     {
        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
