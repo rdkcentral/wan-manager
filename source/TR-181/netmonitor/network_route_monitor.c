@@ -199,11 +199,11 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
 
     if (if_indextoname(ifa->ifa_index, ifname) == NULL) {
-        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] Failed to retreive interface name for ifindex=%d\n", __FUNCTION__, __LINE__, ifindex);
+        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] Failed to retreive interface name for ifindex=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index);
         return ret;
     }
 
-    DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", ifindex, ifname, family);
+    DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", ifa->ifa_index, ifname, ifa->ifa_family);
 
     int len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifa));
     DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
@@ -222,7 +222,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
             struct ifa_cacheinfo *ci = RTA_DATA(rta);
             DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] preferred_lft=%u sec, valid_lft=%u sec\n",
                                                     __FUNCTION__, __LINE__,
-                                                    ci->ifa_preferred, ci->ifa_valid);
+                                                    ci->ifa_prefered, ci->ifa_valid);
         }
     }
 
