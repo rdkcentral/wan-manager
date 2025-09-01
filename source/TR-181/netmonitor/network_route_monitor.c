@@ -203,7 +203,8 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
         return ret;
     }
 
-    DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", ifa->ifa_index, ifname, ifa->ifa_family);
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+    DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index, ifname, ifa->ifa_family);
 
     int len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifa));
     DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
@@ -215,11 +216,13 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
             char buf[INET6_ADDRSTRLEN];
             if (ifa->ifa_family == AF_INET6) {
                 inet_ntop(AF_INET6, RTA_DATA(rta), buf, sizeof(buf));
-                DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] IPv6 address: %s/%d\n", buf, ifa->ifa_prefixlen);
+                DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+                DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] IPv6 address: %s/%d\n", __FUNCTION__, __LINE__, buf, ifa->ifa_prefixlen);
             }
         }
         if (rta->rta_type == IFA_CACHEINFO) {
             struct ifa_cacheinfo *ci = RTA_DATA(rta);
+            DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
             DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] preferred_lft=%u sec, valid_lft=%u sec\n",
                                                     __FUNCTION__, __LINE__,
                                                     ci->ifa_prefered, ci->ifa_valid);
@@ -232,6 +235,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
        snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s", ifname);
        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
@@ -239,6 +243,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
        snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s", ifname);
        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
        ret = ANSC_STATUS_SUCCESS;
     }
 
