@@ -25,6 +25,7 @@
 #include "wanmgr_data.h"
 #include "wanmgr_sysevents.h"
 #include "wanmgr_dhcpv4_apis.h"
+#include "wanmgr_telemetry.h"
 
 #define WANMGR_MAX_IPC_PROCCESS_TRY             5
 #define WANMGR_IPC_PROCCESS_TRY_WAIT_TIME       100000 //us
@@ -199,6 +200,14 @@ static ANSC_STATUS WanMgr_IpcNewIhcMsg(ipc_ihc_data_t *pIhcMsg)
                 CcspTraceInfo(("Setting IPV6 Connection state to UP \n"));
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_CONNECTION_STATE, WAN_STATUS_UP, 0);
             }
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(pIhcMsg->ifName);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_STATUS_UP_IPV6);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }
+            }			    
             break;
         case IPOE_MSG_IHC_ECHO_IPV4_UP:
             /* Check if we get the IPv4 connection UP message from the
@@ -212,15 +221,61 @@ static ANSC_STATUS WanMgr_IpcNewIhcMsg(ipc_ihc_data_t *pIhcMsg)
                 CcspTraceInfo(("Setting IPv4 Connection state to UP \n"));
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV4_CONNECTION_STATE, WAN_STATUS_UP, 0);
             }
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(pIhcMsg->ifName);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_STATUS_UP_IPV4);		
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }
+            }		    
             break;
         case IPOE_MSG_IHC_ECHO_FAIL_IPV4:
             CcspTraceInfo(("[%s-%d] Received IPOE_MSG_IHC_ECHO_FAIL_IPV4 from IHC for intf: %s \n", __FUNCTION__, __LINE__, pIhcMsg->ifName));
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(pIhcMsg->ifName);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_WARN_CONNECTIVITY_CHECK_STATUS_FAILED_IPV4);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }
+            }	    	    	    
             return WanMgr_SetInterfaceStatus(pIhcMsg->ifName, WANMGR_IFACE_CONNECTION_DOWN);
             break;
         case IPOE_MSG_IHC_ECHO_FAIL_IPV6:
             CcspTraceInfo(("[%s-%d] Received IPOE_MSG_IHC_ECHO_FAIL_IPV6 from IHC for intf: %s \n", __FUNCTION__, __LINE__, pIhcMsg->ifName));
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(pIhcMsg->ifName);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_WARN_CONNECTIVITY_CHECK_STATUS_FAILED_IPV6);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }    
+            }		    
             return WanMgr_SetInterfaceStatus(pIhcMsg->ifName, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
             break;
+        case IPOE_MSG_IHC_ECHO_IPV4_IDLE:
+            CcspTraceInfo(("[%s-%d] Received IPOE_MSG_IHC_ECHO_IPV4_IDLE from IHC for intf: %s \n", __FUNCTION__, __LINE__, pIhcMsg->ifName));
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(pIhcMsg->ifName);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_WARN_CONNECTIVITY_CHECK_STATUS_IDLE_IPV4);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }
+            }
+            break;
+        case IPOE_MSG_IHC_ECHO_IPV6_IDLE:
+            CcspTraceInfo(("[%s-%d] Received IPOE_MSG_IHC_ECHO_FAIL_IPV4 from IHC for intf: %s \n", __FUNCTION__, __LINE__, pIhcMsg->ifName));
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(pIhcMsg->ifName);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_WARN_CONNECTIVITY_CHECK_STATUS_IDLE_IPV6);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }
+            }	    
+            break;			    
         default:
             CcspTraceError(("[%s-%d] Invalid message type \n", __FUNCTION__, __LINE__));
             return ANSC_STATUS_FAILURE;

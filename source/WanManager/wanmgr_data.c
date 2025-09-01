@@ -75,18 +75,6 @@ void WanMgr_SetConfigData_Default(DML_WANMGR_CONFIG* pWanDmlConfig)
         pWanDmlConfig->UseWANMACForManagementServices = FALSE;
         pWanDmlConfig->InterfaceVLANMarkingSupport = FALSE;   
 
-        /*In Modem/Extender Mode, CurrentActiveInterface should be always Mesh Interface Name*/
-#if defined (RDKB_EXTENDER_ENABLED)
-        char buf[BUFLEN_16] = {0};
-        if( 0 == syscfg_get(NULL, SYSCFG_DEVICE_NETWORKING_MODE, buf, sizeof(buf)) )
-        {   //1-Extender Mode 0-Gateway Mode
-            if (atoi(buf) == (MODEM_MODE-1))
-            {
-                strncpy(pWanDmlConfig->CurrentActiveInterface, MESH_IFNAME, sizeof(MESH_IFNAME));
-            }
-        }
-#endif
-
     }
 }
 
@@ -811,6 +799,7 @@ void WanMgr_IfaceData_Init(WanMgr_Iface_Data_t* pIfaceData, UINT iface_index)
 
         pWanDmlIface->NoOfVirtIfs = 1; 
         pWanDmlIface->Type = WAN_IFACE_TYPE_UNCONFIGURED;
+        pWanDmlIface->bSendSelectionTimerExpired = TRUE;	
     }
 }
 
