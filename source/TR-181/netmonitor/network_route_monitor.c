@@ -190,15 +190,21 @@ static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int l
 
 static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh) 
 {
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
     struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
     struct rtattr *rta = IFA_RTA(ifa);
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
     int rta_len = IFA_PAYLOAD(nlh);
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
     char ifname[BUFLEN_32] = {0},
          eventInfo[BUFLEN_512] = {0};
-
+    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
     int ifindex = ifa->ifa_index;
     int family  = ifa->ifa_family;
+    DBG_MONITOR_PRINT("%s-%d: Trace %d\n", __FUNCTION__, __LINE__, ifindex);
 
     //Convert index to ifname
     if (if_indextoname(ifindex, ifname) == NULL) 
@@ -414,7 +420,9 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
             case RTM_NEWADDR:
             case RTM_DELADDR:
                 {
+                    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
                     parse_addrattr(nl_msgHdr);
+                    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
                     break;
                 }
             default:
