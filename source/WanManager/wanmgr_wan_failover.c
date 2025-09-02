@@ -36,6 +36,7 @@ static WcFailOverState_t State_ScanningGroup (WanMgr_FailOver_Controller_t * pFa
 static WcFailOverState_t State_GroupActive (WanMgr_FailOver_Controller_t * pFailOverController);
 static WcFailOverState_t State_RestorationWait (WanMgr_FailOver_Controller_t * pFailOverController);
 static WcFailOverState_t State_DeactivateGroup (WanMgr_FailOver_Controller_t * pFailOverController);
+static WcFailOverState_t State_IdleMonitor (WanMgr_FailOver_Controller_t * pFailOverController);
 
 
 /* TRANSITIONS */
@@ -45,6 +46,7 @@ static WcFailOverState_t Transition_Restoration (WanMgr_FailOver_Controller_t * 
 static WcFailOverState_t Transition_DeactivateGroup (WanMgr_FailOver_Controller_t * pFailOverController);
 static WcFailOverState_t Transition_RestorationFail (WanMgr_FailOver_Controller_t * pFailOverController);
 static WcFailOverState_t Transition_ResetScan (WanMgr_FailOver_Controller_t * pFailOverController);
+static WcFailOverState_t Transition_Idle (WanMgr_FailOver_Controller_t * pFailOverController);
 
 ANSC_STATUS MarkHighPriorityGroup (WanMgr_FailOver_Controller_t* pFailOverController, bool WaitForHigherGroup);
 
@@ -116,6 +118,8 @@ ANSC_STATUS WanMgr_FailOverCtrlInit(WanMgr_FailOver_Controller_t* pFailOverContr
     pFailOverController->AllowRemoteInterfaces = FALSE;
     pFailOverController->ActiveIfaceState = -1;
     pFailOverController->PhyState = WAN_IFACE_PHY_STATUS_UNKNOWN;
+    pFailOverController->DisableAutoRouting = FALSE;
+    pFailOverController->InitialScanCompleted = FALSE;
     /* Update group Interface */
     UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
     for (int i = 0 ; i < TotalIfaces; i++)
@@ -168,6 +172,7 @@ static void WanMgr_UpdateFOControllerData (WanMgr_FailOver_Controller_t* pFailOv
         pFailOverController->ResetScan = pWanConfigData->data.ResetFailOverScan;
         pFailOverController->AllowRemoteInterfaces = pWanConfigData->data.AllowRemoteInterfaces;
         pWanConfigData->data.ResetFailOverScan = false; //Reset Global data
+        pFailOverController->DisableAutoRouting = pWanConfigData->data.DisableAutoRouting;
 
         WanMgrDml_GetConfigData_release(pWanConfigData);
     }
@@ -192,7 +197,7 @@ int WanMgr_SetGroupSelectedIface (UINT GroupInst, UINT IfaceInst)
 }
 
 /* WanMgr_DeactivateGroup()
- * Set the selected interface to WAN_IFACE_SELECTED if it is set to WAN_IFACE_ACTIVE
+ * Calls WanMgr_DeactivateInterface for the selected interface in the group.
  */
 static ANSC_STATUS WanMgr_DeactivateGroup(UINT groupId)
 {
@@ -200,26 +205,14 @@ static ANSC_STATUS WanMgr_DeactivateGroup(UINT groupId)
     WANMGR_IFACE_GROUP* pWanIfaceGroup = WanMgr_GetIfaceGroup_locked((groupId - 1));
     if (pWanIfaceGroup != NULL)
     {
-        if (pWanIfaceGroup->SelectedInterface)
-        {
-            WanMgr_Iface_Data_t* pWanDmlIfaceData = WanMgr_GetIfaceData_locked((pWanIfaceGroup->SelectedInterface - 1));
-            if (pWanDmlIfaceData != NULL)
-            {
-                DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
-                if(pWanIfaceData->Selection.Status == WAN_IFACE_ACTIVE)
-                {
-                    pWanIfaceData->Selection.Status = WAN_IFACE_SELECTED;
-                }
-                WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
-            }
-        }
+        WanMgr_DeactivateInterface(pWanIfaceGroup->SelectedInterface - 1);
         WanMgrDml_GetIfaceGroup_release();
     }
     return ANSC_STATUS_SUCCESS;
 }
 
 /* WanMgr_ActivateGroup()
- * Set the selected interface to WAN_IFACE_ACTIVE if it is set to WAN_IFACE_SELECTED
+ * Calls WanMgr_ActivateInterface for the selected interface in the group.
  */
 static ANSC_STATUS WanMgr_ActivateGroup(UINT groupId)
 {
@@ -230,17 +223,10 @@ static ANSC_STATUS WanMgr_ActivateGroup(UINT groupId)
     {
         if (pWanIfaceGroup->SelectedInterface)
         {
-            WanMgr_Iface_Data_t* pWanDmlIfaceData = WanMgr_GetIfaceData_locked((pWanIfaceGroup->SelectedInterface - 1));
-            if (pWanDmlIfaceData != NULL)
+            if(WanMgr_ActivateInterface(pWanIfaceGroup->SelectedInterface - 1) == 0)
             {
-                DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
-                if(pWanIfaceData->Selection.Status == WAN_IFACE_SELECTED)
-                {
-                    pWanIfaceData->Selection.Status = WAN_IFACE_ACTIVE;
-                    pWanIfaceGroup->ActivationCount++; //update group activation count
-                    CcspTraceInfo(("%s %d Group %d ActivationCount : %d\n", __FUNCTION__, __LINE__, groupId,pWanIfaceGroup->ActivationCount));
-                }
-                WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
+                pWanIfaceGroup->ActivationCount++; //update group activation count
+                CcspTraceInfo(("%s %d Group %d ActivationCount : %d\n", __FUNCTION__, __LINE__, groupId,pWanIfaceGroup->ActivationCount));
             }
         }
         WanMgrDml_GetIfaceGroup_release();
@@ -256,7 +242,7 @@ static void WanMgr_FO_IfaceGroupMonitor()
         WANMGR_IFACE_GROUP* pWanIfaceGroup = WanMgr_GetIfaceGroup_locked((i));
         if (pWanIfaceGroup != NULL)
         {
-            if( pWanIfaceGroup->InterfaceAvailable && pWanIfaceGroup->State != STATE_GROUP_RUNNING && pWanIfaceGroup->State != STATE_GROUP_DEACTIVATED)
+            if( pWanIfaceGroup->InterfaceAvailable && pWanIfaceGroup->State != STATE_GROUP_RUNNING && pWanIfaceGroup->State != STATE_GROUP_DEACTIVATED )
             {
                 pWanIfaceGroup->SelectionTimeOut = 0;
                 pWanIfaceGroup->InitialScanComplete = FALSE;
@@ -534,6 +520,12 @@ ANSC_STATUS MarkHighPriorityGroup (WanMgr_FailOver_Controller_t* pFailOverContro
                     WanMgrDml_GetIfaceGroup_release();
                     break;
                 }
+                if(pFailOverController->InitialScanCompleted == FALSE )
+                {
+                    pFailOverController->InitialScanCompleted = TRUE; //Initial scan completed
+                    CcspTraceInfo(("%s %d: Initial Scan Completed. \n", __FUNCTION__, __LINE__));
+                    WanMgr_Rbus_EventPublishHandler(WANMGR_EVENT_INITIAL_SCAN_COMPLETED, &(pFailOverController->InitialScanCompleted), RBUS_BOOLEAN);
+                }
             }
 
             WanMgrDml_GetIfaceGroup_release();
@@ -679,6 +671,35 @@ static WcFailOverState_t Transition_ResetScan (WanMgr_FailOver_Controller_t * pF
 
     return STATE_FAILOVER_SCANNING_GROUP;
 }
+
+/**
+ * @brief Sets the externally controlled group as the active group and transitions to the idle state.
+ *
+ * @param[in,out] pFailOverController Pointer to the WAN failover controller structure.
+ *
+ * @return The new failover state after the transition (idle).
+ */
+static WcFailOverState_t Transition_Idle (WanMgr_FailOver_Controller_t * pFailOverController)
+{
+    CcspTraceInfo(("%s %d  External control requested\n", __FUNCTION__, __LINE__));
+
+    if(pFailOverController == NULL)
+    {
+        CcspTraceError(("%s %d pFWController object is NULL \n", __FUNCTION__, __LINE__));
+        return STATE_FAILOVER_ERROR;
+    }
+
+    pFailOverController->CurrentActiveGroup = 0;
+    pFailOverController->HighestValidGroup = 0;
+    
+    //Update LED
+    wanmgr_setWanLedState(WAN_STATE_EXIT); 
+    pFailOverController->ActiveIfaceState = -1;
+    pFailOverController->PhyState = WAN_IFACE_PHY_STATUS_UNKNOWN;
+   
+    return STATE_FAILOVER_IDLE_MONITOR;
+}
+
 /*********************************************************************************/
 /**************************** STATES *********************************************/
 /*********************************************************************************/
@@ -694,6 +715,11 @@ static WcFailOverState_t State_ScanningGroup (WanMgr_FailOver_Controller_t * pFa
     if(pFailOverController->WanEnable == FALSE)
     {
         return STATE_FAILOVER_EXIT;
+    }
+
+    if (pFailOverController->DisableAutoRouting == TRUE)
+    {
+        return Transition_Idle(pFailOverController);
     }
 
     MarkHighPriorityGroup(pFailOverController, true);
@@ -714,7 +740,7 @@ static WcFailOverState_t State_GroupActive (WanMgr_FailOver_Controller_t * pFail
         return STATE_FAILOVER_ERROR;
     }
 
-    if(pFailOverController->WanEnable == FALSE )
+    if(pFailOverController->WanEnable == FALSE || (pFailOverController->DisableAutoRouting == TRUE))
     {
         return Transition_DeactivateGroup(pFailOverController);
     }
@@ -775,7 +801,7 @@ static WcFailOverState_t State_RestorationWait (WanMgr_FailOver_Controller_t * p
         return STATE_FAILOVER_ERROR;
     }
 
-    if(pFailOverController->WanEnable == FALSE )
+    if(pFailOverController->WanEnable == FALSE || (pFailOverController->DisableAutoRouting == TRUE))
     {
         return Transition_DeactivateGroup(pFailOverController);
     }
@@ -860,14 +886,87 @@ static WcFailOverState_t State_DeactivateGroup (WanMgr_FailOver_Controller_t * p
         if(pFailOverController->WanEnable == FALSE)
         {
             return STATE_FAILOVER_EXIT;
+        } 
+        else if (pFailOverController->DisableAutoRouting == TRUE)
+        {
+            return Transition_Idle(pFailOverController);
         }
+        
         return Transition_ActivateGroup(pFailOverController);
     }
 
     return STATE_FAILOVER_DEACTIVATE_GROUP;
 }
 
+/**
+ * @brief Handles the Idle Monitor state in the WAN Failover Controller state machine.
+ *
+ * Monitors the ExternalControl variable. If the control is released,
+ * resets the selection and moves to the scanning state.
+ *
+ * @param[in,out] pFailOverController Pointer to the WAN FailOver Controller structure.
+ *
+ * @return The next state to transition to, as a value of WcFailOverState_t.
+ */
+static WcFailOverState_t State_IdleMonitor (WanMgr_FailOver_Controller_t * pFailOverController)
+{
+    if(pFailOverController == NULL)
+    {
+        CcspTraceError(("%s %d pFWController object is NULL \n", __FUNCTION__, __LINE__));
+        return STATE_FAILOVER_ERROR;
+    }
 
+    if(pFailOverController->WanEnable == FALSE)
+    {
+        return STATE_FAILOVER_EXIT;
+    }
+
+    if(pFailOverController->DisableAutoRouting == FALSE)
+    {
+        CcspTraceInfo(("%s %d: ExternalControl Released. Resetting scan and returning to scanning state.\n", __FUNCTION__, __LINE__));
+        return Transition_ResetScan(pFailOverController);
+    }
+
+    // Check if any interface has been externally activated.
+    // If found, update the controller's active and highest valid group accordingly.
+    BOOL activeInterfaceFound = FALSE;
+    UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
+    for (int i = 0 ; i < TotalIfaces; i++)
+    {
+        WanMgr_Iface_Data_t*   pWanDmlIfaceData = WanMgr_GetIfaceData_locked(i);
+        if(pWanDmlIfaceData != NULL)
+        {
+            DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
+            if(pWanIfaceData->Selection.Status == WAN_IFACE_ACTIVE )
+            {
+                if(pWanIfaceData->Selection.Group != pFailOverController->CurrentActiveGroup)
+                {
+                    //Ideally this group should be external controlled group.
+                    CcspTraceInfo(("%s %d: Found Active Interface (%s) in group %d. Setting it as CurrentActiveGroup.\n", __FUNCTION__, __LINE__, pWanIfaceData->DisplayName, pWanIfaceData->Selection.Group));
+                    pFailOverController->CurrentActiveGroup = pWanIfaceData->Selection.Group; //Set CurrentActiveGroup to the group of the active interface
+                    pFailOverController->HighestValidGroup = pWanIfaceData->Selection.Group; // Set HighestValidGroup to the group of the active interface
+                    WanMgr_SetGroupSelectedIface (pWanIfaceData->Selection.Group, i+1);
+                }
+                activeInterfaceFound = TRUE;
+            }
+            WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
+        }
+    }
+    
+    if(!activeInterfaceFound && pFailOverController->CurrentActiveGroup !=0)
+    {
+        //If no active interface found, reset the CurrentActiveGroup and HighestValidGroup
+        CcspTraceInfo(("%s %d: No Active Interface found. Resetting CurrentActiveGroup and HighestValidGroup.\n", __FUNCTION__, __LINE__));
+        pFailOverController->CurrentActiveGroup = 0;
+        pFailOverController->HighestValidGroup = 0;
+        //Update LED
+        wanmgr_setWanLedState(WAN_STATE_EXIT); 
+        pFailOverController->ActiveIfaceState = -1;
+        pFailOverController->PhyState = WAN_IFACE_PHY_STATUS_UNKNOWN;
+    }
+
+    return STATE_FAILOVER_IDLE_MONITOR;
+}
 /*********************************************************************************/
 /**************************** SM THREAD ******************************************/
 /*********************************************************************************/
@@ -929,6 +1028,9 @@ ANSC_STATUS WanMgr_FailOverThread (void)
                 break;
             case STATE_FAILOVER_DEACTIVATE_GROUP:
                 fo_sm_state = State_DeactivateGroup(&FWController);
+                break;
+            case STATE_FAILOVER_IDLE_MONITOR:
+                fo_sm_state = State_IdleMonitor(&FWController);
                 break;
             case STATE_FAILOVER_EXIT:
                 bRunning = false;

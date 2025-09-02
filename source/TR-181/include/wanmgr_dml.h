@@ -602,10 +602,12 @@ typedef struct _DML_WANMGR_CONFIG_
     DEVICE_NETWORKING_MODE DeviceNwMode;
     BOOLEAN DeviceNwModeChanged;    // Set if DeviceNwMode is changed and config needs to be applied
     BOOLEAN ResetFailOverScan;
+    BOOLEAN DisableAutoRouting;
     BOOLEAN AllowRemoteInterfaces;
     BOOLEAN BootToWanUp;            // Set if Wan was UP after boot
     CHAR    InterfaceAvailableStatus[BUFLEN_64];
     CHAR    InterfaceActiveStatus[BUFLEN_64];
+    CHAR    InterfaceIpStatus[BUFLEN_64];
     CHAR    CurrentActiveInterface[BUFLEN_64];
     CHAR    CurrentStatus[BUFLEN_16];
     CHAR    CurrentStandbyInterface[BUFLEN_64];
