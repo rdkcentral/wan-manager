@@ -28,6 +28,8 @@
 #include "wanmgr_rdkbus_apis.h"
 #include "wanmgr_wan_failover.h"
 #include "wanmgr_net_utils.h"
+#include "wanmgr_interface_apis.h"
+
 
 /* ---- Global Constants -------------------------- */
 #define SELECTION_PROCESS_LOOP_TIMEOUT 250000 // timeout in microseconds. This is the state machine loop interval
@@ -69,6 +71,7 @@ static WcAwPolicyState_t Transition_RestartSelectionInterface (WanMgr_Policy_Con
 static WcAwPolicyState_t Transition_ReconfigurePlatform (WanMgr_Policy_Controller_t * pWanController);
 static WcAwPolicyState_t Transition_ActivatingInterface (WanMgr_Policy_Controller_t * pWanController);
 static WcAwPolicyState_t Transition_ResetSelectedInterface (WanMgr_Policy_Controller_t * pWanController);
+static WcAwPolicyState_t Transition_AutoWanTearDown (WanMgr_Policy_Controller_t * pWanController);
 static WcAwPolicyState_t Transition_RebootDevice (void);
 
 static int WanMgr_RdkBus_AddAllIntfsToLanBridge (WanMgr_Policy_Controller_t * pWanController, BOOL AddToBridge)
@@ -495,48 +498,6 @@ static bool WanMgr_CheckIfSelectedIfaceOnlyPossibleWanLink (WanMgr_Policy_Contro
 }
 
 /*
- * WanMgr_StartIfaceStateMachine()
- * - starts the interface state machine
- * - if successful returns TRUE, else FALSE
- */
-static int WanMgr_StartIfaceStateMachine (WanMgr_Policy_Controller_t * pWanController)
-{
-    if ((pWanController == NULL) || (pWanController->pWanActiveIfaceData == NULL))
-    {
-        CcspTraceError(("%s %d: Invalid args \n", __FUNCTION__, __LINE__));
-        return ANSC_STATUS_FAILURE;
-    }
-
-    DML_WAN_IFACE* pIfaceData = &(pWanController->pWanActiveIfaceData->data);
-
-    for(int VirtId=0; VirtId < pIfaceData->NoOfVirtIfs; VirtId++)
-    {
-        DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIface_locked(pWanController->activeInterfaceIdx, VirtId);
-        if(p_VirtIf != NULL)
-        {
-            if (p_VirtIf->Enable == FALSE)
-            {
-                CcspTraceError(("%s %d: virtual if(%d) : %s is not enabled. Not starting VISM\n", __FUNCTION__, __LINE__,p_VirtIf->VirIfIdx, p_VirtIf->Alias));
-                WanMgr_VirtualIfaceData_release(p_VirtIf);
-                continue;
-            }
-            WanMgr_VirtualIfaceData_release(p_VirtIf);
-        }
-
-        WanMgr_IfaceSM_Controller_t wanIfCtrl;
-        WanMgr_IfaceSM_Init(&wanIfCtrl, pWanController->activeInterfaceIdx, VirtId); 
-        if (WanMgr_StartInterfaceStateMachine(&wanIfCtrl) != 0)
-        {
-            CcspTraceError(("%s %d: Unable to start interface state machine \n", __FUNCTION__, __LINE__));
-            return ANSC_STATUS_FAILURE;
-        }
-    }
-    pIfaceData->VirtIfChanged = FALSE;
-    return ANSC_STATUS_SUCCESS;
-
-}
-
-/*
  * Transition_Start()
  * - If the ActiveLink flag of any interface is set to TRUE, then that interface is selected and moved out of bridge
  * - else, all interfaces are moved out of LAN bridge and the interface with the highest priority in the table ("0" is the highest) will be selected
@@ -753,11 +714,11 @@ static WcAwPolicyState_t Transition_InterfaceFound (WanMgr_Policy_Controller_t *
 
     // Set Selection.Status = SELECTED & start Interface State Machine
     DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
-    pActiveInterface->Selection.Status = WAN_IFACE_SELECTED;
 
-    if (WanMgr_StartIfaceStateMachine (pWanController) != ANSC_STATUS_SUCCESS)
+    if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
     {
-        CcspTraceError(("%s %d: unable to start interface state machine\n", __FUNCTION__, __LINE__));
+        CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+        return STATE_AUTO_WAN_ERROR;
     }
 
 #ifdef WAN_MANAGER_SELECTION_SCAN_TIMEOUT_DISABLE
@@ -780,7 +741,7 @@ static WcAwPolicyState_t Transition_InterfaceFound (WanMgr_Policy_Controller_t *
 /*
  * Transition_InterfaceDeselect()
  * - Selected interface is Phy DOWN
- * - Set Selection.Status to “NOT_SELECTED”, the iface sm thread teardown
+ * - Call WanMgr_StopWanVISM() to stop the interface state machine
  * - Go to Waiting Interface Teardown State 
  */
 static WcAwPolicyState_t Transition_InterfaceDeselect (WanMgr_Policy_Controller_t * pWanController)
@@ -791,9 +752,8 @@ static WcAwPolicyState_t Transition_InterfaceDeselect (WanMgr_Policy_Controller_
         return STATE_AUTO_WAN_ERROR;
     }
 
-    DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
-    CcspTraceInfo(("%s %d: Selection.Status set to NOT_SELECTED. Tearing down iface state machine\n", __FUNCTION__, __LINE__));
-    pActiveInterface->Selection.Status = WAN_IFACE_NOT_SELECTED;
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx);
 
     return STATE_AUTO_WAN_INTERFACE_TEARDOWN;
 
@@ -907,7 +867,7 @@ static WcAwPolicyState_t Transition_RestartSelectionInterface (WanMgr_Policy_Con
 /*
  * Transition_ReconfigurePlatform()
  * - need to reconfigure platform
- * - Set Selection.Status to “NOT_SELECTED”, this will trigger the interface state machine thread teardown.
+ * - Call WanMgr_StopWanVISM() to stop the interface state machine, this will trigger the interface state machine thread teardown.
  * - Go to Rebooting Platform
  */
 static WcAwPolicyState_t Transition_ReconfigurePlatform (WanMgr_Policy_Controller_t * pWanController)
@@ -918,13 +878,41 @@ static WcAwPolicyState_t Transition_ReconfigurePlatform (WanMgr_Policy_Controlle
         return STATE_AUTO_WAN_ERROR;
     }
 
-    // set Selection.Status = WAN_IFACE_NOT_SELECTED, to tear down iface sm 
+    //  Call WanMgr_StopWanVISM() to stop the interface state machine
     DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
-    pActiveInterface->Selection.Status = WAN_IFACE_NOT_SELECTED;
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx); 
     pActiveInterface->Selection.RebootTriggerStatus = TRUE;
-    CcspTraceInfo(("%s %d: setting Selection.Status for interface:%d as NOT_SELECTED \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    
 
     return STATE_AUTO_WAN_REBOOT_PLATFORM;
+}
+
+/**
+ * @brief Handles the transition to the Auto WAN Tear Down state.
+ *
+ * This function manages the state transition logic for tearing down the AUTO WAN policy.
+ * It stops the WAN interface state machine and prepares for the WAN policy to be torn down.
+ *
+ * @param[in,out] pWanController Pointer to the WAN policy controller structure.
+ *
+ * @return The new state of the WAN policy after the transition.
+ */
+static WcAwPolicyState_t Transition_AutoWanTearDown (WanMgr_Policy_Controller_t * pWanController)
+{
+    if (pWanController == NULL|| (pWanController->pWanActiveIfaceData == NULL))
+    {
+        CcspTraceError(("%s %d: Invalid args\n", __FUNCTION__, __LINE__));
+        return STATE_AUTO_WAN_ERROR;
+    }
+
+    // Call WanMgr_StopWanVISM() to stop the interface state machine
+    DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx);
+    
+    return STATE_AUTO_WAN_TEARING_DOWN;
+    
 }
 
 /*
@@ -939,7 +927,7 @@ static WcAwPolicyState_t Transition_ActivatingInterface (WanMgr_Policy_Controlle
 
 /*
  * Transition_ResetSelectedInterface()
- * - Set Selection.Status to “NOT_SELECTED”, this will trigger the interface state machine thread teardown
+ * - Call WanMgr_StopWanVISM() to stop the interface state machine, this will trigger the interface state machine thread teardown.
  */
 
 static WcAwPolicyState_t Transition_ResetSelectedInterface (WanMgr_Policy_Controller_t * pWanController)
@@ -950,10 +938,8 @@ static WcAwPolicyState_t Transition_ResetSelectedInterface (WanMgr_Policy_Contro
         return STATE_AUTO_WAN_ERROR;
     }
 
-    DML_WAN_IFACE* pWanIfaceData = &(pWanController->pWanActiveIfaceData->data);
-
-    pWanIfaceData->Selection.Status = WAN_IFACE_NOT_SELECTED;
-    CcspTraceInfo(("%s %d: Selection.Status set to NOT_SELECTED. moving to State_WaitingForIfaceTearDown()\n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d. moving to State_WaitingForIfaceTearDown()\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx); 
 
     return STATE_AUTO_WAN_INTERFACE_TEARDOWN;
 }
@@ -1081,7 +1067,7 @@ static WcAwPolicyState_t State_WaitingForIfaceTearDown (WanMgr_Policy_Controller
 
     if(pWanController->WanEnable == FALSE || pWanController->GroupCfgChanged == TRUE)
     {
-        return STATE_AUTO_WAN_TEARING_DOWN;
+        return Transition_AutoWanTearDown(pWanController);
     }
 
     CcspTraceInfo(("%s %d: Iface state machine has exited\n", __FUNCTION__, __LINE__));
@@ -1299,6 +1285,7 @@ static WcAwPolicyState_t State_WanInterfaceActive (WanMgr_Policy_Controller_t * 
     DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
     if((pActiveInterface->VirtIfChanged == TRUE) || (pActiveInterface->Selection.Enable == TRUE))
     {
+        
         for(int VirtId=0; VirtId < pActiveInterface->NoOfVirtIfs; VirtId++)
         {
             DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIface_locked(pWanController->activeInterfaceIdx, VirtId);
@@ -1307,11 +1294,10 @@ static WcAwPolicyState_t State_WanInterfaceActive (WanMgr_Policy_Controller_t * 
                 if(p_VirtIf->Enable == TRUE && p_VirtIf->Interface_SM_Running == FALSE)
                 {
                     CcspTraceInfo(("%s %d Starting virtual InterfaceStateMachine for %d \n", __FUNCTION__, __LINE__, VirtId));
-                    WanMgr_IfaceSM_Controller_t wanIfCtrl;
-                    WanMgr_IfaceSM_Init(&wanIfCtrl, pWanController->activeInterfaceIdx, VirtId);
-                    if (WanMgr_StartInterfaceStateMachine(&wanIfCtrl) != 0)
+                    if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
                     {
-                        CcspTraceError(("%s %d: Unable to start interface state machine \n", __FUNCTION__, __LINE__));
+                        CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+                        return STATE_AUTO_WAN_ERROR;
                     }
                 }
                 WanMgr_VirtualIfaceData_release(p_VirtIf);
@@ -1336,8 +1322,6 @@ static WcAwPolicyState_t State_WaitingForInterfaceSMExit(WanMgr_Policy_Controlle
     {
         return STATE_AUTO_WAN_TEARING_DOWN;
     }
-
-    pFixedInterface->Selection.Status = WAN_IFACE_NOT_SELECTED;
 
     if(WanMgr_Get_ISM_RunningStatus(pWanController->activeInterfaceIdx) == TRUE)
     {
