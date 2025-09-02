@@ -193,7 +193,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
     struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
     char ifname[IF_NAMESIZE],
-         ipv6_addr[INET6_ADDRSTRLEN];
+         ipv6_addr[INET6_ADDRSTRLEN],
          eventInfo[BUFLEN_512] = {0};
     int  prefix_length = 0,
          pref_lifetime = 0,
@@ -201,7 +201,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
 
     //Allow only for Global Scope
     if (ifa->ifa_scope != RT_SCOPE_UNIVERSE) {
-        return;
+        return ret;
     }
 
     if (if_indextoname(ifa->ifa_index, ifname) == NULL) {
