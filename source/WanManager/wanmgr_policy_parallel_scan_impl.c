@@ -327,7 +327,7 @@ static WcPsPolicyState_t Transition_NewInterfaceConnected (UINT IfaceId)
     }
 
     /* Set Selection.Status to WAN_IFACE_VALIDATING */
-    if(WanMgr_StartWan(IfaceId, WAN_IFACE_VALIDATING) != 0)
+    if(WanMgr_StartWanVISM(IfaceId, WAN_IFACE_VALIDATING) != 0)
     {
         CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, IfaceId));
     }
@@ -502,7 +502,7 @@ static WcPsPolicyState_t Transition_SelectedInterfaceUp (WanMgr_Policy_Controlle
         return STATE_PARALLEL_SCAN_POLICY_ERROR;
     }
 
-    if(WanMgr_StartWan(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
+    if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
     {
         CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
         return STATE_PARALLEL_SCAN_POLICY_ERROR;
@@ -885,7 +885,7 @@ static WcPsPolicyState_t State_SelectedInterfaceUp (WanMgr_Policy_Controller_t *
 
     if(pActiveInterface->VirtIfChanged == TRUE)
     {
-        if(WanMgr_StartWan(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
+        if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
         {
             CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
             return STATE_PARALLEL_SCAN_POLICY_ERROR;

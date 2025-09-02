@@ -34,11 +34,11 @@
  *
  * @return Status of the operation.
  */
-int WanMgr_StartWan(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStatus)
+int WanMgr_StartWanVISM(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStatus)
 {
     int ret = 0;
 
-    CcspTraceInfo(("%s %d: Entering WanMgr_StartWan for interfaceIndex=%d, selectionStatus=%d\n", __FUNCTION__, __LINE__, interfaceIndex, selectionStatus));
+    CcspTraceInfo(("%s %d: Entering WanMgr_StartWanVISM for interfaceIndex=%d, selectionStatus=%d\n", __FUNCTION__, __LINE__, interfaceIndex, selectionStatus));
     WanMgr_Iface_Data_t*   pWanDmlIfaceData = WanMgr_GetIfaceData_locked(interfaceIndex);
     if(pWanDmlIfaceData != NULL)
     {
@@ -58,9 +58,14 @@ int WanMgr_StartWan(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStatus)
         else
         {
             CcspTraceError(("%s %d: Invalid selection status %d for interfaceIndex=%d\n", __FUNCTION__, __LINE__, selectionStatus, interfaceIndex));
+            return -1;
         }
+        /**
+         * Reseting the state as we are already processing the virtual interface state machine (SM).
+         */
         pWanIfaceData->VirtIfChanged = FALSE;
 
+        // Starting state machine for all the virtual interfaces
         for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
         {
             DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIface_locked(interfaceIndex, VirtId);
@@ -143,11 +148,11 @@ int WanMgr_StopWan(int interfaceIndex)
  */
 int WanMgr_ActivateInterface(int interfaceIndex)
 {
-    //Only single interface activation is supported. If a different interface is already active, return failure.
     CcspTraceInfo(("%s %d: Entering WanMgr_ActivateInterface for interfaceIndex=%d\n", __FUNCTION__, __LINE__, interfaceIndex));
 
     UINT ifaceCount = WanMgr_IfaceData_GetTotalWanIface();
     int ret = 0;
+    //Only single interface activation is supported. If a different interface is already active, return failure.
     for (int uiLoopCount = 0; uiLoopCount < ifaceCount; uiLoopCount++)
     {
         WanMgr_Iface_Data_t*   pWanDmlIfaceData = WanMgr_GetIfaceData_locked(uiLoopCount);

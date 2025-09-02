@@ -1947,11 +1947,10 @@ ANSC_STATUS Update_Interface_Status()
                 }else
                     snprintf(newIface->ActiveStatus, sizeof(newIface->ActiveStatus), "%s,0", pWanIfaceData->DisplayName);
 
-                if((pWanIfaceData->IfaceType == REMOTE_IFACE &&
-                     (p_VirtIf->Status == WAN_IFACE_STATUS_UP || p_VirtIf->Status == WAN_IFACE_STATUS_STANDBY || p_VirtIf->Status == WAN_IFACE_STATUS_VALID) &&
-                     p_VirtIf->RemoteStatus == WAN_IFACE_STATUS_UP) ||
-                    (pWanIfaceData->IfaceType == LOCAL_IFACE &&
-                     (p_VirtIf->Status == WAN_IFACE_STATUS_UP || p_VirtIf->Status == WAN_IFACE_STATUS_STANDBY || p_VirtIf->Status == WAN_IFACE_STATUS_VALID))) 
+                if((p_VirtIf->Status == WAN_IFACE_STATUS_UP || 
+                    p_VirtIf->Status == WAN_IFACE_STATUS_STANDBY || 
+                    p_VirtIf->Status == WAN_IFACE_STATUS_VALID) &&
+                    (pWanIfaceData->IfaceType != REMOTE_IFACE || p_VirtIf->RemoteStatus == WAN_IFACE_STATUS_UP)) //If its a remote interface, check remote status
                 {
                     snprintf(newIface->InterfaceIpStatus, sizeof(newIface->InterfaceIpStatus), "%s,1", pWanIfaceData->DisplayName);
                 }else

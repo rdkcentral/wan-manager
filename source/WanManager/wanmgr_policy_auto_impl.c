@@ -715,7 +715,7 @@ static WcAwPolicyState_t Transition_InterfaceFound (WanMgr_Policy_Controller_t *
     // Set Selection.Status = SELECTED & start Interface State Machine
     DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
 
-    if(WanMgr_StartWan(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
+    if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
     {
         CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
         return STATE_AUTO_WAN_ERROR;
@@ -1294,7 +1294,7 @@ static WcAwPolicyState_t State_WanInterfaceActive (WanMgr_Policy_Controller_t * 
                 if(p_VirtIf->Enable == TRUE && p_VirtIf->Interface_SM_Running == FALSE)
                 {
                     CcspTraceInfo(("%s %d Starting virtual InterfaceStateMachine for %d \n", __FUNCTION__, __LINE__, VirtId));
-                    if(WanMgr_StartWan(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
+                    if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
                     {
                         CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
                         return STATE_AUTO_WAN_ERROR;

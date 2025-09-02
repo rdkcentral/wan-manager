@@ -43,7 +43,7 @@
  *
  * @return Status of the operation.
  */
-int WanMgr_StartWan(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStatus);
+int WanMgr_StartWanVISM(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStatus);
 
 /**
  * @brief Stop WAN .

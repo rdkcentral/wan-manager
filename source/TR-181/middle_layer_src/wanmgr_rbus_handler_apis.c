@@ -2125,7 +2125,7 @@ rbusError_t WanMgr_rbusMethod_Iface_StartWan(rbusHandle_t handle, char const* na
     }
 
     CcspTraceInfo(("%s %d: Starting WAN interface SM for Interface %d\n", __FUNCTION__, __LINE__, index));
-    if(WanMgr_StartWan(index -1, WAN_IFACE_SELECTED) != 0)
+    if(WanMgr_StartWanVISM(index -1, WAN_IFACE_SELECTED) != 0)
     {
         CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, index));
         ret = RBUS_ERROR_BUS_ERROR;
