@@ -741,7 +741,7 @@ static WcAwPolicyState_t Transition_InterfaceFound (WanMgr_Policy_Controller_t *
 /*
  * Transition_InterfaceDeselect()
  * - Selected interface is Phy DOWN
- * - Call WanMgr_StopWan() to stop the interface state machine
+ * - Call WanMgr_StopWanVISM() to stop the interface state machine
  * - Go to Waiting Interface Teardown State 
  */
 static WcAwPolicyState_t Transition_InterfaceDeselect (WanMgr_Policy_Controller_t * pWanController)
@@ -752,8 +752,8 @@ static WcAwPolicyState_t Transition_InterfaceDeselect (WanMgr_Policy_Controller_
         return STATE_AUTO_WAN_ERROR;
     }
 
-    CcspTraceInfo(("%s %d: Calling WanMgr_StopWan for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
-    WanMgr_StopWan(pWanController->activeInterfaceIdx);
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx);
 
     return STATE_AUTO_WAN_INTERFACE_TEARDOWN;
 
@@ -867,7 +867,7 @@ static WcAwPolicyState_t Transition_RestartSelectionInterface (WanMgr_Policy_Con
 /*
  * Transition_ReconfigurePlatform()
  * - need to reconfigure platform
- * - Call WanMgr_StopWan() to stop the interface state machine, this will trigger the interface state machine thread teardown.
+ * - Call WanMgr_StopWanVISM() to stop the interface state machine, this will trigger the interface state machine thread teardown.
  * - Go to Rebooting Platform
  */
 static WcAwPolicyState_t Transition_ReconfigurePlatform (WanMgr_Policy_Controller_t * pWanController)
@@ -878,10 +878,10 @@ static WcAwPolicyState_t Transition_ReconfigurePlatform (WanMgr_Policy_Controlle
         return STATE_AUTO_WAN_ERROR;
     }
 
-    //  Call WanMgr_StopWan() to stop the interface state machine
+    //  Call WanMgr_StopWanVISM() to stop the interface state machine
     DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
-    CcspTraceInfo(("%s %d: Calling WanMgr_StopWan for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
-    WanMgr_StopWan(pWanController->activeInterfaceIdx); 
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx); 
     pActiveInterface->Selection.RebootTriggerStatus = TRUE;
     
 
@@ -906,10 +906,10 @@ static WcAwPolicyState_t Transition_AutoWanTearDown (WanMgr_Policy_Controller_t 
         return STATE_AUTO_WAN_ERROR;
     }
 
-    // Call WanMgr_StopWan() to stop the interface state machine
+    // Call WanMgr_StopWanVISM() to stop the interface state machine
     DML_WAN_IFACE * pActiveInterface = &(pWanController->pWanActiveIfaceData->data);
-    CcspTraceInfo(("%s %d: Calling WanMgr_StopWan for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
-    WanMgr_StopWan(pWanController->activeInterfaceIdx);
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx);
     
     return STATE_AUTO_WAN_TEARING_DOWN;
     
@@ -927,7 +927,7 @@ static WcAwPolicyState_t Transition_ActivatingInterface (WanMgr_Policy_Controlle
 
 /*
  * Transition_ResetSelectedInterface()
- * - Call WanMgr_StopWan() to stop the interface state machine, this will trigger the interface state machine thread teardown.
+ * - Call WanMgr_StopWanVISM() to stop the interface state machine, this will trigger the interface state machine thread teardown.
  */
 
 static WcAwPolicyState_t Transition_ResetSelectedInterface (WanMgr_Policy_Controller_t * pWanController)
@@ -938,8 +938,8 @@ static WcAwPolicyState_t Transition_ResetSelectedInterface (WanMgr_Policy_Contro
         return STATE_AUTO_WAN_ERROR;
     }
 
-    CcspTraceInfo(("%s %d: Calling WanMgr_StopWan for interface %d. moving to State_WaitingForIfaceTearDown()\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
-    WanMgr_StopWan(pWanController->activeInterfaceIdx); 
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d. moving to State_WaitingForIfaceTearDown()\n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
+    WanMgr_StopWanVISM(pWanController->activeInterfaceIdx); 
 
     return STATE_AUTO_WAN_INTERFACE_TEARDOWN;
 }

@@ -2165,8 +2165,8 @@ rbusError_t WanMgr_rbusMethod_Iface_StopWan(rbusHandle_t handle, char const* nam
         return RBUS_ERROR_INVALID_INPUT;
     }
 
-    CcspTraceInfo(("%s %d: Calling WanMgr_StopWan for interface %d\n", __FUNCTION__, __LINE__, index));
-    if(WanMgr_StopWan(index - 1) != 0)
+    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, index));
+    if(WanMgr_StopWanVISM(index - 1) != 0)
     {
         CcspTraceError(("%s %d: Failed to stop WAN for interface %d \n", __FUNCTION__, __LINE__, index));
         ret = RBUS_ERROR_BUS_ERROR;

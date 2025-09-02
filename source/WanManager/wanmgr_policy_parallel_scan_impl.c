@@ -339,7 +339,7 @@ static WcPsPolicyState_t Transition_NewInterfaceConnected (UINT IfaceId)
 /* Transition_SelectingInterface()
  * Stop the timer.
  * For the selected interface, set Selection.Status to Selected.
- * Stop the WAN Interface State Machine for ALL OTHER interfaces. call WanMgr_StopWan for all other interfaces in the group.
+ * Stop the WAN Interface State Machine for ALL OTHER interfaces. call WanMgr_StopWanVISM for all other interfaces in the group.
  * Set Link to TRUE for the selected interface. And set Active.Link to FALSE for all other interfaces in the group.
  * Update group config with selected interface details.
  * Go to State Check Reconfiguration.
@@ -372,8 +372,8 @@ static WcPsPolicyState_t Transition_SelectingInterface (WanMgr_Policy_Controller
                     DmlSetWanActiveLinkInPSMDB(uiLoopCount, TRUE);
                 }else
                 {
-                    CcspTraceInfo(("%s %d: Calling WanMgr_StopWan for interface %d\n", __FUNCTION__, __LINE__, uiLoopCount));
-                    WanMgr_StopWan(uiLoopCount);
+                    CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, uiLoopCount));
+                    WanMgr_StopWanVISM(uiLoopCount);
                     pWanIfaceData->Selection.ActiveLink = FALSE;
                     DmlSetWanActiveLinkInPSMDB(uiLoopCount, FALSE);
                 }
@@ -597,7 +597,7 @@ static WcPsPolicyState_t Transition_RestartScan (WanMgr_Policy_Controller_t * pW
 }
 
 /* Transition_TearingDown()
- * Stop the WAN Interface State Machine for all the interfaces in the group by calling WanMgr_StopWan.
+ * Stop the WAN Interface State Machine for all the interfaces in the group by calling WanMgr_StopWanVISM.
  * Reset Interface table by changing Status of INVALID interfaces to Disabled. 
  * Reset selected interface details in Group config to the default values.
  * If Policy is changed. Set ActiveLink to FALSE for all interfaces of the Group.
@@ -622,8 +622,8 @@ static WcPsPolicyState_t Transition_TearingDown (WanMgr_Policy_Controller_t * pW
             DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
             if(pWanController->GroupInst == pWanIfaceData->Selection.Group)
             {
-                CcspTraceInfo(("%s %d: Calling WanMgr_StopWan for interface %d\n", __FUNCTION__, __LINE__, uiLoopCount));
-                WanMgr_StopWan(uiLoopCount);
+                CcspTraceInfo(("%s %d: Calling WanMgr_StopWanVISM for interface %d\n", __FUNCTION__, __LINE__, uiLoopCount));
+                WanMgr_StopWanVISM(uiLoopCount);
                 /* set INVALID interfaces as DISABLED */
                 if (pWanIfaceData->VirtIfList->Status == WAN_IFACE_STATUS_INVALID)
                 {

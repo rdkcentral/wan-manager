@@ -53,7 +53,7 @@ int WanMgr_StartWanVISM(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStat
  * @param[in] interfaceIndex Index of the WAN interface to deactivate.
  * @return Status of the operation.
  */
-int WanMgr_StopWan(int interfaceIndex);
+int WanMgr_StopWanVISM(int interfaceIndex);
 
 /**
  * @brief Activates the WAN interface specified by the given index.

@@ -116,11 +116,11 @@ int WanMgr_StartWanVISM(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStat
  * @param[in] interfaceIndex Index of the WAN interface to Stop WAN.
  * @return Status of the operation.
  */
-int WanMgr_StopWan(int interfaceIndex)
+int WanMgr_StopWanVISM(int interfaceIndex)
 {
     int ret = 0;
 
-    CcspTraceInfo(("%s %d: Entering WanMgr_StopWan for interfaceIndex=%d\n", __FUNCTION__, __LINE__, interfaceIndex));
+    CcspTraceInfo(("%s %d: Entering WanMgr_StopWanVISM for interfaceIndex=%d\n", __FUNCTION__, __LINE__, interfaceIndex));
     WanMgr_Iface_Data_t*   pWanDmlIfaceData = WanMgr_GetIfaceData_locked(interfaceIndex);
     if(pWanDmlIfaceData != NULL)
     {
