@@ -1451,7 +1451,7 @@
            <name>Enable</name>
            <type>boolean</type>
            <syntax>bool</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
           </parameters>
          <objects>
@@ -1479,7 +1479,7 @@
             <name>Enable</name>
             <type>boolean</type>
             <syntax>bool</syntax>
-            <writable>true</writable>
+            <writable>false</writable>
            </parameter>
            <parameter>
            <name>Status</name>
@@ -1491,37 +1491,37 @@
            <name>Alias</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>TransportMode</name>
            <type>string: ENCAPSULATED(1),TRANSLATION(2), UNKNOWN(3)</type>
            <syntax>uint32/mapped</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>WanInterface</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>IPv6Prefix</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>BRIPv6Prefix</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>DSCPMarkPolicy</name>
            <type>int[-2:63]</type>
            <syntax>int</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
           </parameters>
        <objects>
@@ -1547,7 +1547,7 @@
             <name>Enable</name>
             <type>boolean</type>
             <syntax>bool</syntax>
-            <writable>true</writable>
+            <writable>false</writable>
            </parameter>
            <parameter>
            <name>Status</name>
@@ -1559,7 +1559,7 @@
            <name>Alias</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>Origin</name>
@@ -1571,49 +1571,49 @@
            <name>IPv6Prefix</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>IPv4Prefix</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>EABitsLength</name>
            <type>unsignedInt</type>
            <syntax>uint32</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
             <parameter>
             <name>IsFMR</name>
             <type>boolean</type>
             <syntax>bool</syntax>
-            <writable>true</writable>
+            <writable>false</writable>
            </parameter>
            <parameter>
            <name>PSIDOffset</name>
            <type>unsignedInt</type>
            <syntax>uint32</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>PSIDLength</name>
            <type>unsignedInt</type>
            <syntax>uint32</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>PSID</name>
            <type>unsignedInt</type>
            <syntax>uint32</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
             <name>IncludeSystemPorts</name>
             <type>boolean</type>
             <syntax>bool</syntax>
-            <writable>true</writable>
+            <writable>false</writable>
            </parameter>
           </parameters>
         </object>
@@ -1635,7 +1635,7 @@
             <name>Enable</name>
             <type>boolean</type>
             <syntax>bool</syntax>
-            <writable>true</writable>
+            <writable>false</writable>
            </parameter>
            <parameter>
            <name>Status</name>
@@ -1647,7 +1647,7 @@
            <name>Alias</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            <parameter>
            <name>Name</name>
@@ -1665,7 +1665,7 @@
            <name>LowerLayers</name>
            <type>string</type>
            <syntax>string</syntax>
-           <writable>true</writable>
+           <writable>false</writable>
            </parameter>
            </parameters>
           <objects>
