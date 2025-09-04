@@ -340,7 +340,7 @@ void  wanmgr_setWanLedState(eWanState_t state)
         case WAN_STATE_IPV4_LEASED:
             ipv4_state = true;
             break;
-        case WAN_STATE_MAPT_ACTIVE:
+        case WAN_STATE_MAP_ACTIVE:
             ipv6_state = true;
             mapt_state = true;
             break;
