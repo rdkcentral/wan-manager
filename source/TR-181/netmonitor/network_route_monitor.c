@@ -43,7 +43,6 @@ static bool g_toggle_flag = TRUE;
 
 #define LOOP_TIMEOUT 100000 // timeout in milliseconds. This is the state machine loop interval
 #define SYSEVENT_IPV6_TOGGLE        "ipv6Toggle"
-#define SYSEVENT_IPV6_ADDR_UPDATE   "ipv6AddressUpdate"
 #define SYSEVENT_OPEN_MAX_RETRIES   6
 #define SE_SERVER_WELL_KNOWN_PORT   52367
 #define SE_VERSION                  1
@@ -186,74 +185,6 @@ static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int l
 
         rta = RTA_NEXT(rta,len);
     }
-}
-
-static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh) 
-{
-    ANSC_STATUS ret = ANSC_STATUS_FAILURE;
-    struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
-    char ifname[IF_NAMESIZE],
-         ipv6_addr[INET6_ADDRSTRLEN],
-         eventInfo[BUFLEN_512] = {0};
-    int  prefix_length = 0,
-         pref_lifetime = 0,
-         valid_lifetime = 0;
-
-    //Allow only for Global Scope
-    if (ifa->ifa_scope != RT_SCOPE_UNIVERSE) {
-        return ret;
-    }
-
-    if (if_indextoname(ifa->ifa_index, ifname) == NULL) {
-        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] Failed to retreive interface name for ifindex=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index);
-        return ret;
-    }
-
-    //DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index, ifname, ifa->ifa_family);
-
-    int len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifa));
-    struct rtattr *rta = IFA_RTA(ifa);
-
-    for (; RTA_OK(rta, len); rta = RTA_NEXT(rta, len)) {
-        if (rta->rta_type == IFA_ADDRESS) {
-            if (ifa->ifa_family == AF_INET6) {
-                inet_ntop(AF_INET6, RTA_DATA(rta), ipv6_addr, sizeof(ipv6_addr));
-
-                //Ignore link-local & multicast addresses
-                if (strncmp(ipv6_addr, "fe80", 4) == 0 || strncmp(ipv6_addr, "ff", 2) == 0) {
-                    continue;
-                }
-
-                prefix_length = ifa->ifa_prefixlen;
-                DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] IPv6 address: %s/%d\n", __FUNCTION__, __LINE__, ipv6_addr, ifa->ifa_prefixlen);
-            }
-        }
-        if (rta->rta_type == IFA_CACHEINFO) {
-            struct ifa_cacheinfo *ci = RTA_DATA(rta);
-            pref_lifetime   = ci->ifa_prefered;
-            valid_lifetime  = ci->ifa_valid;
-            DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] preferred_lft=%u sec, valid_lft=%u sec\n",
-                                                    __FUNCTION__, __LINE__,
-                                                    ci->ifa_prefered, ci->ifa_valid);
-        }
-    }
-
-    if (nlh->nlmsg_type == RTM_NEWADDR) 
-    {
-       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
-       snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%d|%d", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
-       ret = ANSC_STATUS_SUCCESS;
-    } 
-    else if (nlh->nlmsg_type == RTM_DELADDR) 
-    {
-       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
-       snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%d|%d", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
-       ret = ANSC_STATUS_SUCCESS;
-    }
-
-    return ret;
 }
 
 static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr)
@@ -424,16 +355,6 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
                      }
                      break;
                 }
-            case RTM_NEWADDR:
-            case RTM_DELADDR:
-                {
-                    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
-                    parse_addrattr(nl_msgHdr);
-                    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
-                    break;
-                }
-            default:
-                break;
         }
     }
     return;
