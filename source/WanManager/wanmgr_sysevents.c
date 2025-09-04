@@ -618,8 +618,6 @@ static void *WanManagerSyseventHandler(void *args)
     async_id_t primary_v6ipaddress_asyncid;
 #endif
 #endif
-    async_id_t ipv6_address_change_event_asyncid;
-
 
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
@@ -1218,7 +1216,6 @@ int Force_IPv6_toggle (char* wanInterface)
  */
 void WanMgr_CheckDefaultRA (DML_VIRTUAL_IFACE * pVirtIf)
 {
-
     //TODO : Move router monitor to a WanManager thread ? 
     if(!isDefaultGatewayAdded )
     {

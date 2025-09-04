@@ -19,11 +19,7 @@
 
 /* ---- Include Files ---------------------------------------- */
 #include <unistd.h>
-#include <sys/socket.h>
-#include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#include <linux/if_addr.h>
-#include <net/if.h>
 #include "ipc_msg.h"
 #include "network_route_monitor.h"
 #include "ansc_platform.h"
@@ -68,7 +64,6 @@ static bool g_toggle_flag = TRUE;
 #endif
 /* ---- Private Function Prototypes -------------------------- */
 static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len); // Parse the route entries
-static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh); // Parse the interface address entries
 static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr); // check for default gateway
 
 #if defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)
@@ -230,7 +225,7 @@ static ANSC_STATUS NetMonitor_InitNetlinkRouteMonitorFd()
 
     memset(&addr, 0, sizeof(addr));
     addr.nl_family = AF_NETLINK;
-    addr.nl_groups = RTMGRP_IPV6_ROUTE | RTMGRP_IPV6_IFADDR;
+    addr.nl_groups = RTMGRP_IPV6_ROUTE;
     if (0 > bind(netlinkRouteMonitorFd, (struct sockaddr *) &addr, sizeof(addr)))
     {
         DBG_MONITOR_PRINT("%s Failed to bind netlink socket: %s\n", __FUNCTION__, strerror(errno));
@@ -355,6 +350,8 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
                      }
                      break;
                 }
+            default:
+                break;
         }
     }
     return;
