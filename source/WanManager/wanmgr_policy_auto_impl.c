@@ -1293,8 +1293,8 @@ static WcAwPolicyState_t State_WanInterfaceActive (WanMgr_Policy_Controller_t * 
             {
                 if(p_VirtIf->Enable == TRUE && p_VirtIf->Interface_SM_Running == FALSE)
                 {
-                    CcspTraceInfo(("%s %d Starting virtual InterfaceStateMachine for %d \n", __FUNCTION__, __LINE__, VirtId));
-                    if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, WAN_IFACE_SELECTED) != 0)
+                    CcspTraceInfo(("%s %d: Starting virtual InterfaceStateMachine for %d, Selection.Status=%d\n", __FUNCTION__, __LINE__, VirtId, pActiveInterface->Selection.Status));
+                    if(WanMgr_StartWanVISM(pWanController->activeInterfaceIdx, (pActiveInterface->Selection.Status == WAN_IFACE_ACTIVE )?WAN_IFACE_ACTIVE:WAN_IFACE_SELECTED) != 0)
                     {
                         CcspTraceError(("%s %d: Failed to start WAN for interface %d \n", __FUNCTION__, __LINE__, pWanController->activeInterfaceIdx));
                         return STATE_AUTO_WAN_ERROR;
