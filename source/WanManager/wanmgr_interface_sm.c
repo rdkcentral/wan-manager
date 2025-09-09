@@ -372,7 +372,8 @@ static BOOL WanMgr_RestartFindExistingLink (WanMgr_IfaceSM_Controller_t* pWanIfa
             //TODO : NEW_DESIGN check VLAN status for Cellular
             p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_UP;
 
-            strncpy(p_VirtIf->Name, CELLULARMGR_WAN_NAME, sizeof(p_VirtIf->Name));
+            if(p_VirtIf->Name[0] == '\0')
+                strncpy(p_VirtIf->Name, CELLULARMGR_WAN_NAME, sizeof(p_VirtIf->Name));
             ret = TRUE;
         }
     }
