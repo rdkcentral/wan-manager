@@ -43,6 +43,7 @@ static bool g_toggle_flag = TRUE;
 
 #define LOOP_TIMEOUT 100000 // timeout in milliseconds. This is the state machine loop interval
 #define SYSEVENT_IPV6_TOGGLE        "ipv6Toggle"
+#define SYSEVENT_IPV6_ADDR_UPDATE   "ipv6AddressUpdate"
 #define SYSEVENT_OPEN_MAX_RETRIES   6
 #define SE_SERVER_WELL_KNOWN_PORT   52367
 #define SE_VERSION                  1
