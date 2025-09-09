@@ -473,7 +473,8 @@ ANSC_STATUS MarkHighPriorityGroup (WanMgr_FailOver_Controller_t* pFailOverContro
                 if (pWanDmlIfaceData != NULL)
                 {
                     DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
-                    if((pWanIfaceData->VirtIfList->Status == WAN_IFACE_STATUS_STANDBY ||
+                    if(pWanIfaceGroup->State != STATE_GROUP_DEACTIVATED && // Group should not be in DEACTIVATED state
+                        (pWanIfaceData->VirtIfList->Status == WAN_IFACE_STATUS_STANDBY ||
                         pWanIfaceData->VirtIfList->Status == WAN_IFACE_STATUS_UP) &&
                         (!(pWanIfaceData->IfaceType == REMOTE_IFACE &&  // Check RemoteStatus also for REMOTE_IFACE
                         pWanIfaceData->VirtIfList->RemoteStatus != WAN_IFACE_STATUS_UP)) && 
