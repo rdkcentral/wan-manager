@@ -2054,7 +2054,7 @@ ANSC_STATUS Update_Interface_Status()
                        }
 				       snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
 					   
-	                   t2_event_s("SYST_INFO_DNSSTART", uptime_str);
+	                   t2_event_s("SYST_INFO_DNSSTART_split", uptime_str);
 				       dns_start_sent = 1; 
 				   }
 				}
