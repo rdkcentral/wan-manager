@@ -200,18 +200,6 @@
 
 #define  WANMNGR_INTERFACE_DEFAULT_MTU_SIZE          (1500)
 
-/* IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT - stops and starts IPOE HEALTH CHECK Service based on lan events(SYSEVENT_LAN_STATUS).
- * SKY IPoE Health check depends on the global ipv6 address configured on brlan0 and during the lan stop event brlan0 interface
- * is made down affecting the IPoE service.
- * */
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-typedef enum{
-    LAN_STATE_RESET = 0,
-    LAN_STATE_STOPPED,
-    LAN_STATE_STARTED,
-}lanState_t;
-#endif
-
 //Bridge Mode
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED)
 #define SYSEVENT_BRIDGE_MODE           "bridge_mode"

@@ -97,6 +97,17 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->prefixAssigned = leaseInfo->prefixAssigned;
     pDhcpv6Data->domainNameAssigned = leaseInfo->domainNameAssigned;
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
+    if(!pDhcpv6Data->addrAssigned && !pDhcpv6Data->prefixAssigned)
+    {
+        /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
+         * We can use the received IAPD to construct a Ipv6 /128 address which can be used for managerment and voice ...
+         * If we reach this point, only IAPD has been received. Canculate Wan Ipv6 address 
+         */
+
+        CcspTraceInfo(("IANA is not assigned by DHCPV6. Constructing WAN address from the IAPD for Wan Interface \n"));
+        wanmgr_construct_wan_address_from_IAPD(pDhcpv6Data);
+    }
+
 }
 
 pthread_mutex_t DhcpClientEvents_mutex = PTHREAD_MUTEX_INITIALIZER;
