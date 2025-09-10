@@ -1515,13 +1515,19 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         AnscTraceError(("%s %d -  Failed to remove inactive address \n", __FUNCTION__,__LINE__));
     }
 
-    //Remove the default route explitcly when SLAAC mode since no prefix
+    //Remove the default route and IPv6 address explitcly when SLAAC mode since no prefix
     if ( DML_WAN_IP_SOURCE_SLAAC == p_VirtIf->IP.IPv6Source )
     {
         char acCmdLine[BUFLEN_128] = {0};
         CcspTraceInfo(("%s %d -  Deleting IPv6 default route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 route del default dev %s", p_VirtIf->Name);
         if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", acCmdLine) != 0)
+            CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, acCmdLine));
+
+        CcspTraceInfo(("%s %d -  Deleting IPv6 global address route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        memset(acCmdLine, 0, sizeof(acCmdLine));
+        snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 addr flush scope global dev %s", p_VirtIf->Name);
+        if (WanManager_DoSystemActionWithStatus("ip -6 addr flush scope global dev", acCmdLine) != 0)
             CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, acCmdLine));
     }
 

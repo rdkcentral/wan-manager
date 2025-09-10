@@ -195,9 +195,9 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     char ifname[IF_NAMESIZE],
          ipv6_addr[INET6_ADDRSTRLEN],
          eventInfo[BUFLEN_512] = {0};
-    int  prefix_length = 0,
-         pref_lifetime = 0,
-         valid_lifetime = 0;
+    unsigned int  prefix_length = 0,
+                  pref_lifetime = 0,
+                  valid_lifetime = 0;
 
     //Allow only for Global Scope
     if (ifa->ifa_scope != RT_SCOPE_UNIVERSE) {
@@ -240,16 +240,16 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
 
     if (nlh->nlmsg_type == RTM_NEWADDR) 
     {
-       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
-       snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%d|%d", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
+       snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo);
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
     {
-       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface\n", __FUNCTION__, __LINE__, ifname);
-       snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%d|%d", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
+       snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo);
        ret = ANSC_STATUS_SUCCESS;
     }
 
