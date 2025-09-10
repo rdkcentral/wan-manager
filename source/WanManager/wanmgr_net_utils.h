@@ -43,6 +43,11 @@
 #define WAN_STATUS_UP   "up"
 #define WAN_STATUS_DOWN "down"
 
+#define MSECS_IN_SEC                      1000
+#define USECS_IN_MSEC                     1000
+#define INTF_V6LL_INTERVAL_IN_MSEC       (0.5 * MSECS_IN_SEC)  // 0.5 sec - half a second
+#define INTF_V6LL_TIMEOUT_IN_MSEC        (5 * MSECS_IN_SEC)    // 5 sec
+
 #define WAN_IF_MARKING_MAX_LIMIT       ( 15 )
 typedef  struct _CONTEXT_MARKING_LINK_OBJECT
 {
@@ -82,6 +87,28 @@ typedef enum {
     STOP_DHCP_WITH_RELEASE = 0,
     STOP_DHCP_WITHOUT_RELEASE,
 } DHCP_RELEASE_BEHAVIOUR;
+
+#define WANMGR_MAX_RA_DNS_SUPPORT       5   // Up to 5 DNS servers
+
+typedef struct {
+    bool        IsRAReceived;           // Confirms whether RA received or not
+    bool        IsMFlagSet;             // Stateful address conf. (Managed) M-flag
+    bool        IsOFlagSet;             // Stateful other conf. (Other) O-flag
+    bool        IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
+    char        acInterface[BUFLEN_64];
+    char        acRouter[INET6_ADDRSTRLEN];
+    int         iHopLimit;
+    int         iMTUSize;
+    int         iRouterLifetime;
+    int         iReachableTime;
+    int         iRetransmitTime;
+    char        acPrefix[BUFLEN_128];
+    int         iValidLifetime;
+    int         iPreferredLifetime;
+    char        acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
+    char        acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
+    int         iDnssCount;
+} WanMgr_IPv6_RA_Info;
 
 /* ---- Global Variables -------------------------- */
 
@@ -271,4 +298,9 @@ BOOL IsValidIpAddress(int32_t af, const char *address);
 
 
 int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
+
+int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv6_RA_Info *p_RAInfo);
+ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout);
+ANSC_STATUS WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface(char *pInterfaceName, char *pIPv6Address);
+
 #endif // _WANMGR_NET_UTILS_H_
