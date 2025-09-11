@@ -68,9 +68,7 @@
 
 //#include "dml_tr181_custom_cfg.h"
 #include "wanmgr_plugin_main_apis.h"
-#ifdef FEATURE_MAPE
 #include "wanmgr_map_internal.h"
-#endif
 #include "wanmgr_dhcpv4_internal.h"
 #include "wanmgr_dhcpv6_internal.h"
 
@@ -199,10 +197,8 @@ ANSC_STATUS BackEndManagerInitialize(ANSC_HANDLE hThisObject)
     pMyObject->hDhcpv6        = (ANSC_HANDLE)WanMgr_Dhcpv6Create();
     AnscTraceWarning(("  WanMgr_Dhcpv6Create done!\n"));
 
-#ifdef FEATURE_MAPE
     pMyObject->hMap           = (ANSC_HANDLE)WanMgr_MapCreate();
     AnscTraceWarning(("  WanMgr_MapCreate done!\n"));
-#endif
 
     return returnStatus;
 }

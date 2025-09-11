@@ -343,11 +343,10 @@ static int WanMgr_tearDownMape(DML_VIRTUAL_IFACE* p_VirtIf)
     CcspTraceInfo(("%s %d - stop MAP-E\n", __FUNCTION__, __LINE__));
 
     snprintf(cmd, sizeof(cmd), "iproute del default dev %s", p_VirtIf->Name);
-    system(cmd);
+    v_secure_system("%s", cmd);
 
-    system("ip link set dev ip6tnl down");
-    system("ip -6 tunnel del ip6tnl");
-
+    v_secure_system("ip link set dev ip6tnl down");
+    v_secure_system("ip -6 tunnel del ip6tnl");
     syscfg_set(NULL, "mape_config_flag", "false");
 
     return ret;
@@ -2106,7 +2105,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
     p_VirtIf->IP.Ipv4ConnectivityStatus = WAN_CONNECTIVITY_UP;
     p_VirtIf->IP.Ipv6ConnectivityStatus = WAN_CONNECTIVITY_UP;
 
-    if((p_VirtIf->IP.SelectedMode == MAPT_MODE || p_VirtIf->IP.SelectedMode == MAPE_MODE)&& p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED)
+    if((p_VirtIf->IP.SelectedMode == MAPT_MODE || p_VirtIf->IP.SelectedMode == MAPE_MODE) && p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED)
     {
         /* Start all interface with accept ra disbaled */
         WanMgr_Configure_accept_ra(p_VirtIf, FALSE);

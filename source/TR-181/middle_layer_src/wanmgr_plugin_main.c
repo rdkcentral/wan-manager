@@ -60,9 +60,7 @@
 #include "wanmgr_plugin_main.h"
 #include "wanmgr_plugin_main_apis.h"
 #include "wanmgr_dml_apis.h"
-#ifdef FEATURE_MAPE
 #include "wanmgr_dml_map.h"
-#endif
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED)
 #include "wanmgr_dml_iface_v2_apis.h"
 #else
@@ -584,7 +582,6 @@ int ANSC_EXPORT_API WanManagerDmlInit(ULONG uMaxVersionSupported, void* hCosaPlu
 
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SentOption_GetEntryCount", SentOption_GetEntryCount);
 
-#ifdef FEATURE_MAPE
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMap_GetParamBoolValue", WanMap_GetParamBoolValue);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMap_SetParamBoolValue", WanMap_SetParamBoolValue);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMap_Validate", WanMap_Validate);
@@ -627,7 +624,6 @@ int ANSC_EXPORT_API WanManagerDmlInit(ULONG uMaxVersionSupported, void* hCosaPlu
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_Rollback", WanMapInterface_Rollback);
 
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapStats_GetParamUlongValue", WanMapStats_GetParamUlongValue);
-#endif
 
     /* Create backend framework */
     g_pWanMgrBE = (WANMGR_BACKEND_OBJ*)BackEndManagerCreate();
