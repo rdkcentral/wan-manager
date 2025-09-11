@@ -243,6 +243,5 @@ VOID WanManager_MAPE_ResetSyscfgDefaults(VOID)
     syscfg_unset (NULL, "mape_psid");
     syscfg_unset (NULL, "mape_psid_len");
     syscfg_unset (NULL, "mape_ipv4_address");
-    syscfg_unset (NULL, "mape_ipv4_address");
 }
 #endif
