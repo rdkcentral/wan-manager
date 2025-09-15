@@ -2930,19 +2930,19 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
                                                     p_RAInfo->IsRAReceived ? "Yes" : "No"));
     CcspTraceInfo(("Interface: %s\n", p_RAInfo->acInterface));
     CcspTraceInfo(("Default GW: %s\n", p_RAInfo->acDefaultGw[0] ? p_RAInfo->acDefaultGw : "(none)"));
-    CcspTraceInfo(("Hop limit: %d\n", p_RAInfo->iHopLimit));
-    CcspTraceInfo(("MTU: %d\n", p_RAInfo->iMTUSize));
-    CcspTraceInfo(("Router lifetime: %d\n", p_RAInfo->iRouterLifetime));
-    CcspTraceInfo(("Reachable time: %d\n", p_RAInfo->iReachableTime));
-    CcspTraceInfo(("Retransmit time: %d\n", p_RAInfo->iRetransmitTime));
+    CcspTraceInfo(("Hop limit: %u\n", p_RAInfo->uiHopLimit));
+    CcspTraceInfo(("MTU: %u\n", p_RAInfo->uiMTUSize));
+    CcspTraceInfo(("Router lifetime: %u\n", p_RAInfo->uiRouterLifetime));
+    CcspTraceInfo(("Reachable time: %u\n", p_RAInfo->uiReachableTime));
+    CcspTraceInfo(("Retransmit time: %u\n", p_RAInfo->uiRetransmitTime));
     CcspTraceInfo(("Prefix: %s\n", p_RAInfo->acPrefix[0] ? p_RAInfo->acPrefix : "(none)"));
-    CcspTraceInfo(("  Valid lifetime: %d\n", p_RAInfo->iValidLifetime));
-    CcspTraceInfo(("  Preferred lifetime: %d\n", p_RAInfo->iPreferredLifetime));
+    CcspTraceInfo(("  Valid lifetime: %u\n", p_RAInfo->uiValidLifetime));
+    CcspTraceInfo(("  Preferred lifetime: %u\n", p_RAInfo->uiPreferredLifetime));
     CcspTraceInfo(("Recursive DNS servers:\n"));
-    for (int i = 0; i < p_RAInfo->iDnssCount; i++) {
+    for (int i = 0; i < p_RAInfo->uiDnssCount; i++) {
         CcspTraceInfo(("  %s\n", p_RAInfo->acDnss[i]));
     }
-    if (p_RAInfo->iDnssCount == 0) {
+    if (p_RAInfo->uiDnssCount == 0) {
         CcspTraceInfo(("  (none)\n"));
     }
     CcspTraceInfo(("***********************************************************************\n"));
