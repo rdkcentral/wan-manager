@@ -539,7 +539,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                         snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
                         pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
 
-                        if ( 0 < stRAInfo.iDnssCount )
+                        if ( 0 < stRAInfo.uiDnssCount )
                         {
                             if( '\0' != stRAInfo.acDnss[0][0] )
                             snprintf(pVirtIf->IP.Ipv6Data.nameserver, sizeof(pVirtIf->IP.Ipv6Data.nameserver), "%s", stRAInfo.acDnss[0]);
@@ -2907,7 +2907,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
         else if (strstr(line, "Recursive DNS server")) {
             char dns[BUFLEN_64] = {0};
             if (sscanf(line, "  Recursive DNS server : %63s", dns) == 1) {
-                if (p_RAInfo->iDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
+                if (p_RAInfo->uiDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
                     strncpy(p_RAInfo->acDnss[p_RAInfo->uiDnssCount], dns, 63);
                     p_RAInfo->acDnss[p_RAInfo->uiDnssCount][63] = '\0';
                     p_RAInfo->uiDnssCount++;
