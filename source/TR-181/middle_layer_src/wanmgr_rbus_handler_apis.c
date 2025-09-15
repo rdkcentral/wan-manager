@@ -2340,7 +2340,20 @@ static void WanMgr_InterfaceStatus_EventHandler(rbusHandle_t handle, rbusEvent_t
         return;
     }
 
-    CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
+    rbusValue_t value;
+    value = rbusObject_GetValue(event->data, NULL);
+
+    char acStatus[16] = {0};
+    strncpy(acStatus , rbusValue_GetString(value, NULL),sizeof(acStatus)-1);
+
+    CcspTraceInfo(("%s %d: Received '%s' event value is '%s'\n", __FUNCTION__, __LINE__, eventName, ((acStatus[0] != '\0') ? acStatus : "Empty")));
+
+    //Ignore further processing when value is not valid
+    if ( '\0' == acStatus[0] )
+    {
+        CcspTraceInfo(("%s %d: Received '%s' event value is empty so ignoring process further\n", __FUNCTION__, __LINE__, eventName));
+        return;
+    }
 
     UINT uiLoopCount;
     UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
@@ -2355,12 +2368,6 @@ static void WanMgr_InterfaceStatus_EventHandler(rbusHandle_t handle, rbusEvent_t
 
             if( 0 == strncmp( eventName, pWanIfaceData->BaseInterface, strlen(pWanIfaceData->BaseInterface) ) )    
             {
-                rbusValue_t value;
-                value = rbusObject_GetValue(event->data, NULL);
-
-                char acStatus[16] = {0};
-                strncpy(acStatus , rbusValue_GetString(value, NULL),sizeof(acStatus)-1);
-                
                 pWanIfaceData->BaseInterfaceStatus = ( 0 == strncmp(acStatus, "Up", strlen("Up")) ) ?  WAN_IFACE_PHY_STATUS_UP : WAN_IFACE_PHY_STATUS_DOWN;
 
                 CcspTraceInfo(("%s %d: Prefix Value %s, phy status %d\n", __FUNCTION__, __LINE__, acStatus, pWanIfaceData->BaseInterfaceStatus));

@@ -771,6 +771,7 @@ static void *WanManagerSyseventHandler(void *args)
             else if ( strcmp(name, SYSEVENT_IPV6_ADDR_UPDATE) == 0 )
             {
                 CcspTraceWarning(("%s %d Netmonitor Update : IPv6 Address Update Event:%s, Value:%s \n", __FUNCTION__, __LINE__, name, val ));
+                WanMgr_Handle_Dhcpv6_NetLink_Address_Event(val);
             }
             else if ( strcmp(name, SYSEVENT_ULA_ENABLE) == 0 )
             {

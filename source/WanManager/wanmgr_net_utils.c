@@ -2848,7 +2848,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
         return -1;
     }
 
-    p_RAInfo->iDnssCount = 0;
+    p_RAInfo->uiDnssCount = 0;
     snprintf(p_RAInfo->acInterface, sizeof(p_RAInfo->acInterface), "%s", p_VirtIf->Name);
 
     //Parse rdisc6 output
@@ -2871,28 +2871,28 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
             p_RAInfo->IsAFlagSet = TRUE;
         }
         else if (strstr(line, "Hop limit")) {
-            sscanf(line, "  Hop limit           : %d", &p_RAInfo->iHopLimit);
+            sscanf(line, "  Hop limit           : %u", &p_RAInfo->uiHopLimit);
         }
         else if (strstr(line, "MTU")) {
-            sscanf(line, "  MTU                 : %d", &p_RAInfo->iMTUSize);
+            sscanf(line, "  MTU                 : %u", &p_RAInfo->uiMTUSize);
         }
         else if (strstr(line, "Router lifetime")) {
-            sscanf(line, "  Router lifetime     : %d", &p_RAInfo->iRouterLifetime);
+            sscanf(line, "  Router lifetime     : %u", &p_RAInfo->uiRouterLifetime);
         }
         else if (strstr(line, "Reachable time")) {
-            sscanf(line, "  Reachable time      : %d", &p_RAInfo->iReachableTime);
+            sscanf(line, "  Reachable time      : %u", &p_RAInfo->uiReachableTime);
         }
         else if (strstr(line, "Retransmit time")) {
-            sscanf(line, "  Retransmit time     : %d", &p_RAInfo->iRetransmitTime);
+            sscanf(line, "  Retransmit time     : %u", &p_RAInfo->uiRetransmitTime);
         }
         else if (strstr(line, "Prefix")) {
             sscanf(line, "  Prefix              : %127s", p_RAInfo->acPrefix);
         }
         else if (strstr(line, "Valid time")) {
-            sscanf(line, "      Valid time      : %d", &p_RAInfo->iValidLifetime);
+            sscanf(line, "      Valid time      : %u", &p_RAInfo->uiValidLifetime);
         }
         else if (strstr(line, "Pref. time")) {
-            sscanf(line, "      Pref. time      : %d", &p_RAInfo->iPreferredLifetime);
+            sscanf(line, "      Pref. time      : %u", &p_RAInfo->uiPreferredLifetime);
         }
         else if (strstr(line, "from")) { 
             char gw[INET6_ADDRSTRLEN] = {0};
@@ -2908,9 +2908,9 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WanMgr_IPv
             char dns[BUFLEN_64] = {0};
             if (sscanf(line, "  Recursive DNS server : %63s", dns) == 1) {
                 if (p_RAInfo->iDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
-                    strncpy(p_RAInfo->acDnss[p_RAInfo->iDnssCount], dns, 63);
-                    p_RAInfo->acDnss[p_RAInfo->iDnssCount][63] = '\0';
-                    p_RAInfo->iDnssCount++;
+                    strncpy(p_RAInfo->acDnss[p_RAInfo->uiDnssCount], dns, 63);
+                    p_RAInfo->acDnss[p_RAInfo->uiDnssCount][63] = '\0';
+                    p_RAInfo->uiDnssCount++;
                 }
             }
         }

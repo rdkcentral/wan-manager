@@ -91,23 +91,23 @@ typedef enum {
 #define WANMGR_MAX_RA_DNS_SUPPORT       5   // Up to 5 DNS servers
 
 typedef struct {
-    bool        IsRAReceived;           // Confirms whether RA received or not
-    bool        IsMFlagSet;             // Stateful address conf. (Managed) M-flag
-    bool        IsOFlagSet;             // Stateful other conf. (Other) O-flag
-    bool        IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
-    char        acInterface[BUFLEN_64];
-    char        acRouter[INET6_ADDRSTRLEN];
-    int         iHopLimit;
-    int         iMTUSize;
-    int         iRouterLifetime;
-    int         iReachableTime;
-    int         iRetransmitTime;
-    char        acPrefix[BUFLEN_128];
-    int         iValidLifetime;
-    int         iPreferredLifetime;
-    char        acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
-    char        acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
-    int         iDnssCount;
+    bool                 IsRAReceived;           // Confirms whether RA received or not
+    bool                 IsMFlagSet;             // Stateful address conf. (Managed) M-flag
+    bool                 IsOFlagSet;             // Stateful other conf. (Other) O-flag
+    bool                 IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
+    char                 acInterface[BUFLEN_64];
+    char                 acRouter[INET6_ADDRSTRLEN];
+    unsigned int         uiHopLimit;
+    unsigned int         uiMTUSize;
+    unsigned int         uiRouterLifetime;
+    unsigned int         uiReachableTime;
+    unsigned int         uiRetransmitTime;
+    char                 acPrefix[BUFLEN_128];
+    unsigned int         uiValidLifetime;
+    unsigned int         uiPreferredLifetime;
+    char                 acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
+    char                 acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
+    unsigned int         uiDnssCount;
 } WanMgr_IPv6_RA_Info;
 
 /* ---- Global Variables -------------------------- */
