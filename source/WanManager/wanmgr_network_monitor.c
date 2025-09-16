@@ -25,7 +25,7 @@
 #include <linux/if_addr.h>
 #include <net/if.h>
 #include "ipc_msg.h"
-#include "network_route_monitor.h"
+#include "wanmgr_network_monitor.h"
 #include "ansc_platform.h"
 #include "ansc_string_util.h"
 #include <sysevent/sysevent.h>
@@ -71,6 +71,7 @@ static bool g_toggle_flag = TRUE;
 static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len); // Parse the route entries
 static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh); // Parse the interface address entries
 static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr); // check for default gateway
+static void* NetworkMonitorThread( void *arg );
 
 #if defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)
 static int get_v6_default_gw_wan(char *defGateway, size_t length)
@@ -92,33 +93,33 @@ static int get_v6_default_gw_wan(char *defGateway, size_t length)
             {
                 if (inet_pton (AF_INET6, token, &in6Addr) <= 0)
                 {
-                    DBG_MONITOR_PRINT("Invalid ipv6 address=%s \n", token);
+                    CcspTraceError(("Invalid ipv6 address=%s \n", token));
                     ret = ANSC_STATUS_FAILURE;
                     return ret;
                 }
                 strncpy(defGateway, token, length);
-                DBG_MONITOR_PRINT("IPv6 Default GW address  = %s \n", defGateway);
+                CcspTraceInfo(("IPv6 Default GW address  = %s \n", defGateway));
             }
             else
             {
-                DBG_MONITOR_PRINT("Could not parse ipv6 gw addr\n");
+                CcspTraceError(("Could not parse ipv6 gw addr\n"));
                 ret = ANSC_STATUS_FAILURE;
             }
         }
         else
         {
-            DBG_MONITOR_PRINT("Could not read ipv6 gw addr \n");
+            CcspTraceError(("Could not read ipv6 gw addr \n"));
             ret = ANSC_STATUS_FAILURE;
         }
         pclose_ret = v_secure_pclose(fp);
 	if(pclose_ret !=0)
 	{
-	    DBG_MONITOR_PRINT("Failed in closing the pipe ret %d \n",pclose_ret);
+	    CcspTraceInfo(("Failed in closing the pipe ret %d \n",pclose_ret));
 	}
     }
     else
     {
-        DBG_MONITOR_PRINT("Failed to get the default gw address \n");
+        CcspTraceError(("Failed to get the default gw address \n"));
         ret = ANSC_STATUS_FAILURE;
     }
 
@@ -127,7 +128,7 @@ static int get_v6_default_gw_wan(char *defGateway, size_t length)
 
 static int WanManager_MaptRouteSetting()
 {
-    DBG_MONITOR_PRINT("%s Enter \n", __FUNCTION__);
+    CcspTraceInfo(("%s Enter \n", __FUNCTION__));
 
     char brIPv6Prefix[BUFLEN_256] = {0};
     char vlanIf[BUFLEN_64] = {0};
@@ -143,19 +144,19 @@ static int WanManager_MaptRouteSetting()
         mtu_size_mapt = MAPT_MTU_SIZE; /* 1520 */
     }
 #endif
-    DBG_MONITOR_PRINT("MAPT MTU Size = %d \n", mtu_size_mapt);
+    CcspTraceInfo(("MAPT MTU Size = %d \n", mtu_size_mapt));
 
     sysevent_get(sysevent_fd, sysevent_token, MAP_WAN_IFACE, vlanIf, sizeof(vlanIf));
     if (!strcmp(vlanIf, "\0"))
     {
-        DBG_MONITOR_PRINT("%s Failed to get sysevent (%s) \n", __FUNCTION__, MAP_WAN_IFACE);
+        CcspTraceInfo(("%s Failed to get sysevent (%s) \n", __FUNCTION__, MAP_WAN_IFACE));
         return ANSC_STATUS_FAILURE;
     }
 
     sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_MAP_BR_IPV6_PREFIX, brIPv6Prefix, sizeof(brIPv6Prefix));
     if (!strcmp(brIPv6Prefix, "\0"))
     {
-        DBG_MONITOR_PRINT("%s Failed to get sysevent (%s) \n", __FUNCTION__, SYSEVENT_MAP_BR_IPV6_PREFIX);
+        CcspTraceError(("%s Failed to get sysevent (%s) \n", __FUNCTION__, SYSEVENT_MAP_BR_IPV6_PREFIX));
         return ANSC_STATUS_FAILURE;
     }
 
@@ -166,11 +167,11 @@ static int WanManager_MaptRouteSetting()
 
     ret = v_secure_system("ip -6 route change default via %s dev %s mtu %d", defaultGatewayV6, vlanIf, MTU_DEFAULT_SIZE);
     if(ret != 0) {
-         DBG_MONITOR_PRINT("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n", __FUNCTION__,__LINE__,ret);
+         CcspTraceError(("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n", __FUNCTION__,__LINE__,ret));
     }
     ret = v_secure_system("ip -6 route replace %s via %s dev %s mtu %d", brIPv6Prefix, defaultGatewayV6, vlanIf, mtu_size_mapt);
     if(ret != 0) {
-          DBG_MONITOR_PRINT("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__,__LINE__,ret);
+          CcspTraceError(("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__,__LINE__,ret));
     }
 }
 #endif // FEATURE_MAPT && NAT46_KERNEL_SUPPORT
@@ -205,7 +206,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     }
 
     if (if_indextoname(ifa->ifa_index, ifname) == NULL) {
-        DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] Failed to retreive interface name for ifindex=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index);
+        CcspTraceError(("%s-%d [ADDR EVENT] Failed to retreive interface name for ifindex=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index));
         return ret;
     }
 
@@ -225,16 +226,16 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
                 }
 
                 prefix_length = ifa->ifa_prefixlen;
-                DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] IPv6 address: %s/%d\n", __FUNCTION__, __LINE__, ipv6_addr, ifa->ifa_prefixlen);
+                CcspTraceInfo(("%s-%d [ADDR EVENT] IPv6 address: %s/%d\n", __FUNCTION__, __LINE__, ipv6_addr, ifa->ifa_prefixlen));
             }
         }
         if (rta->rta_type == IFA_CACHEINFO) {
             struct ifa_cacheinfo *ci = RTA_DATA(rta);
             pref_lifetime   = ci->ifa_prefered;
             valid_lifetime  = ci->ifa_valid;
-            DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] preferred_lft=%u sec, valid_lft=%u sec\n",
+            CcspTraceInfo(("%s-%d [ADDR EVENT] preferred_lft=%u sec, valid_lft=%u sec\n",
                                                     __FUNCTION__, __LINE__,
-                                                    ci->ifa_prefered, ci->ifa_valid);
+                                                    ci->ifa_prefered, ci->ifa_valid));
         }
     }
 
@@ -242,14 +243,14 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     {
        snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
-       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo);
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo));
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
     {
        snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
-       DBG_MONITOR_PRINT("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo);
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo));
        ret = ANSC_STATUS_SUCCESS;
     }
 
@@ -265,7 +266,7 @@ static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr)
     int len = nlmsgHdr->nlmsg_len - NLMSG_LENGTH(sizeof(*route_entry));
 
     if (len < 0) {
-        DBG_MONITOR_PRINT("%s Wrong message length \n", __FUNCTION__);
+        CcspTraceError(("%s Wrong message length \n", __FUNCTION__));
         return ret;
     }
 
@@ -277,7 +278,7 @@ static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr)
     parse_rtattr(tb, RTA_MAX, RTM_RTA(route_entry), len);
 
     if ( (tb[RTA_DST] == 0)  && (route_entry->rtm_dst_len == 0) ) {
-        DBG_MONITOR_PRINT("%s-%d: Found Default gateway in route event \n", __FUNCTION__, __LINE__);
+        CcspTraceInfo(("%s-%d: Found Default gateway in route event \n", __FUNCTION__, __LINE__));
         ret = ANSC_STATUS_SUCCESS;
     }
 
@@ -288,12 +289,12 @@ static ANSC_STATUS NetMonitor_InitNetlinkRouteMonitorFd()
 {
     struct sockaddr_nl addr;
 
-    DBG_MONITOR_PRINT("%s Enter \n", __FUNCTION__);
+    CcspTraceInfo(("%s Enter \n", __FUNCTION__));
 
     netlinkRouteMonitorFd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
     if (netlinkRouteMonitorFd < 0)
     {
-        DBG_MONITOR_PRINT("%s Failed to create netlink socket: %s\n", __FUNCTION__, strerror(errno));
+        CcspTraceError(("%s Failed to create netlink socket: %s\n", __FUNCTION__, strerror(errno)));
         return ANSC_STATUS_FAILURE;
     }
 
@@ -302,30 +303,30 @@ static ANSC_STATUS NetMonitor_InitNetlinkRouteMonitorFd()
     addr.nl_groups = RTMGRP_IPV6_ROUTE | RTMGRP_IPV6_IFADDR;
     if (0 > bind(netlinkRouteMonitorFd, (struct sockaddr *) &addr, sizeof(addr)))
     {
-        DBG_MONITOR_PRINT("%s Failed to bind netlink socket: %s\n", __FUNCTION__, strerror(errno));
+        CcspTraceError(("%s Failed to bind netlink socket: %s\n", __FUNCTION__, strerror(errno)));
         close(netlinkRouteMonitorFd);
         return ANSC_STATUS_FAILURE;
     }
-    DBG_MONITOR_PRINT("%s Bound netlinkRouteMonitorFd to 0x%x  \n", __FUNCTION__, addr.nl_groups);
+    CcspTraceInfo(("%s Bound netlinkRouteMonitorFd to 0x%x  \n", __FUNCTION__, addr.nl_groups));
 
     return ANSC_STATUS_SUCCESS;
 }
 
 static void NetMonitor_DoToggleV6Status(bool flag)
 {
-    DBG_MONITOR_PRINT("%s-%d: Enter \n", __FUNCTION__, __LINE__);
+    CcspTraceInfo(("%s-%d: Enter \n", __FUNCTION__, __LINE__));
 
     g_toggle_flag = flag;
 
     if (g_toggle_flag == TRUE)
     {
-        DBG_MONITOR_PRINT("%s-%d: Toggle Needed \n", __FUNCTION__, __LINE__);
+        CcspTraceInfo(("%s-%d: Toggle Needed \n", __FUNCTION__, __LINE__));
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_TOGGLE, "TRUE", 0);
         g_toggle_flag = FALSE;
     }
     else
     {
-        DBG_MONITOR_PRINT("%s-%d: No Toggle Needed \n", __FUNCTION__, __LINE__);
+        CcspTraceInfo(("%s-%d: No Toggle Needed \n", __FUNCTION__, __LINE__));
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_TOGGLE, "FALSE", 0); 
     }
 }
@@ -345,7 +346,7 @@ static void netMonitor_SyseventInit()
        try++;
        usleep(50000);
     }
-        DBG_MONITOR_PRINT("%s-%d: Started \n", __FUNCTION__, __LINE__);
+        CcspTraceInfo(("%s-%d: Started \n", __FUNCTION__, __LINE__));
 }
 
 static void NetMonitor_ProcessNetlinkRouteMonitorFd()
@@ -374,7 +375,7 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
 
     ssize_t status = recvmsg(netlinkRouteMonitorFd, &msg, 0);
     if (status <= 0) {
-        DBG_MONITOR_PRINT("%s-%d: Received Message Status Failed %d \n", __FUNCTION__, __LINE__, status);
+        CcspTraceError(("%s-%d: Received Message Status Failed %d \n", __FUNCTION__, __LINE__, status));
         return;
     }
 
@@ -388,7 +389,7 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
         /* Message is some kind of error */
         if (nl_msgHdr->nlmsg_type == NLMSG_ERROR)
         {
-            DBG_MONITOR_PRINT("%s netlink message error \n", __FUNCTION__);
+            CcspTraceInfo(("%s netlink message error \n", __FUNCTION__));
             return;
         }
 
@@ -399,7 +400,7 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
                  {
                      if(isDefaultGatewaypresent(nl_msgHdr) == ANSC_STATUS_SUCCESS){
                          if(gw_v6_flag == FALSE){
-                             DBG_MONITOR_PRINT(" %s  IPv6 Default route update - ADD \n", __FUNCTION__);
+                             CcspTraceInfo((" %s  IPv6 Default route update - ADD \n", __FUNCTION__));
                              NetMonitor_DoToggleV6Status(FALSE);
 #if defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)
                              sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_MAPT_CONFIG_FLAG, maptConfigFlag, sizeof(maptConfigFlag));
@@ -417,7 +418,7 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
                  {
                      if(isDefaultGatewaypresent(nl_msgHdr) == ANSC_STATUS_SUCCESS){
                          if(gw_v6_flag == TRUE){
-                             DBG_MONITOR_PRINT(" %s  IPv6 Default route update - DEL \n", __FUNCTION__);
+                             CcspTraceInfo((" %s  IPv6 Default route update - DEL \n", __FUNCTION__));
                              NetMonitor_DoToggleV6Status(TRUE);
                              gw_v6_flag = FALSE;
                          }
@@ -427,9 +428,9 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
             case RTM_NEWADDR:
             case RTM_DELADDR:
                 {
-                    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+                    CcspTraceInfo(("%s-%d: Trace \n", __FUNCTION__, __LINE__));
                     parse_addrattr(nl_msgHdr);
-                    DBG_MONITOR_PRINT("%s-%d: Trace \n", __FUNCTION__, __LINE__);
+                    CcspTraceInfo(("%s-%d: Trace \n", __FUNCTION__, __LINE__));
                     break;
                 }
             default:
@@ -443,19 +444,22 @@ static void NetMonitor_DeInitNetlinkRouteMonitorFd()
 {
     if (netlinkRouteMonitorFd >= 0)
     {
-        DBG_MONITOR_PRINT("%s-%d: \n", __FUNCTION__, __LINE__);
+        CcspTraceInfo(("%s-%d: \n", __FUNCTION__, __LINE__));
         close(netlinkRouteMonitorFd);
         netlinkRouteMonitorFd = -1;
     }
 }
 
-int main(int argc, char* argv[])
+static void* NetworkMonitorThread( void *arg )
 {
+    //detach thread from caller stack
+    pthread_detach(pthread_self());
+    
     //event handler
     int n = 0;
     struct timeval tv;
 
-    DBG_MONITOR_PRINT("%s-%d: \n", __FUNCTION__, __LINE__);
+    CcspTraceInfo(("%s-%d: \n", __FUNCTION__, __LINE__));
 
     fd_set readFds;
     fd_set errorFds;
@@ -492,5 +496,28 @@ int main(int argc, char* argv[])
         }
     }
     NetMonitor_DeInitNetlinkRouteMonitorFd();
-    return 0;
+
+    pthread_exit(NULL);
+}
+
+ANSC_STATUS WanMgr_StartNetWorkMonitor( void )
+{
+    pthread_t nwMonThreadId;
+    ANSC_STATUS retStatus = ANSC_STATUS_FAILURE;
+    int ret = -1;
+
+    //create thread
+    ret = pthread_create( &nwMonThreadId, NULL, &NetworkMonitorThread, NULL );
+
+    if( 0 != ret )
+    {
+        CcspTraceError(("%s %d - Failed to start Network Monitor Thread Error:%d\n", __FUNCTION__, __LINE__, ret));
+    }
+    else
+    {
+        CcspTraceInfo(("%s %d - Network Monitor Thread Started Successfully\n", __FUNCTION__, __LINE__));
+        retStatus = ANSC_STATUS_SUCCESS;
+    }
+
+    return retStatus ;
 }

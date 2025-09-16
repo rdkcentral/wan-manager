@@ -2157,7 +2157,6 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
                                     &stAddrEvent.preferred_lft,
                                     &stAddrEvent.valid_lft);
 
-
     UINT uiLoopCount;
     UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
 
