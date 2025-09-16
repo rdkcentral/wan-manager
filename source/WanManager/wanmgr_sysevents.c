@@ -38,7 +38,6 @@ static token_t sysevent_msg_token;
 #define SYS_IP_ADDR                 "127.0.0.1"
 #define BUFLEN_42                   42
 #define SYSEVENT_IPV6_TOGGLE        "ipv6Toggle"
-#define SYSEVENT_IPV6_ADDR_UPDATE   "ipv6AddressUpdate"
 #define SYSEVENT_VALUE_TRUE        "true"
 #define SYSEVENT_VALUE_FALSE        "false"
 #define SYSEVENT_VALUE_READY        "ready"
@@ -701,9 +700,6 @@ static void *WanManagerSyseventHandler(void *args)
 #endif
 #endif
 
-    sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_ADDR_UPDATE, TUPLE_FLAG_EVENT);
-    sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_ADDR_UPDATE, &ipv6_address_change_event_asyncid);
-
     for(;;)
     {
         char name[BUFLEN_64] = {0};
@@ -767,11 +763,6 @@ static void *WanManagerSyseventHandler(void *args)
                     isDefaultGatewayAdded = 0;
                     CcspTraceWarning(("%s %d Netmonitor Update : IPv6 default route Deleted \n", __FUNCTION__, __LINE__ ));
                 }
-            }
-            else if ( strcmp(name, SYSEVENT_IPV6_ADDR_UPDATE) == 0 )
-            {
-                CcspTraceWarning(("%s %d Netmonitor Update : IPv6 Address Update Event:%s, Value:%s \n", __FUNCTION__, __LINE__, name, val ));
-                WanMgr_Handle_Dhcpv6_NetLink_Address_Event(val);
             }
             else if ( strcmp(name, SYSEVENT_ULA_ENABLE) == 0 )
             {

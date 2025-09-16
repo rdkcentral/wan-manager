@@ -30,6 +30,8 @@
 #include "ansc_string_util.h"
 #include <sysevent/sysevent.h>
 #include "secure_wrapper.h"
+#include "wanmgr_dhcpv6_apis.h"
+
 /* ---- Global Variables ------------------------------------ */
 int sysevent_nwm_fd = -1;
 token_t sysevent_token;
@@ -43,7 +45,6 @@ static bool g_toggle_flag = TRUE;
 
 #define LOOP_TIMEOUT 100000 // timeout in milliseconds. This is the state machine loop interval
 #define SYSEVENT_IPV6_TOGGLE        "ipv6Toggle"
-#define SYSEVENT_IPV6_ADDR_UPDATE   "ipv6AddressUpdate"
 #define SYSEVENT_OPEN_MAX_RETRIES   6
 #define SE_SERVER_WELL_KNOWN_PORT   52367
 #define SE_VERSION                  1
@@ -242,15 +243,15 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     if (nlh->nlmsg_type == RTM_NEWADDR) 
     {
        snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       sysevent_set(sysevent_nwm_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo));
+       WanMgr_Handle_Dhcpv6_NetLink_Address_Event(eventInfo);
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
     {
        snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       sysevent_set(sysevent_nwm_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo));
+       WanMgr_Handle_Dhcpv6_NetLink_Address_Event(eventInfo);
        ret = ANSC_STATUS_SUCCESS;
     }
 
@@ -428,9 +429,7 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
             case RTM_NEWADDR:
             case RTM_DELADDR:
                 {
-                    CcspTraceInfo(("%s-%d: Trace \n", __FUNCTION__, __LINE__));
                     parse_addrattr(nl_msgHdr);
-                    CcspTraceInfo(("%s-%d: Trace \n", __FUNCTION__, __LINE__));
                     break;
                 }
             default:
