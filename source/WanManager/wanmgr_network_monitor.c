@@ -31,7 +31,7 @@
 #include <sysevent/sysevent.h>
 #include "secure_wrapper.h"
 /* ---- Global Variables ------------------------------------ */
-int sysevent_fd = -1;
+int sysevent_nwm_fd = -1;
 token_t sysevent_token;
 
 static int maxFd = 50;
@@ -146,14 +146,14 @@ static int WanManager_MaptRouteSetting()
 #endif
     CcspTraceInfo(("MAPT MTU Size = %d \n", mtu_size_mapt));
 
-    sysevent_get(sysevent_fd, sysevent_token, MAP_WAN_IFACE, vlanIf, sizeof(vlanIf));
+    sysevent_get(sysevent_nwm_fd, sysevent_token, MAP_WAN_IFACE, vlanIf, sizeof(vlanIf));
     if (!strcmp(vlanIf, "\0"))
     {
         CcspTraceInfo(("%s Failed to get sysevent (%s) \n", __FUNCTION__, MAP_WAN_IFACE));
         return ANSC_STATUS_FAILURE;
     }
 
-    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_MAP_BR_IPV6_PREFIX, brIPv6Prefix, sizeof(brIPv6Prefix));
+    sysevent_get(sysevent_nwm_fd, sysevent_token, SYSEVENT_MAP_BR_IPV6_PREFIX, brIPv6Prefix, sizeof(brIPv6Prefix));
     if (!strcmp(brIPv6Prefix, "\0"))
     {
         CcspTraceError(("%s Failed to get sysevent (%s) \n", __FUNCTION__, SYSEVENT_MAP_BR_IPV6_PREFIX));
@@ -242,14 +242,14 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     if (nlh->nlmsg_type == RTM_NEWADDR) 
     {
        snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       sysevent_set(sysevent_nwm_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
        CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo));
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
     {
        snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
+       sysevent_set(sysevent_nwm_fd, sysevent_token, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo, 0);
        CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Event '%s' Info '%s'\n", __FUNCTION__, __LINE__, ifname, SYSEVENT_IPV6_ADDR_UPDATE, eventInfo));
        ret = ANSC_STATUS_SUCCESS;
     }
@@ -321,13 +321,13 @@ static void NetMonitor_DoToggleV6Status(bool flag)
     if (g_toggle_flag == TRUE)
     {
         CcspTraceInfo(("%s-%d: Toggle Needed \n", __FUNCTION__, __LINE__));
-        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_TOGGLE, "TRUE", 0);
+        sysevent_set(sysevent_nwm_fd, sysevent_token, SYSEVENT_IPV6_TOGGLE, "TRUE", 0);
         g_toggle_flag = FALSE;
     }
     else
     {
         CcspTraceInfo(("%s-%d: No Toggle Needed \n", __FUNCTION__, __LINE__));
-        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_TOGGLE, "FALSE", 0); 
+        sysevent_set(sysevent_nwm_fd, sysevent_token, SYSEVENT_IPV6_TOGGLE, "FALSE", 0); 
     }
 }
 
@@ -338,8 +338,8 @@ static void netMonitor_SyseventInit()
     /* Open sysevent descriptor to send messages */
     while(try < SYSEVENT_OPEN_MAX_RETRIES)
     {
-       sysevent_fd =  sysevent_open(SYS_IP_ADDR, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, NETMONITOR_SYSNAME, &sysevent_token);
-       if(sysevent_fd >= 0)
+       sysevent_nwm_fd =  sysevent_open(SYS_IP_ADDR, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, NETMONITOR_SYSNAME, &sysevent_token);
+       if(sysevent_nwm_fd >= 0)
        {
           break;
        }
@@ -403,7 +403,7 @@ static void NetMonitor_ProcessNetlinkRouteMonitorFd()
                              CcspTraceInfo((" %s  IPv6 Default route update - ADD \n", __FUNCTION__));
                              NetMonitor_DoToggleV6Status(FALSE);
 #if defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)
-                             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_MAPT_CONFIG_FLAG, maptConfigFlag, sizeof(maptConfigFlag));
+                             sysevent_get(sysevent_nwm_fd, sysevent_token, SYSEVENT_MAPT_CONFIG_FLAG, maptConfigFlag, sizeof(maptConfigFlag));
                              if (!strcmp(maptConfigFlag, SET))
                              {
                                  WanManager_MaptRouteSetting();
