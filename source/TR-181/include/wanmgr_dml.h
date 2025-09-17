@@ -33,6 +33,7 @@
 #define MAX_INTERFACE_GROUP           2
 #define WAN_MANAGER_VERSION         "1.5"
 #define WIFI_BASE_IFACE_PATH        "Device.WiFi.EndPoint."
+#define WANMGR_MAX_RA_DNS_SUPPORT       5   // Up to 5 DNS servers
 
 typedef enum _WANMGR_IFACE_SELECTION_STATUS
 {
