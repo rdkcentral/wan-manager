@@ -1915,7 +1915,7 @@ ANSC_STATUS WanMgr_Configure_TAD_WCC(DML_VIRTUAL_IFACE *p_VirtIf,  WCC_EVENT Eve
     snprintf(pTADEvent->IPv4_DNS_Servers, sizeof(pTADEvent->IPv4_DNS_Servers), "%s,%s",p_VirtIf->IP.Ipv4Data.dnsServer,p_VirtIf->IP.Ipv4Data.dnsServer1);
     snprintf(pTADEvent->IPv4_Gateway, sizeof(pTADEvent->IPv4_Gateway), "%s",p_VirtIf->IP.Ipv4Data.gateway);
     snprintf(pTADEvent->IPv6_DNS_Servers, sizeof(pTADEvent->IPv6_DNS_Servers), "%s,%s",p_VirtIf->IP.Ipv6Data.nameserver,p_VirtIf->IP.Ipv6Data.nameserver1);
-    snprintf(pTADEvent->IPv6_Gateway, sizeof(pTADEvent->IPv6_Gateway), "%s",p_VirtIf->IP.Ipv6Route.defaultRoute,p_VirtIf->IP.Ipv6Route.defaultRoute);
+    snprintf(pTADEvent->IPv6_Gateway, sizeof(pTADEvent->IPv6_Gateway), "%s",p_VirtIf->IP.Ipv6RA.acDefaultGw,p_VirtIf->IP.Ipv6RA.acDefaultGw);
     pTADEvent->Event = Event;
 
     //Run in thread to avoid mutex deadlock between WanManager and rbus handle

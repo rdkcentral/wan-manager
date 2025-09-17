@@ -492,7 +492,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     // Make a DHCPv6 client
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
     {
-        WanMgr_IPv6_RA_Info stRAInfo = { 0 };
+        WANMGR_IPV6_RA_DATA stRAInfo = { 0 };
 
         /*
            IPv6 Determination based on RA
@@ -516,6 +516,9 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
             }
             else
             {
+                //Copy IPv6 received RA info to WM local DS
+                memcpy(&pVirtIf->IP.Ipv6RA, &stRAInfo, sizeof(WANMGR_IPV6_RA_DATA));
+
                 if ( ( FALSE == stRAInfo.IsMFlagSet ) && ( FALSE == stRAInfo.IsOFlagSet ) )
                 {
                     CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
@@ -2791,14 +2794,14 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
     {
         if (strstr(buffer, "Router lifetime")) 
         {
-            sscanf(buffer, " Router lifetime : %d", &p_VirtIf->IP.Ipv6Route.defRouteLifeTime);
+            sscanf(buffer, " Router lifetime : %d", &p_VirtIf->IP.Ipv6RA.uiRouterLifetime);
         }
 
         // Look for the "from" line to identify the default route address
         if (strstr(buffer, "from")) 
         {
-            sscanf(buffer, " from %s",  p_VirtIf->IP.Ipv6Route.defaultRoute);
-            if (inet_pton(AF_INET6, p_VirtIf->IP.Ipv6Route.defaultRoute, &addr) == 1)  //check parsed value is a valid ipv6 address
+            sscanf(buffer, " from %s",  p_VirtIf->IP.Ipv6RA.acDefaultGw);
+            if (inet_pton(AF_INET6, p_VirtIf->IP.Ipv6RA.acDefaultGw, &addr) == 1)  //check parsed value is a valid ipv6 address
             {
                 ret = 0;
                 break;
@@ -2811,7 +2814,7 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
 
     if(ret == 0)
     {
-        CcspTraceInfo(("%s %d: Received Router Advertisement with default route %s lifetime %d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Route.defaultRoute, p_VirtIf->IP.Ipv6Route.defRouteLifeTime));
+        CcspTraceInfo(("%s %d: Received Router Advertisement with default route %s lifetime %d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6RA.acDefaultGw, p_VirtIf->IP.Ipv6RA.uiRouterLifetime));
     }
 
     return ret;

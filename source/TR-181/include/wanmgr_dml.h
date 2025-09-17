@@ -357,10 +357,25 @@ typedef struct _WANMGR_IPV6_DATA
    #endif
 } WANMGR_IPV6_DATA;
 
-typedef struct _WANMGR_IPV6_RA_DATA
+typedef struct _WANMGR_IPV6_RA_DATA 
 {
-   char defaultRoute[INET6_ADDRSTRLEN]; 
-   uint32_t defRouteLifeTime;
+    bool                 IsRAReceived;           // Confirms whether RA received or not
+    bool                 IsMFlagSet;             // Stateful address conf. (Managed) M-flag
+    bool                 IsOFlagSet;             // Stateful other conf. (Other) O-flag
+    bool                 IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
+    char                 acInterface[BUFLEN_64];
+    char                 acRouter[INET6_ADDRSTRLEN];
+    unsigned int         uiHopLimit;
+    unsigned int         uiMTUSize;
+    unsigned int         uiRouterLifetime;
+    unsigned int         uiReachableTime;
+    unsigned int         uiRetransmitTime;
+    char                 acPrefix[BUFLEN_128];
+    unsigned int         uiValidLifetime;
+    unsigned int         uiPreferredLifetime;
+    char                 acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
+    char                 acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
+    unsigned int         uiDnssCount;
 } WANMGR_IPV6_RA_DATA;
 
 typedef struct _DML_WANIFACE_IP
@@ -391,7 +406,7 @@ typedef struct _DML_WANIFACE_IP
     BOOL                        Ipv6Renewed;
     WANMGR_IPV4_DATA            Ipv4Data;
     WANMGR_IPV6_DATA            Ipv6Data;
-    WANMGR_IPV6_RA_DATA         Ipv6Route;
+    WANMGR_IPV6_RA_DATA         Ipv6RA;
     ipc_dhcpv4_data_t*          pIpcIpv4Data;
     ipc_dhcpv6_data_t*          pIpcIpv6Data;
     int                         Dhcp4cPid;
