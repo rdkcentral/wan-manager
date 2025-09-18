@@ -676,6 +676,16 @@ int WanManager_StartDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, char* baseInterface
         CcspTraceError(("%s %d: Invalid args \n", __FUNCTION__, __LINE__));
         return 0;
     }
+
+    //Check whether virtual interface is Up and Running or not
+    if ( ANSC_STATUS_FAILURE == WanManager_Wait_Until_Interface_ReadyToUse( pVirtIf->Name, INTF_V4STATE_TIMEOUT_IN_MSEC ) )
+    {
+        CcspTraceError(("%s %d: Interface '%s' is not ready so Dhcpv4 client failed to start. Returing pid -1\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        pVirtIf->IP.Dhcp4cPid = -1;
+        pVirtIf->IP.Dhcp4cStatus = DHCPC_FAILED;
+        return -1;
+    }
+
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
     WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
@@ -2671,6 +2681,39 @@ bool WanManager_IsNetworkInterfaceAvailable( char *IfaceName )
     return TRUE;
 }
 
+bool WanManager_IsNetworkInterfaceUp( char *IfaceName ) 
+{
+    int skfd = -1;
+    struct ifreq ifr = {0};
+
+    if( NULL == IfaceName )
+    {
+       return FALSE;
+    }
+  
+    AnscCopyString(ifr.ifr_name, IfaceName);
+    
+    skfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if(skfd == -1)
+       return FALSE;
+   
+    if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
+        if (errno == ENODEV) {
+            close(skfd); 
+            return FALSE;
+        }
+    }
+
+    close(skfd);
+
+    // Check both IFF_UP and IFF_RUNNING
+    if ((ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING)) {
+        return TRUE; // Interface is up and running
+    }
+
+    return FALSE;
+}
+
 int WanMgr_RdkBus_AddIntfToLanBridge (char * PhyPath, BOOL AddToBridge)
 {
     if (PhyPath == NULL)
@@ -3038,6 +3081,47 @@ ANSC_STATUS WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface(char *pInter
     }
 
     freeifaddrs(ifaddr);
+
+    return returnStatus;
+}
+
+/** WanManager_Wait_Until_Interface_ReadyToUse() */
+ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout)
+{
+    ANSC_STATUS  returnStatus = ANSC_STATUS_FAILURE;
+
+    // NULL check on received params
+    if ( NULL == pInterfaceName )
+    {
+       CcspTraceError(("%s %d: Invalid argument\n", __FUNCTION__, __LINE__));
+       return returnStatus;
+    }
+
+    unsigned int waitTime = uiTimeout;
+    while (waitTime > 0) 
+    {
+        //Check if interface is ready
+        if ( TRUE == WanManager_IsNetworkInterfaceUp( pInterfaceName ) ) 
+        {
+            break;
+        }
+        
+        CcspTraceError(("%s %d: Interface(%s) still no Up or Running so retrying\n", __FUNCTION__, __LINE__, pInterfaceName));
+
+        usleep(INTF_V4STATE_INTERVAL_IN_MSEC * USECS_IN_MSEC);
+        waitTime -= INTF_V4STATE_INTERVAL_IN_MSEC;
+    }
+
+    if (waitTime <= 0)
+    {
+        CcspTraceError(("%s %d: Interface %s doesnt Up or Running\n", __FUNCTION__, __LINE__, pInterfaceName));
+        returnStatus = ANSC_STATUS_FAILURE;
+    }
+    else
+    {
+        CcspTraceInfo(("%s %d: interface %s is Up and Running\n", __FUNCTION__, __LINE__, pInterfaceName));
+        returnStatus = ANSC_STATUS_SUCCESS;
+    }
 
     return returnStatus;
 }
