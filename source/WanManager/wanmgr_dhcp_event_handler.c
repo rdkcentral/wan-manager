@@ -199,7 +199,7 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
                     //TODO: Check for sysevents
                     if(pVirtIf->IP.Ipv6Data.prefixAssigned == TRUE)
                     {
-                        WanManager_Ipv6PrefixUtil(pVirtIf->Name, SET_LFT, pVirtIf->IP.Ipv6Data.prefixPltime, pVirtIf->IP.Ipv6Data.prefixVltime);
+                        WanManager_Ipv6AddrUtil(pVirtIf, SET_LFT);
                         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_RADVD_RESTART, NULL, 0);
                     }
                     CcspTraceInfo(("%s-%d : DHCPv6 lease renewed for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
