@@ -2167,6 +2167,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
         {
             DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data); 
 
+            //Handling for Hotspot interface
             if( 0 == strncmp( "HOTSPOT", pWanIfaceData->AliasName, strlen(pWanIfaceData->AliasName) ) )    
             {
                 for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
@@ -2175,7 +2176,10 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
                     if( NULL != p_VirtIf )
                     {
                         //Allow only for SLAAC use
-                        if ( ( p_VirtIf->Enable == TRUE ) && ( DML_WAN_IP_SOURCE_SLAAC == p_VirtIf->IP.IPv6Source ) && ( 0 == strncmp( p_VirtIf->Name, stAddrEvent.ifname, strlen(stAddrEvent.ifname) ) ) )
+                        if ( ( p_VirtIf->Enable == TRUE ) && \
+                             ( DML_WAN_IP_SOURCE_SLAAC == p_VirtIf->IP.IPv6Source ) && \
+                             ( 0 == strncmp( p_VirtIf->Name, stAddrEvent.ifname, strlen(stAddrEvent.ifname) ) ) && \
+                             ( IPV6_RA_VALID_SLAAC == p_VirtIf->IP.Ipv6RA.enIPv6RAStatus ) )
                         {
                             if ( 0 == strncmp(stAddrEvent.event, "NEWADDR", strlen("NEWADDR")) ) //Address Add
                             {

@@ -301,6 +301,12 @@ typedef enum {
     WCC_RESTART,
 } WCC_EVENT;
 
+typedef enum {
+    IPV6_RA_UNKNOWN = 0,            /** if CPE failed to receive RA for RS request */
+    IPV6_RA_VALID_SLAAC,            /** if CPE receives RA with M flag off */
+    IPV6_RA_VALID_DHCP,             /** if M flag or O flag is On */
+} IPV6_RA_STATUS;
+
 typedef struct _DATAMODEL_PPP
 {
     BOOL                          Enable;
@@ -360,6 +366,8 @@ typedef struct _WANMGR_IPV6_DATA
 
 typedef struct _WANMGR_IPV6_RA_DATA 
 {
+    IPV6_RA_STATUS       enIPv6RAStatus;
+    bool                 IsRASent;               // Confirms whether RA sent from CPE or not
     bool                 IsRAReceived;           // Confirms whether RA received or not
     bool                 IsMFlagSet;             // Stateful address conf. (Managed) M-flag
     bool                 IsOFlagSet;             // Stateful other conf. (Other) O-flag
