@@ -1642,9 +1642,32 @@ static INT StartWanClients(WanMgr_AutoWan_SMInfo_t *pSmInfo)
                         if(ret != 0) {
                             CcspTraceWarning(("%s-%d : Failure writing to /proc file\n", __FUNCTION__, __LINE__));
                         }
+#if defined(INTEL_PUMA7)
+                        if(0 == strncmp(udhcpcEnable, "true", 4))
+                        {
+                            v_secure_system("killall udhcpc");
+                            ret = v_secure_system("udhcpc -i %s &", pFixedInterface->VirtIfList->Name);
+                            if(ret != 0) 
+                            {
+                                CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
+                            }
+                            CcspTraceInfo(("%s %d - udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
+                        }
+                        else
+                        {
+                            v_secure_system("killall ti_udhcpc");
+                            ret = v_secure_system("ti_udhcpc -plugin /lib/libert_dhcpv4_plugin.so -i %s -H DocsisGateway -p /var/run/eRT_ti_udhcpc.pid -B -b 4 &",pFixedInterface->VirtIfList->Name);
+                            if(ret != 0) 
+                            {
+                                CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
+                            }
+                            CcspTraceInfo(("%s %d - ti_udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
+                        }
+#endif			
                         v_secure_system("killall udhcpc");
                         ret = v_secure_system("udhcpc -i %s &", pFixedInterface->VirtIfList->Name);
-                        if(ret != 0) {
+                        if(ret != 0)
+                        {			
                             CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
                         }
                         CcspTraceInfo(("%s %d - udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
@@ -1696,29 +1719,33 @@ static INT StartWanClients(WanMgr_AutoWan_SMInfo_t *pSmInfo)
                     {
                         v_secure_system("killall udhcpc");
                         ret = v_secure_system("/sbin/udhcpc -i %s -p /tmp/udhcpc.erouter0.pid -s /etc/udhcpc.script &",pFixedInterface->VirtIfList->Name);
-                        if(ret != 0) {
+                        if(ret != 0) 
+                        {
                             CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
                         }
+                        CcspTraceInfo(("%s %d - udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
                     }
                     else
                     {
                         v_secure_system("killall ti_udhcpc");
-                        ret = v_secure_system("ti_udhcpc -plugin /lib/libert_dhcpv4_plugin.so -i %s -H DocsisGateway -p /var/run/eRT_ti_udhcpc.pid -B -b 4 &",
-                                pFixedInterface->VirtIfList->Name);
-                        if(ret != 0) {
+                        ret = v_secure_system("ti_udhcpc -plugin /lib/libert_dhcpv4_plugin.so -i %s -H DocsisGateway -p /var/run/eRT_ti_udhcpc.pid -B -b 4 &",pFixedInterface->VirtIfList->Name);
+                        if(ret != 0) 
+                        {
                             CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
                         }
+                        CcspTraceInfo(("%s %d - ti_udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
                     }
 #else
-
                     CcspTraceInfo(("%s - mode= %s wanPhyName= %s\n",__FUNCTION__,WanModeStr(WAN_MODE_PRIMARY),wanPhyName));
-
+                    v_secure_system("killall udhcpc");
                     ret = v_secure_system("udhcpc -i %s &",pFixedInterface->VirtIfList->Name);  
-                    if(ret != 0) {
+                    if(ret != 0) 
+                    {
                         CcspTraceWarning(("%s : Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__, ret));
                     }
                     CcspTraceInfo(("%s %d - udhcpc start inf %s \n", __FUNCTION__, __LINE__,pFixedInterface->VirtIfList->Name));
-#endif
+                    
+#endif		    
                 }
             }
             break;

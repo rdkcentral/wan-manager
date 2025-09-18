@@ -79,11 +79,17 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
         "| addrAssigned        : %-40d |\n"
         "| prefixAssigned      : %-40d |\n"
         "| domainNameAssigned  : %-40d |\n"
+#ifdef FEATURE_MAPT
         "| maptAssigned        : %-40d |\n"
+#endif
         "=================================================================\n",
         leaseInfo->ifname, leaseInfo->address, leaseInfo->nameserver, leaseInfo->nameserver1,
         leaseInfo->domainName, leaseInfo->sitePrefix, leaseInfo->prefixPltime, leaseInfo->prefixVltime,
-        leaseInfo->addrAssigned, leaseInfo->prefixAssigned, leaseInfo->domainNameAssigned, leaseInfo->maptAssigned));
+        leaseInfo->addrAssigned, leaseInfo->prefixAssigned, leaseInfo->domainNameAssigned
+#ifdef FEATURE_MAPT
+        , leaseInfo->maptAssigned
+#endif
+    ));
 
     strncpy(pDhcpv6Data->ifname, leaseInfo->ifname, sizeof(pDhcpv6Data->ifname) - 1);
     strncpy(pDhcpv6Data->address, leaseInfo->address, sizeof(pDhcpv6Data->address) - 1);
