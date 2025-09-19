@@ -1383,6 +1383,16 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         CcspTraceInfo(("%s %d -  IPv6 DNS servers configured successfully \n", __FUNCTION__, __LINE__));
     }
 
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_STATUS, WAN_STATUS_UP, 0);
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN6_IP_ADDRESS, p_VirtIf->IP.Ipv6Data.address, 0);
+    snprintf(buf, sizeof(buf), "%s %s", p_VirtIf->IP.Ipv6Data.nameserver, p_VirtIf->IP.Ipv6Data.nameserver1);
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_NS, buf, 0);
+    if(p_VirtIf->IP.Ipv6Data.ipv6_TimeOffset)
+    {
+        snprintf(buf, sizeof(buf), "%d", p_VirtIf->IP.Ipv6Data.ipv6_TimeOffset);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_TIME_OFFSET, buf, 0);
+    }
+
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_CONNECTION_STATE, WAN_STATUS_UP, 0);
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_RADVD_RESTART, NULL, 0);
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_DHCP_SERVER_RESTART, NULL, 0);
@@ -1414,16 +1424,6 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_SERVICE_STATUS, WAN_STATUS_STARTED, 0);
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_STATUS, WAN_STATUS_STARTED, 0);
-
-        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_STATUS, WAN_STATUS_UP, 0);
-        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN6_IP_ADDRESS, p_VirtIf->IP.Ipv6Data.address, 0);
-        snprintf(buf, sizeof(buf), "%s %s", p_VirtIf->IP.Ipv6Data.nameserver, p_VirtIf->IP.Ipv6Data.nameserver1);
-        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_NS, buf, 0);
-        if(p_VirtIf->IP.Ipv6Data.ipv6_TimeOffset)
-        {
-            snprintf(buf, sizeof(buf), "%d", p_VirtIf->IP.Ipv6Data.ipv6_TimeOffset);
-            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_TIME_OFFSET, buf, 0);
-        }
 
         CcspTraceInfo(("%s %d - wan-status event set to started \n", __FUNCTION__, __LINE__));
 
