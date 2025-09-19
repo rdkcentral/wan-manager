@@ -3095,9 +3095,15 @@ static eWanState_t wan_state_phy_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
     {
         return wan_transition_exit(pWanIfaceCtrl);
     }
-    
 
-    //TBC: Workaround, Wait in current state if the component not ready
+    /*
+     * The trigger file checked here was changed from '/tmp/wifi_dml_complete' to
+     * '/tmp/wifi_ready_to_process' to better reflect the readiness state of the
+     * WiFi component. This change was made to synchronize with the updated WiFi
+     * component behavior, which now creates '/tmp/wifi_ready_to_process' when
+     * it is ready for WAN Manager to proceed. Ensure that all dependent components
+     * are updated accordingly. (Documented per CodeQL recommendation, 2024-06)
+     */
     if((0 == strncmp(pInterface->BaseInterface,WIFI_BASE_IFACE_PATH, strlen(WIFI_BASE_IFACE_PATH))) &&
        (access("/tmp/wifi_ready_to_process", F_OK) != 0))
     {

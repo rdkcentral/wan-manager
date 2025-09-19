@@ -520,7 +520,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
                 }
                 else if( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
                 {
-                    CcspTraceError(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to aquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    CcspTraceError(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DHCP;
                 }
                 else if( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
@@ -529,7 +529,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
 
                     pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
 
-                    CcspTraceError(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to aquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    CcspTraceError(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     
                     //To do collect RA information and go ahead of DHCPv6
                     if ( ANSC_STATUS_SUCCESS == WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address) )
@@ -3106,7 +3106,7 @@ ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, uns
             break;
         }
         
-        CcspTraceError(("%s %d: Interface(%s) still no Up or Running so retrying\n", __FUNCTION__, __LINE__, pInterfaceName));
+        CcspTraceError(("%s %d: Interface(%s) still not Up or Running so retrying\n", __FUNCTION__, __LINE__, pInterfaceName));
 
         usleep(INTF_V4STATE_INTERVAL_IN_MSEC * USECS_IN_MSEC);
         waitTime -= INTF_V4STATE_INTERVAL_IN_MSEC;
@@ -3114,7 +3114,7 @@ ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, uns
 
     if (waitTime <= 0)
     {
-        CcspTraceError(("%s %d: Interface %s doesnt Up or Running\n", __FUNCTION__, __LINE__, pInterfaceName));
+        CcspTraceError(("%s %d: Interface %s isn't Up or Running\n", __FUNCTION__, __LINE__, pInterfaceName));
         returnStatus = ANSC_STATUS_FAILURE;
     }
     else

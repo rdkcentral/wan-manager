@@ -619,7 +619,6 @@ static void *WanManagerSyseventHandler(void *args)
 #endif
 #endif
 
-    async_id_t ipv6_address_change_event_asyncid;
 
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
