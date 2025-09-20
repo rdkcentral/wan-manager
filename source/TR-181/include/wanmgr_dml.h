@@ -367,7 +367,6 @@ typedef struct _WANMGR_IPV6_DATA
 typedef struct _WANMGR_IPV6_RA_DATA 
 {
     IPV6_RA_STATUS       enIPv6RAStatus;
-    bool                 IsRASent;               // Confirms whether RA sent from CPE or not
     bool                 IsRAReceived;           // Confirms whether RA received or not
     bool                 IsMFlagSet;             // Stateful address conf. (Managed) M-flag
     bool                 IsOFlagSet;             // Stateful other conf. (Other) O-flag
