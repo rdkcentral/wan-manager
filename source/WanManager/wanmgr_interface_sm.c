@@ -475,6 +475,12 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 #endif
     }
 
+    if( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC )
+    {
+        CcspTraceInfo(("%s %d - DHCPv6c interface %s, Result:%d Elapsed Counter:%ld Total:%ld \n", __FUNCTION__, __LINE__, p_VirtIf->Name, (( ( pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA ) >= LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL )  ?  TRUE : FALSE ), pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA, LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL));
+        CcspTraceInfo(("%s %d - DHCPv6c interface %s, PID:%d \n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Dhcp6cPid ));
+    }
+
     //Check if IPv6 dhcp client is still running - handling runtime crash of dhcp client
     if ((p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK) &&  // IP.Mode supports V6
         ( ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP ) || \
@@ -1874,7 +1880,6 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
 
     p_VirtIf->Status = WAN_IFACE_STATUS_INITIALISING;
     pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA = 0;
-    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION START Timeout:%d Loop:%d\n", __FUNCTION__, __LINE__, pInterface->Name, pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA,LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL));
 
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
