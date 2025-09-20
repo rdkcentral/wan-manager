@@ -514,6 +514,10 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
             }
             else
             {
+                //To be removed just for testing
+                pVirtIf->IP.Ipv6RA.IsRAReceived = FALSE;
+                CcspTraceError(("%s %d: RA has not received for '%s' interface '%d'\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.IsRAReceived));
+
                 if ( ( FALSE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) && ( FALSE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
                 {
                     CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
