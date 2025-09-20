@@ -619,6 +619,7 @@ static void *WanManagerSyseventHandler(void *args)
 #endif
 #endif
 
+
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
 #if defined (_HUB4_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -700,8 +701,8 @@ static void *WanManagerSyseventHandler(void *args)
 
     for(;;)
     {
-        char name[BUFLEN_42] = {0};
-        char val[BUFLEN_42] = {0};
+        char name[BUFLEN_64] = {0};
+        char val[BUFLEN_512] = {0};
         char cmd_str[BUF_SIZE] = {0};
         int namelen = sizeof(name);
         int vallen  = sizeof(val);
@@ -1247,7 +1248,13 @@ void WanMgr_Configure_accept_ra(DML_VIRTUAL_IFACE * pVirtIf, BOOL EnableRa)
     CcspTraceInfo(("%s %d %s accept_ra for interface %s\n", __FUNCTION__, __LINE__,EnableRa?"Enabling":"Disabling", pVirtIf->Name));
     //Enable accept_ra to allow receiving RA all the time. This funtion  only blocks learning defult route from RA.
     v_secure_system("sysctl -w net.ipv6.conf.%s.accept_ra=2",pVirtIf->Name);
-    v_secure_system("sysctl -w net.ipv6.conf.%s.accept_ra_pinfo=0",pVirtIf->Name);
+
+    //SLAAC use case, Kernel should be handling the IP assignment over interface
+    if ( DML_WAN_IP_SOURCE_SLAAC != pVirtIf->IP.IPv6Source )
+    {
+        v_secure_system("sysctl -w net.ipv6.conf.%s.accept_ra_pinfo=0",pVirtIf->Name);
+    }
+
     if(EnableRa)
     {
         v_secure_system("sysctl -w net.ipv6.conf.%s.router_solicitations=3",pVirtIf->Name);
