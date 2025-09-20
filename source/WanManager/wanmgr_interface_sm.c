@@ -1872,7 +1872,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
 
     p_VirtIf->Status = WAN_IFACE_STATUS_INITIALISING;
-    pWanIfaceCtrl->uiTimeLapsedWithoutRA = 0;
+    pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA = 0;
 
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
