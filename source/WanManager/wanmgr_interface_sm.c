@@ -475,12 +475,6 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 #endif
     }
 
-    if( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC )
-    {
-        CcspTraceInfo(("%s %d - DHCPv6c interface %s, Result:%d Elapsed Counter:%ld Total:%ld \n", __FUNCTION__, __LINE__, p_VirtIf->Name, (( ( pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA ) >= LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL )  ?  TRUE : FALSE ), pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA, LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL));
-        CcspTraceInfo(("%s %d - DHCPv6c interface %s, PID:%d \n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Dhcp6cPid ));
-    }
-
     //Check if IPv6 dhcp client is still running - handling runtime crash of dhcp client
     if ((p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK) &&  // IP.Mode supports V6
         ( ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP ) || \
@@ -488,7 +482,7 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
         ( ( (p_VirtIf->IP.Dhcp6cPid == -1) || \
             ( ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && \
               ( FALSE == p_VirtIf->IP.Ipv6RA.IsRAReceived ) &&
-              (( ( ++pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA ) >= LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL )  ?  TRUE : FALSE ) ) ) ||                                                                           // DHCP cleint failed to start
+              (( ( ++pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA ) >= LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL )  ?  TRUE : FALSE ) ) ) &&  // DHCP cleint failed to start
         (p_VirtIf->IP.Dhcp6cPid > 0 &&                                                                          // dhcp started by ISM
         WanMgr_IsPIDRunning(p_VirtIf->IP.Dhcp6cPid) != TRUE)))                                                   // but DHCP client not running
     {
@@ -508,6 +502,18 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
         t2_event_d("SYS_ERROR_DHCPV6Client_notrunning", 1);
 #endif
+    }
+#else
+    /** When No RA received or Failed to Send RA then we do retry for periodical time */
+    if ( ( p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK ) &&  // IP.Mode supports V6
+         ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && // Uses Stateless Address
+         ( FALSE == p_VirtIf->IP.Ipv6RA.IsRAReceived ) &&
+         ( ( ( ++pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA ) >= LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL )  ?  TRUE : FALSE ) ) 
+    {
+        //Reset the variable
+        pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA = 0;
+        CcspTraceInfo(("%s %d - SELFHEAL - Sending Router Solicit on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        WanManager_SendRS_And_ProcessRA(pVirtIf);
     }
 #endif
 

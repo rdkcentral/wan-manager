@@ -492,83 +492,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     // Send RS(Solicited) request when IPv6 source as SLAAC to comply RA(Solicited) response
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
     {
-        /*
-           IPv6 Determination based on RA
-           ------------------------------
-           | M flag | O flag | Decision                                 |
-           | -----: | :----: | ---------------------------------------- |
-           |      1 |   \*   | **DHCPv6 (stateful)**                    |
-           |      0 |    1   | **SLAAC + DHCPv6 (stateless)**           |
-           |      0 |    0   | **SLAAC only**                           |
-           |      0 |    1   | **DHCPv6 (stateless)** (other info only) |
-           |      0 |    0   | **Manual/No RA**                         |
-        */
-        memset(&pVirtIf->IP.Ipv6RA, 0, sizeof(WANMGR_IPV6_RA_DATA));
-        if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &pVirtIf->IP.Ipv6RA ) )
-        {
-            pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_UNKNOWN;
-
-            if ( FALSE == pVirtIf->IP.Ipv6RA.IsRAReceived )
-            {
-                CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-            }
-            else
-            {
-                //To be removed just for testing
-                pVirtIf->IP.Ipv6RA.IsRAReceived = FALSE;
-                CcspTraceError(("%s %d: RA has not received for '%s' interface '%d'\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.IsRAReceived));
-
-                if ( ( FALSE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) && ( FALSE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
-                {
-                    CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                }
-                else if( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
-                {
-                    CcspTraceError(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                    pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DHCP;
-                }
-                else if( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
-                {
-                    pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
-                    CcspTraceError(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                }
-
-                //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
-                if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
-                {
-                    char  acIPv6Address[INET6_ADDRSTRLEN] = {0};
-
-                    //IPv6 Address Information from RA and Interface
-                    if ( ANSC_STATUS_SUCCESS == WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address) )
-                    {
-                        snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
-                        pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
-
-                        pVirtIf->IP.Ipv6Data.addrCmd  = IFADDRCONF_ADD;
-                        pVirtIf->IP.Ipv6Changed       = TRUE;
-                        pVirtIf->IP.Ipv6Status        = WAN_IFACE_IPV6_STATE_UP;
-                    }
-                    else
-                    {
-                        CcspTraceError(("%s %d: Failed to fetch IPv6 global SLAAC address for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                    }
-
-                    //DNS Information from RA
-                    if ( 0 < pVirtIf->IP.Ipv6RA.uiDnssCount )
-                    {
-                        if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[0][0] )
-                        snprintf(pVirtIf->IP.Ipv6Data.nameserver, sizeof(pVirtIf->IP.Ipv6Data.nameserver), "%s", pVirtIf->IP.Ipv6RA.acDnss[0]);
-                        
-                        if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[1][0] )
-                        snprintf(pVirtIf->IP.Ipv6Data.nameserver1, sizeof(pVirtIf->IP.Ipv6Data.nameserver1), "%s", pVirtIf->IP.Ipv6RA.acDnss[1]);
-                    }
-                }
-            }
-        }
-        else
-        {
-            CcspTraceError(("%s %d: Failed to send/receive RA for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-        }
+        WanManager_SendRS_And_ProcessRA(pVirtIf);
     }
     else
     {
@@ -3128,6 +3052,98 @@ ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, uns
     {
         CcspTraceInfo(("%s %d: interface %s is Up and Running\n", __FUNCTION__, __LINE__, pInterfaceName));
         returnStatus = ANSC_STATUS_SUCCESS;
+    }
+
+    return returnStatus;
+}
+
+/** WanManager_SendRS_And_ProcessRA() */
+ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
+{
+    ANSC_STATUS  returnStatus = ANSC_STATUS_FAILURE;
+
+    // NULL check on received params
+    if ( NULL == pVirtIf )
+    {
+       CcspTraceError(("%s %d: Invalid argument\n", __FUNCTION__, __LINE__));
+       return returnStatus;
+    }
+
+    /*
+    IPv6 Determination based on RA
+    ------------------------------
+    | M flag | O flag | Decision                                 |
+    | -----: | :----: | ---------------------------------------- |
+    |      1 |   \*   | **DHCPv6 (stateful)**                    |
+    |      0 |    1   | **SLAAC + DHCPv6 (stateless)**           |
+    |      0 |    0   | **SLAAC only**                           |
+    |      0 |    1   | **DHCPv6 (stateless)** (other info only) |
+    |      0 |    0   | **Manual/No RA**                         |
+    */
+    memset(&pVirtIf->IP.Ipv6RA, 0, sizeof(WANMGR_IPV6_RA_DATA));
+    if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &pVirtIf->IP.Ipv6RA ) )
+    {
+        pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_UNKNOWN;
+
+        if ( FALSE == pVirtIf->IP.Ipv6RA.IsRAReceived )
+        {
+            CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        }
+        else
+        {
+            if ( ( FALSE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) && ( FALSE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
+            {
+                CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+            }
+            else if( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
+            {
+                CcspTraceError(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DHCP;
+            }
+            else if( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
+            {
+                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
+                CcspTraceError(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+            }
+
+            //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
+            if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
+            {
+                char  acIPv6Address[INET6_ADDRSTRLEN] = {0};
+
+                //IPv6 Address Information from RA and Interface
+                if ( ANSC_STATUS_SUCCESS == WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address) )
+                {
+                    snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
+                    pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
+
+                    pVirtIf->IP.Ipv6Data.addrCmd  = IFADDRCONF_ADD;
+                    pVirtIf->IP.Ipv6Changed       = TRUE;
+                    pVirtIf->IP.Ipv6Status        = WAN_IFACE_IPV6_STATE_UP;
+                }
+                else
+                {
+                    CcspTraceError(("%s %d: Failed to fetch IPv6 global SLAAC address for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                }
+
+                //DNS Information from RA
+                if ( 0 < pVirtIf->IP.Ipv6RA.uiDnssCount )
+                {
+                    if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[0][0] )
+                    snprintf(pVirtIf->IP.Ipv6Data.nameserver, sizeof(pVirtIf->IP.Ipv6Data.nameserver), "%s", pVirtIf->IP.Ipv6RA.acDnss[0]);
+                    
+                    if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[1][0] )
+                    snprintf(pVirtIf->IP.Ipv6Data.nameserver1, sizeof(pVirtIf->IP.Ipv6Data.nameserver1), "%s", pVirtIf->IP.Ipv6RA.acDnss[1]);
+                }
+            }
+        }
+
+        returnStatus = ANSC_STATUS_SUCCESS;
+    }
+    else
+    {
+        CcspTraceError(("%s %d: Failed to send/receive RA for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        returnStatus = ANSC_STATUS_FAILURE;
     }
 
     return returnStatus;
