@@ -487,7 +487,7 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
           ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) ) && // uses DHCP client
         ( ( (p_VirtIf->IP.Dhcp6cPid == -1) || \
             ( ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && \
-              ( FALSE == pVirtIf->IP.Ipv6RA.IsRAReceived ) &&
+              ( FALSE == p_VirtIf->IP.Ipv6RA.IsRAReceived ) &&
               (( ( ++pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA ) >= LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL )  ?  TRUE : FALSE ) ) ) ||                                                                           // DHCP cleint failed to start
         (p_VirtIf->IP.Dhcp6cPid > 0 &&                                                                          // dhcp started by ISM
         WanMgr_IsPIDRunning(p_VirtIf->IP.Dhcp6cPid) != TRUE)))                                                   // but DHCP client not running
