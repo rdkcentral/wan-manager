@@ -52,6 +52,8 @@
 #define IPOE_STATUS_FAILED "failed"
 #endif
 
+#define WIFI_READY_CHECK_FILE            "/tmp/wifi_ready_to_process"
+
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
 
@@ -3123,7 +3125,7 @@ static eWanState_t wan_state_phy_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
      * are updated accordingly. (Documented per CodeQL recommendation, 2024-06)
      */
     if((0 == strncmp(pInterface->BaseInterface,WIFI_BASE_IFACE_PATH, strlen(WIFI_BASE_IFACE_PATH))) &&
-       (access("/tmp/wifi_ready_to_process", F_OK) != 0))
+       (access(WIFI_READY_CHECK_FILE, F_OK) != 0))
     {
         return WAN_STATE_PHY_CONFIGURING;
     }

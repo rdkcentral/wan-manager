@@ -2794,7 +2794,7 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WANMGR_IPV
     // NULL check on received params
     if ( ( NULL == p_VirtIf ) || ( NULL == p_RAInfo ) )
     {
-       CcspTraceError(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+       CcspTraceError(("%s %d: Invalid Argument of either Interface:%p or RAInfo:%p \n", __FUNCTION__, __LINE__, p_VirtIf, p_RAInfo));
        return -1;
     }
 
