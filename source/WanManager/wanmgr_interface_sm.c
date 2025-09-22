@@ -513,7 +513,7 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
         //Reset the variable
         pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA = 0;
         CcspTraceInfo(("%s %d - SELFHEAL - Sending Router Solicit on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-        WanManager_SendRS_And_ProcessRA(pVirtIf);
+        WanManager_SendRS_And_ProcessRA(p_VirtIf);
     }
 #endif
 
