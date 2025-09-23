@@ -1537,6 +1537,11 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     //Remove the default route and IPv6 address explitcly when SLAAC mode since no prefix
     if ( DML_WAN_IP_SOURCE_SLAAC == p_VirtIf->IP.IPv6Source )
     {
+        IPV6_RA_STATUS  enPrevIPv6RAStatus = p_VirtIf->IP.Ipv6RA.enIPv6RAStatus;
+
+        //To ignore netlink response of delete address handling
+        p_VirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_UNKNOWN;
+
         char acCmdLine[BUFLEN_128] = {0};
         CcspTraceInfo(("%s %d -  Deleting IPv6 default route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 route del default dev %s", p_VirtIf->Name);
@@ -1548,6 +1553,9 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 addr flush scope global dev %s", p_VirtIf->Name);
         if (WanManager_DoSystemActionWithStatus("ip -6 addr flush scope global dev", acCmdLine) != 0)
             CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, acCmdLine));
+
+        //Restore previous RA status to continue monitoring and handling the same
+        p_VirtIf->IP.Ipv6RA.enIPv6RAStatus = enPrevIPv6RAStatus;
     }
 
     // Reset sysvevents.
