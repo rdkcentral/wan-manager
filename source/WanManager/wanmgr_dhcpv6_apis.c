@@ -2170,6 +2170,8 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
             //Handling for Hotspot interface
             if( 0 == strncmp( "HOTSPOT", pWanIfaceData->AliasName, strlen(pWanIfaceData->AliasName) ) )    
             {
+                CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, p_VirtIf->Name));
+
                 for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
                 {
                     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIface_locked(uiLoopCount, VirtId);
@@ -2199,13 +2201,15 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
                                 CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Deleted for '%s' Deleted Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, stAddrEvent.addr));
 
                                 p_VirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_REMOVE;
-                                p_VirtIf->IP.Ipv6Changed             = TRUE;
+                                p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_DOWN;
                             }
                         }
 
                         WanMgr_VirtualIfaceData_release(p_VirtIf);
                     }
                 }
+
+                CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, p_VirtIf->Name));
             }   
 
             WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
