@@ -2170,7 +2170,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
             //Handling for Hotspot interface
             if( 0 == strncmp( "HOTSPOT", pWanIfaceData->AliasName, strlen(pWanIfaceData->AliasName) ) )    
             {
-                CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, p_VirtIf->Name));
+                CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, stAddrEvent.ifname));
 
                 for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
                 {
@@ -2209,7 +2209,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
                     }
                 }
 
-                CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, p_VirtIf->Name));
+                CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, stAddrEvent.ifname));
             }   
 
             WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
