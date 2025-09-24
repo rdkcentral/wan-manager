@@ -492,7 +492,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     // Send RS(Solicited) request when IPv6 source as SLAAC to comply RA(Solicited) response
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
     {
-       if ( WanManager_SendRS_And_ProcessRA(pVirtIf) )
+       if ( ANSC_STATUS_FAILURE == WanManager_SendRS_And_ProcessRA(pVirtIf) )
        {
             CcspTraceError(("%s %d: dhcpv6 client failed to start. Returing pid -1.\n", __FUNCTION__, __LINE__));
             pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
