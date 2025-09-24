@@ -3113,14 +3113,7 @@ static eWanState_t wan_state_phy_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
         return wan_transition_exit(pWanIfaceCtrl);
     }
 
-    /*
-     * The trigger file checked here was changed from '/tmp/wifi_dml_complete' to
-     * '/tmp/wifi_ready_to_process' to better reflect the readiness state of the
-     * WiFi component. This change was made to synchronize with the updated WiFi
-     * component behavior, which now creates '/tmp/wifi_ready_to_process' when
-     * it is ready for WAN Manager to proceed. Ensure that all dependent components
-     * are updated accordingly. (Documented per CodeQL recommendation, 2024-06)
-     */
+    //TBC: Workaround, Return failure if the component not ready
     if((0 == strncmp(pInterface->BaseInterface,WIFI_BASE_IFACE_PATH, strlen(WIFI_BASE_IFACE_PATH))) &&
        (access(WIFI_READY_CHECK_FILE, F_OK) != 0))
     {
@@ -3248,7 +3241,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
     if(p_VirtIf->PPP.Enable == TRUE)
     {
         if(p_VirtIf->PPP.LinkStatus ==  WAN_IFACE_PPP_LINK_STATUS_UP && 
-                !(((p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && 
+                !(((p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP) && 
                 (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY)) && 
                 p_VirtIf->PPP.IPV6CPStatus != WAN_IFACE_IPV6CP_STATUS_UP)) //If dhcpv6 used on PPP interface wait for IPv6cp status
         {
