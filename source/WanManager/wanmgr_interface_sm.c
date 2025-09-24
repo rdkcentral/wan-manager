@@ -1052,7 +1052,9 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
     }
 
     buffer[0] = '\0';
-    if ((fp_route = popen("ip -6 ro | grep default", "r"))) {
+    char cmd[128];
+    snprintf(cmd, sizeof(cmd), "ip -6 ro show default dev %s", p_VirtIf->Name);
+    if ((fp_route = popen(cmd, "r"))) {
         if(fp_route != NULL) {
             fgets(buffer, BUFLEN_256, fp_route);
             if(strlen(buffer) > 0 ) {
