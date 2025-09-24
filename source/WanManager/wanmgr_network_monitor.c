@@ -200,6 +200,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     unsigned int  prefix_length = 0,
                   pref_lifetime = 0,
                   valid_lifetime = 0;
+    IPv6NetLinkAddrEvent stAddrEvent;
 
     //Allow only for Global Scope
     if (ifa->ifa_scope != RT_SCOPE_UNIVERSE) {
@@ -242,16 +243,32 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
 
     if (nlh->nlmsg_type == RTM_NEWADDR) 
     {
+       memset(&stAddrEvent, 0, sizeof(IPv6NetLinkAddrEvent));
+       snprintf(stAddrEvent.event, sizeof(stAddrEvent.event), "NEWADDR");
+       snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.event), "%s", ifname);
+       snprintf(stAddrEvent.addr, sizeof(stAddrEvent.addr), "%s", ipv6_addr);
+       stAddrEvent.prefix_len    = prefix_length;
+       stAddrEvent.preferred_lft = pref_lifetime;
+       stAddrEvent.valid_lft     = valid_lifetime;
+
        snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
        CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo));
-       WanMgr_Handle_Dhcpv6_NetLink_Address_Event(eventInfo);
+       WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
     {
+       memset(&stAddrEvent, 0, sizeof(IPv6NetLinkAddrEvent));
+       snprintf(stAddrEvent.event, sizeof(stAddrEvent.event), "DELADDR");
+       snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.event), "%s", ifname);
+       snprintf(stAddrEvent.addr, sizeof(stAddrEvent.addr), "%s", ipv6_addr);
+       stAddrEvent.prefix_len    = prefix_length;
+       stAddrEvent.preferred_lft = pref_lifetime;
+       stAddrEvent.valid_lft     = valid_lifetime;
+
        snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
        CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo));
-       WanMgr_Handle_Dhcpv6_NetLink_Address_Event(eventInfo);
+       WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
        ret = ANSC_STATUS_SUCCESS;
     }
 

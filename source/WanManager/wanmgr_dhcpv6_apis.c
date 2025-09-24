@@ -2135,27 +2135,15 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
 }
 
 /** WanMgr_Handle_Dhcpv6_NetLink_Address_Event() */
-ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
+ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pstAddrEvent)
 {
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
 
-    if( NULL == pcEventInfo )
+    if( NULL == pstAddrEvent )
     {
         CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
         return ret;
     }
-
-    IPv6NetLinkAddrEvent stAddrEvent;
-
-    //Parse event info
-    memset(&stAddrEvent, 0, sizeof(IPv6NetLinkAddrEvent));
-    sscanf(pcEventInfo, "%15[^|]|%31[^|]|%63[^|]|%u|%u|%u",
-                                    stAddrEvent.event,
-                                    stAddrEvent.ifname,
-                                    stAddrEvent.addr,
-                                    &stAddrEvent.prefix_len,
-                                    &stAddrEvent.preferred_lft,
-                                    &stAddrEvent.valid_lft);
 
     UINT uiLoopCount;
     UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
@@ -2167,7 +2155,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
         {
             DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data); 
 
-            CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, stAddrEvent.ifname));
+            CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
 
             for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
             {
@@ -2177,25 +2165,25 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
                     //Allow only for SLAAC use
                     if ( ( p_VirtIf->Enable == TRUE ) && \
                             ( DML_WAN_IP_SOURCE_SLAAC == p_VirtIf->IP.IPv6Source ) && \
-                            ( 0 == strncmp( p_VirtIf->Name, stAddrEvent.ifname, strlen(stAddrEvent.ifname) ) ) && \
+                            ( 0 == strncmp( p_VirtIf->Name, pstAddrEvent->ifname, strlen(pstAddrEvent->ifname) ) ) && \
                             ( IPV6_RA_VALID_SLAAC == p_VirtIf->IP.Ipv6RA.enIPv6RAStatus ) )
                     {
-                        if ( 0 == strncmp(stAddrEvent.event, "NEWADDR", strlen("NEWADDR")) ) //Address Add
+                        if ( 0 == strncmp(pstAddrEvent->event, "NEWADDR", strlen("NEWADDR")) ) //Address Add
                         {
-                            if  ( 0 != strncmp( p_VirtIf->IP.Ipv6Data.address, stAddrEvent.addr, strlen(stAddrEvent.addr) ) )
+                            if  ( 0 != strncmp( p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr, strlen(pstAddrEvent->addr) ) )
                             {
-                                CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, stAddrEvent.addr));
+                                CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr));
 
-                                snprintf(p_VirtIf->IP.Ipv6Data.address, sizeof(p_VirtIf->IP.Ipv6Data.address), "%s", stAddrEvent.addr);
+                                snprintf(p_VirtIf->IP.Ipv6Data.address, sizeof(p_VirtIf->IP.Ipv6Data.address), "%s", pstAddrEvent->addr);
                                 p_VirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
                                 p_VirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_ADD;
                                 p_VirtIf->IP.Ipv6Changed             = TRUE;
                                 p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_UP;
                             }
                         }
-                        else if ( 0 == strncmp(stAddrEvent.event, "DELADDR", strlen("DELADDR")) ) //Address Delete
+                        else if ( 0 == strncmp(pstAddrEvent->event, "DELADDR", strlen("DELADDR")) ) //Address Delete
                         {
-                            CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Deleted for '%s' Deleted Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, stAddrEvent.addr));
+                            CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Deleted for '%s' Deleted Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, pstAddrEvent->addr));
 
                             p_VirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_REMOVE;
                             p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_DOWN;
@@ -2206,7 +2194,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo)
                 }
             }
 
-            CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, stAddrEvent.event, stAddrEvent.ifname));
+            CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
         }   
 
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);

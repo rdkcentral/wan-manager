@@ -353,6 +353,6 @@ void _get_shell_output(FILE *fp, char * out, int len);
  ************************************************************************************/
 int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf);
 
-ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(char *pcEventInfo);
+ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pstAddrEvent);
 
 #endif //_WANMGR_DHCPV6_APIS_H_
