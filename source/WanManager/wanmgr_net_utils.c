@@ -492,7 +492,13 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     // Send RS(Solicited) request when IPv6 source as SLAAC to comply RA(Solicited) response
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
     {
-        WanManager_SendRS_And_ProcessRA(pVirtIf);
+       if ( WanManager_SendRS_And_ProcessRA(pVirtIf) )
+       {
+            CcspTraceError(("%s %d: dhcpv6 client failed to start. Returing pid -1.\n", __FUNCTION__, __LINE__));
+            pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
+            pVirtIf->IP.Dhcp6cPid = -1;
+            return -1;
+       }
     }
     else
     {
@@ -3061,7 +3067,6 @@ ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, uns
 ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
 {
     ANSC_STATUS             returnStatus = ANSC_STATUS_FAILURE;
-    WANMGR_IPV6_RA_DATA     stPrevRAData;
 
     // NULL check on received params
     if ( NULL == pVirtIf )
@@ -3078,13 +3083,8 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
     |      1 |   \*   | **DHCPv6 (stateful)**                    |
     |      0 |    1   | **SLAAC + DHCPv6 (stateless)**           |
     |      0 |    0   | **SLAAC only**                           |
-    |      0 |    1   | **DHCPv6 (stateless)** (other info only) |
     |      0 |    0   | **Manual/No RA**                         |
     */
-
-    //Copy previous RA info for checking RA info with current RS response 
-    memset(&stPrevRAData, 0, sizeof(WANMGR_IPV6_RA_DATA));
-    memset(&stPrevRAData, &pVirtIf->IP.Ipv6RA, sizeof(WANMGR_IPV6_RA_DATA));
 
     //Clear all memory of RA info since we haven't received any of the RA response
     memset(&pVirtIf->IP.Ipv6RA, 0, sizeof(WANMGR_IPV6_RA_DATA));
@@ -3103,6 +3103,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
             if ( ( FALSE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) && ( FALSE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
             {
                 CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                returnStatus = ANSC_STATUS_FAILURE;
             }
             else if( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
             {
@@ -3123,9 +3124,9 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
                 //IPv6 Address Information from RA and Interface
                 if ( ANSC_STATUS_SUCCESS == WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address) )
                 {
-                    if  ( 0 != strncmp( pVirtIf->IP.Ipv6Data.address, stPrevRAData.IP.Ipv6Data.address, strlen(stPrevRAData.IP.Ipv6Data.address) ) )
+                    if ( 0 != strncmp( pVirtIf->IP.Ipv6Data.address, acIPv6Address, strlen(acIPv6Address) ) )
                     {
-                        CcspTraceInfo(("%s %d: IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, stAddrEvent.addr));
+                        CcspTraceInfo(("%s %d: IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, pVirtIf->Name, (('\0' != pVirtIf->IP.Ipv6Data.address[0]) ?  pVirtIf->IP.Ipv6Data.address : "Empty"), acIPv6Address));
 
                         snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
                         pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
@@ -3157,7 +3158,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
     else
     {
         CcspTraceError(("%s %d: Failed to send/receive RA for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-        returnStatus = ANSC_STATUS_FAILURE;
+        returnStatus = ANSC_STATUS_SUCCESS;
     }
 
     return returnStatus;

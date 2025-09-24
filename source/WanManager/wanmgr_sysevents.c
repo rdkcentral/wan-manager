@@ -1249,7 +1249,11 @@ void WanMgr_Configure_accept_ra(DML_VIRTUAL_IFACE * pVirtIf, BOOL EnableRa)
     v_secure_system("sysctl -w net.ipv6.conf.%s.accept_ra=2",pVirtIf->Name);
 
     //SLAAC use case, Kernel should be handling the IP assignment over interface
-    if ( DML_WAN_IP_SOURCE_SLAAC != pVirtIf->IP.IPv6Source )
+    if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
+    {
+        v_secure_system("sysctl -w net.ipv6.conf.%s.accept_ra_pinfo=1",pVirtIf->Name);
+    }
+    else
     {
         v_secure_system("sysctl -w net.ipv6.conf.%s.accept_ra_pinfo=0",pVirtIf->Name);
     }
