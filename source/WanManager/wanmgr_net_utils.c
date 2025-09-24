@@ -3060,7 +3060,8 @@ ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, uns
 /** WanManager_SendRS_And_ProcessRA() */
 ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
 {
-    ANSC_STATUS  returnStatus = ANSC_STATUS_FAILURE;
+    ANSC_STATUS             returnStatus = ANSC_STATUS_FAILURE;
+    WANMGR_IPV6_RA_DATA     stPrevRAData;
 
     // NULL check on received params
     if ( NULL == pVirtIf )
@@ -3080,7 +3081,15 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
     |      0 |    1   | **DHCPv6 (stateless)** (other info only) |
     |      0 |    0   | **Manual/No RA**                         |
     */
+
+    //Copy previous RA info for checking RA info with current RS response 
+    memset(&stPrevRAData, 0, sizeof(WANMGR_IPV6_RA_DATA));
+    memset(&stPrevRAData, &pVirtIf->IP.Ipv6RA, sizeof(WANMGR_IPV6_RA_DATA));
+
+    //Clear all memory of RA info since we haven't received any of the RA response
     memset(&pVirtIf->IP.Ipv6RA, 0, sizeof(WANMGR_IPV6_RA_DATA));
+
+    //Check and Request RA via RS and determine SLAAC based on received RA
     if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &pVirtIf->IP.Ipv6RA ) )
     {
         pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_UNKNOWN;
@@ -3097,13 +3106,13 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
             }
             else if( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
             {
-                CcspTraceError(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                CcspTraceInfo(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                 pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DHCP;
             }
             else if( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
             {
                 pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
-                CcspTraceError(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                CcspTraceInfo(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
             }
 
             //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
@@ -3114,12 +3123,17 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
                 //IPv6 Address Information from RA and Interface
                 if ( ANSC_STATUS_SUCCESS == WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address) )
                 {
-                    snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
-                    pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
+                    if  ( 0 != strncmp( pVirtIf->IP.Ipv6Data.address, stPrevRAData.IP.Ipv6Data.address, strlen(stPrevRAData.IP.Ipv6Data.address) ) )
+                    {
+                        CcspTraceInfo(("%s %d: IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, stAddrEvent.addr));
 
-                    pVirtIf->IP.Ipv6Data.addrCmd  = IFADDRCONF_ADD;
-                    pVirtIf->IP.Ipv6Changed       = TRUE;
-                    pVirtIf->IP.Ipv6Status        = WAN_IFACE_IPV6_STATE_UP;
+                        snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
+                        pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
+
+                        pVirtIf->IP.Ipv6Data.addrCmd  = IFADDRCONF_ADD;
+                        pVirtIf->IP.Ipv6Changed       = TRUE;
+                        pVirtIf->IP.Ipv6Status        = WAN_IFACE_IPV6_STATE_UP;
+                    }
                 }
                 else
                 {
