@@ -71,7 +71,6 @@ typedef struct WanMgr_IfaceSM_Ctrl_st
     eWanState_t            eCurrentState; 
     DEVICE_NETWORKING_MODE         DeviceNwMode;
     BOOL                           DeviceNwModeChanged;     // Set if DeviceNwMode is changed and config needs to be applied
-    UINT                    uiTimeLoopLapsedWithoutRA;      //Store the lapsed time when failed to receive Router Advertisement for Router Solicit Request
 } WanMgr_IfaceSM_Controller_t;
 
 

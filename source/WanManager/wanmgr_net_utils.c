@@ -494,8 +494,15 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     {
        if ( ANSC_STATUS_FAILURE == WanManager_SendRS_And_ProcessRA(pVirtIf) )
        {
-            CcspTraceError(("%s %d: dhcpv6 client failed to start. Returing pid -1.\n", __FUNCTION__, __LINE__));
+            CcspTraceError(("%s %d: Failed to send Router Solicit for '%s' so not proceeding further.\n", __FUNCTION__, __LINE__, pVirtIf->Name));
             pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
+            pVirtIf->IP.Dhcp6cPid = -1;
+            return -1;
+       }
+       else if ( FALSE == pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag )
+       {
+            CcspTraceError(("%s %d: Router Advertisement complying with SLAAC only configuration for '%s' so not proceeding further for DHCPv6 client start.\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+            pVirtIf->IP.Dhcp6cStatus = DHCPC_DISABLED;
             pVirtIf->IP.Dhcp6cPid = -1;
             return -1;
        }
@@ -3066,7 +3073,7 @@ ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, uns
 /** WanManager_SendRS_And_ProcessRA() */
 ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
 {
-    ANSC_STATUS             returnStatus = ANSC_STATUS_FAILURE;
+    ANSC_STATUS  returnStatus = ANSC_STATUS_FAILURE;
 
     // NULL check on received params
     if ( NULL == pVirtIf )
@@ -3092,7 +3099,8 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
     //Check and Request RA via RS and determine SLAAC based on received RA
     if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &pVirtIf->IP.Ipv6RA ) )
     {
-        pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_UNKNOWN;
+        pVirtIf->IP.Ipv6RA.enIPv6RAStatus      = IPV6_RA_UNKNOWN;
+        pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = FALSE;
 
         if ( FALSE == pVirtIf->IP.Ipv6RA.IsRAReceived )
         {
@@ -3102,22 +3110,32 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
         {
             if ( ( FALSE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) && ( FALSE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
             {
-                CcspTraceError(("%s %d: RA doesn't have DHCPv6 information for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                returnStatus = ANSC_STATUS_FAILURE;
+                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
+                pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = FALSE;
+                CcspTraceInfo(("%s %d: RA doesn't have DHCPv6 information for '%s' interface RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
             }
-            else if( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
+            else if ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
             {
-                CcspTraceInfo(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DHCP;
+                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_ADDRESS_ON_DHCP;
+                pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = TRUE;
+                CcspTraceInfo(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
             }
-            else if( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
+            else if ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
+            {
+                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DNS_ON_DHCP;
+                pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = TRUE;
+                CcspTraceInfo(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
+            }
+
+            //SLAAC Only use case
+            if ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet )
             {
                 pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
-                CcspTraceInfo(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                CcspTraceInfo(("%s %d: RA have Autonomous Address Configuration for '%s' interface. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
             }
 
             //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
-            if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
+            if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet ) )
             {
                 char  acIPv6Address[INET6_ADDRSTRLEN] = {0};
 
@@ -3158,7 +3176,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
     else
     {
         CcspTraceError(("%s %d: Failed to send/receive RA for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-        returnStatus = ANSC_STATUS_SUCCESS;
+        returnStatus = ANSC_STATUS_FAILURE;
     }
 
     return returnStatus;

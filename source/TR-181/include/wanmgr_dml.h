@@ -203,6 +203,7 @@ typedef enum _WANMGR_DHCPC_STATUS
     DHCPC_STARTED,
     DHCPC_STOPPED,
     DHCPC_FAILED,
+    DHCPC_DISABLED,
 } WANMGR_DHCPC_STATUS;
 
 typedef enum _TIMER_STATUS
@@ -303,8 +304,9 @@ typedef enum {
 
 typedef enum {
     IPV6_RA_UNKNOWN = 0,            /** if CPE failed to receive RA for RS request */
-    IPV6_RA_VALID_SLAAC,            /** if CPE receives RA with M flag off */
-    IPV6_RA_VALID_DHCP,             /** if M flag or O flag is On */
+    IPV6_RA_VALID_SLAAC,            /** if Managed Address flag(M) and Other Configuration(O) flag is Off  or Autonomous Configuration is set */
+    IPV6_RA_VALID_ADDRESS_ON_DHCP,  /** if Managed Address flag(M) is On */
+    IPV6_RA_VALID_DNS_ON_DHCP,      /** if Other Configuration(O) flag is On */
 } IPV6_RA_STATUS;
 
 typedef struct _DATAMODEL_PPP
@@ -371,8 +373,8 @@ typedef struct _WANMGR_IPV6_RA_DATA
     bool                 IsMFlagSet;             // Stateful address conf. (Managed) M-flag
     bool                 IsOFlagSet;             // Stateful other conf. (Other) O-flag
     bool                 IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
+    bool                 DHCPStartStatusFlag;    // Confirms whether DHCP client needs to start or not based on RA flags
     char                 acInterface[BUFLEN_64];
-    char                 acRouter[INET6_ADDRSTRLEN];
     unsigned int         uiHopLimit;
     unsigned int         uiMTUSize;
     unsigned int         uiRouterLifetime;

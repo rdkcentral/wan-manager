@@ -41,7 +41,6 @@
 
 #define IF_SIZE      32
 #define LOOP_TIMEOUT 50000 // timeout in microseconds. This is the state machine loop interval
-#define LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL ( (180 * 1000000) / LOOP_TIMEOUT ) // (3 - Minutes * 60 - Seconds = 180 seconds)
 
 #define RESOLV_CONF_FILE "/etc/resolv.conf"
 #define LOOPBACK "127.0.0.1"
@@ -480,13 +479,10 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
     //Check if IPv6 dhcp client is still running - handling runtime crash of dhcp client
     if ((p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK) &&  // IP.Mode supports V6
         ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) &&  // uses DHCP client
-        (p_VirtIf->IP.Dhcp6cPid == -1 ||                                                                           // DHCP cleint failed to start
+        (((p_VirtIf->IP.Dhcp6cPid == -1) && (p_VirtIf->IP.Dhcp6cStatus != DHCPC_DISABLED)) ||                   // DHCP cleint failed to start
         (p_VirtIf->IP.Dhcp6cPid > 0 &&                                                                          // dhcp started by ISM
         WanMgr_IsPIDRunning(p_VirtIf->IP.Dhcp6cPid) != TRUE)))                                                   // but DHCP client not running
     {
-        //Reset the variable
-        pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA = 0;
-
         if (p_VirtIf->IP.Dhcp6cPid == -1 )
         {
             /* DHCPv6c client can fail to start due to DAD failuer on the link local address. 
@@ -502,18 +498,6 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 #endif
     }
 #endif
-
-    /** When No RA received or Failed to Send RA then we do retry for periodical time */
-    if ( ( p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY || p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK ) &&  // IP.Mode supports V6
-         ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) && // Uses Stateless Address
-         ( FALSE == p_VirtIf->IP.Ipv6RA.IsRAReceived ) &&
-         ( ( ( ++pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA ) >= LOOPS_PER_3MIN_OF_MICROSECONDS_INTERVAL )  ?  TRUE : FALSE ) ) 
-    {
-        //Reset the variable
-        pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA = 0;
-        CcspTraceInfo(("%s %d - SELFHEAL - Sending Router Solicit on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-        WanManager_SendRS_And_ProcessRA(p_VirtIf);
-    }
 
     /* Handling Runtime IP.ConnectivityCheckType change */
     if(p_VirtIf->IP.WCC_TypeChanged  == TRUE)
@@ -1880,7 +1864,6 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
 
     p_VirtIf->Status = WAN_IFACE_STATUS_INITIALISING;
-    pWanIfaceCtrl->uiTimeLoopLapsedWithoutRA = 0;
 
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
