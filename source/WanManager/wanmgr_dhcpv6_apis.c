@@ -2155,7 +2155,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
         {
             DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data); 
 
-            CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+            CcspTraceDebug(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
 
             for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
             {
@@ -2170,7 +2170,8 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
                     {
                         if ( 0 == strncmp(pstAddrEvent->event, "NEWADDR", strlen("NEWADDR")) ) //Address Add
                         {
-                            if  ( 0 != strncmp( p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr, strlen(pstAddrEvent->addr) ) )
+                            if ( ( 0 != strncmp( p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr, strlen(pstAddrEvent->addr) ) ) ||
+                                 ( WAN_IFACE_IPV6_STATE_UP != p_VirtIf->IP.Ipv6Status ) )
                             {
                                 CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr));
 
@@ -2194,7 +2195,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
                 }
             }
 
-            CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+            CcspTraceDebug(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
         }   
 
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
