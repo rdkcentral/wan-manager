@@ -412,7 +412,7 @@ int main(int argc, char* argv[])
 
     //DATA DELETE
     WanMgr_Data_Delete();
-    t2_uninit();
+//    t2_uninit();
     return 0;
 }
 
