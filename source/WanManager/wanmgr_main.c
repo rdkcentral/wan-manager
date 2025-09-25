@@ -380,7 +380,7 @@ int main(int argc, char* argv[])
 
     WanMgrDmlWanWebConfigInit();
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-    t2_init("wanmanager");
+    t2_init(COMPONENT_NAME_WANMANAGER);
 #endif
     if ( bRunAsDaemon )
     {
@@ -412,7 +412,7 @@ int main(int argc, char* argv[])
 
     //DATA DELETE
     WanMgr_Data_Delete();
-//    t2_uninit();
+    t2_uninit();
     return 0;
 }
 
