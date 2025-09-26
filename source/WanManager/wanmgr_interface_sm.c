@@ -3532,7 +3532,7 @@ static eWanState_t wan_state_ipv4_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     if(p_VirtIf->IP.RefreshDHCP == TRUE &&
       ( p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_DHCP || p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC ) &&
       p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK &&
-      p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)
+      p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED && p_VirtIf->IP.Dhcp6cStatus != DHCPC_DISABLED)
     {
         /* Start DHCPv6 Client */
         WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
