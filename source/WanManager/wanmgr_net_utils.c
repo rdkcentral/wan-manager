@@ -2946,7 +2946,7 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
     //Check if interface is ipv6 ready with a link-local address
     unsigned int waitTime = uiTimeout;
     char cmd[BUFLEN_128] = {0};
-    snprintf(cmd, sizeof(cmd), "ip address show dev %s tentative", pInterfaceName);
+    snprintf(cmd, sizeof(cmd), "ip -6 address show dev %s tentative", pInterfaceName);
     while (waitTime > 0) 
     {
         FILE *fp_dad   = NULL;
@@ -2955,7 +2955,7 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
         fp_dad = popen(cmd, "r");
         if(fp_dad != NULL) 
         {
-            if ((fgets(buffer, BUFLEN_256, fp_dad) == NULL) || (strlen(buffer) == 0))
+            if ((fgets(buffer, BUFLEN_256, fp_dad) == NULL) || (strlen(buffer) == 0) || (strstr(buffer, "fe80::") == NULL))
             {
                 pclose(fp_dad);
                 break;
@@ -2977,54 +2977,6 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
         CcspTraceError(("%s %d: interface %s has valid link local address\n", __FUNCTION__, __LINE__, pInterfaceName));
         returnStatus = ANSC_STATUS_SUCCESS;
     }
-
-    return returnStatus;
-}
-
-/** WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface() */
-ANSC_STATUS WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface(char *pInterfaceName, char *pIPv6Address)
-{
-    ANSC_STATUS     returnStatus = ANSC_STATUS_FAILURE;
-    struct ifaddrs *ifaddr, *ifa;
-    char            addr_str[INET6_ADDRSTRLEN] = {0};
-
-    // NULL check on received params
-    if ( ( NULL == pInterfaceName ) || ( NULL == pIPv6Address ) )
-    {
-       CcspTraceError(("%s %d: Invalid argument\n", __FUNCTION__, __LINE__));
-       return returnStatus;
-    }
-
-    //Get All Linux Interfaces
-    if ( getifaddrs(&ifaddr) == -1 ) 
-    {
-        CcspTraceError(("%s %d: Failed to fetch linux interface addresses\n", __FUNCTION__, __LINE__));
-        return returnStatus;
-    }
-
-    //Iterate all interfaces and fetch IPv6 address
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) 
-    {
-        if (ifa->ifa_addr == NULL)
-            continue;
-
-        if ((ifa->ifa_addr->sa_family == AF_INET6) &&
-            (strcmp(ifa->ifa_name, pInterfaceName) == 0))
-        {
-                struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-                inet_ntop(AF_INET6, &sin6->sin6_addr, addr_str, sizeof(addr_str));
-
-                //Skip link-local addresses (fe80::/10)
-                if (strncmp(addr_str, "fe80", 4) != 0) {
-                    sprintf(pIPv6Address, "%s", addr_str);
-                    CcspTraceInfo(("%s-%d Global IPv6 address on %s: %s/[%s]\n", __FUNCTION__, __LINE__, pInterfaceName, addr_str, pIPv6Address));
-                    returnStatus = ANSC_STATUS_SUCCESS;
-                    break;
-                }
-        }
-    }
-
-    freeifaddrs(ifaddr);
 
     return returnStatus;
 }
@@ -3137,29 +3089,6 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
             //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
             if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet ) )
             {
-                /*
-                char  acIPv6Address[INET6_ADDRSTRLEN] = {0};
-
-                //IPv6 Address Information from RA and Interface
-                if ( ANSC_STATUS_SUCCESS == WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface( pVirtIf->Name, acIPv6Address) )
-                {
-                    if ( 0 != strncmp( pVirtIf->IP.Ipv6Data.address, acIPv6Address, strlen(acIPv6Address) ) )
-                    {
-                        CcspTraceInfo(("%s %d: IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, pVirtIf->Name, (('\0' != pVirtIf->IP.Ipv6Data.address[0]) ?  pVirtIf->IP.Ipv6Data.address : "Empty"), acIPv6Address));
-
-                        snprintf(pVirtIf->IP.Ipv6Data.address, sizeof(pVirtIf->IP.Ipv6Data.address), "%s", acIPv6Address);
-                        pVirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
-
-                        pVirtIf->IP.Ipv6Data.addrCmd  = IFADDRCONF_ADD;
-                        pVirtIf->IP.Ipv6Changed       = TRUE;
-                        pVirtIf->IP.Ipv6Status        = WAN_IFACE_IPV6_STATE_UP;
-                    }
-                }
-                else
-                {
-                    CcspTraceError(("%s %d: Failed to fetch IPv6 global SLAAC address for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                }*/
-
                 //DNS Information from RA
                 if ( 0 < pVirtIf->IP.Ipv6RA.uiDnssCount )
                 {

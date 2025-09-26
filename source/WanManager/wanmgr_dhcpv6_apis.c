@@ -2155,7 +2155,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
         {
             DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data); 
 
-            CcspTraceDebug(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+            //CcspTraceDebug(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
 
             for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
             {
@@ -2195,7 +2195,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
                 }
             }
 
-            CcspTraceDebug(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+            //CcspTraceDebug(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
         }   
 
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);

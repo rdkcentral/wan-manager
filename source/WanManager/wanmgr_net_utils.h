@@ -283,7 +283,6 @@ int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
 
 int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WANMGR_IPV6_RA_DATA *p_RAInfo);
 ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout);
-ANSC_STATUS WanManager_NetUtil_GetIPv6_GlobalAddress_From_Interface(char *pInterfaceName, char *pIPv6Address);
 ANSC_STATUS WanManager_Wait_Until_Interface_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout);
 ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf);
 
