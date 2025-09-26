@@ -3137,6 +3137,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
             //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
             if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet ) )
             {
+                /*
                 char  acIPv6Address[INET6_ADDRSTRLEN] = {0};
 
                 //IPv6 Address Information from RA and Interface
@@ -3157,7 +3158,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
                 else
                 {
                     CcspTraceError(("%s %d: Failed to fetch IPv6 global SLAAC address for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                }
+                }*/
 
                 //DNS Information from RA
                 if ( 0 < pVirtIf->IP.Ipv6RA.uiDnssCount )
