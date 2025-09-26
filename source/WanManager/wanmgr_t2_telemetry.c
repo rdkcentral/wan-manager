@@ -1,7 +1,8 @@
 #include "wanmgr_t2_telemetry.h"
 #include "wanmgr_rdkbus_utils.h"
 
-#define BUFFER_LENGTH_256 256
+#define BUFFER_LENGTH_256     256
+#define T2_COMPONENT_READY    "/tmp/.t2ReadyToReceiveEvents"
 static char MarkerArguments[BUFFER_LENGTH_256] = {0};
 
 /*append api appends key value in pairs, separated by DELIMITER*/
@@ -199,9 +200,17 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
         default:
             ;
     }
-    t2_init("eRT.com.cisco.spvtg.ccsp.wanmanager");
-    t2_event_s(WanMgr_TelemetryEventStr[Marker->enTelemetryMarkerID],MarkerArguments);
+/*    CcspTraceInfo(("%s: Check for T2_COMPONENT_READY.\n",__FUNCTION__));
+    if(access( T2_COMPONENT_READY, F_OK) == -1) 
+    {
+	CcspTraceInfo(("%s: T2 component not ready to recieve events, return.\n",__FUNCTION__));
+        return ANSC_STATUS_SUCCESS;
+    }
+    else
+    {*/
+	CcspTraceInfo(("%s: Calling t2_event_s().\n",__FUNCTION__));
+        t2_event_s(WanMgr_TelemetryEventStr[Marker->enTelemetryMarkerID],MarkerArguments);
+//    }
     CcspTraceInfo(("%s %d: Successfully sent Telemetry event [%s] with arguments = [%s].\n",__FUNCTION__, __LINE__,WanMgr_TelemetryEventStr[Marker->enTelemetryMarkerID],MarkerArguments));
-    t2_uninit();
     return ANSC_STATUS_SUCCESS;
 }

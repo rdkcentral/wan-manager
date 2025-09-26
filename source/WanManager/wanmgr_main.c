@@ -380,7 +380,8 @@ int main(int argc, char* argv[])
 
     WanMgrDmlWanWebConfigInit();
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-    t2_init(WAN_COMPONENT_NAME);
+    CcspTraceInfo(("%s: Calling t2_init(wanmanager)\n",__FUNCTION__));
+    t2_init("wanmanager");
 #endif
     if ( bRunAsDaemon )
     {
