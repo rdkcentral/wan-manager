@@ -2946,14 +2946,24 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
         fp_dad = popen(cmd, "r");
         if(fp_dad != NULL) 
         {
-            if ((fgets(buffer, BUFLEN_256, fp_dad) == NULL) || (strlen(buffer) == 0) || (strstr(buffer, "fe80::") == NULL))
+            BOOL IsTentativeLinklocalFound = FALSE;
+
+            while (fgets(buffer, sizeof(buffer), fp_dad) != NULL) 
             {
-                CcspTraceError(("%s %d: Interface(%s) [%s]\n", __FUNCTION__, __LINE__, pInterfaceName, buffer));
-                pclose(fp_dad);
+                // Look only for link-local addresses (fe80::/10)
+                if (strstr(buffer, "fe80::") != NULL) {
+                    IsTentativeLinklocalFound = TRUE;
+                    CcspTraceError(("%s %d: Interface(%s) still tentative: %s\n", __FUNCTION__, __LINE__, pInterfaceName, buffer));
+                }
+            }
+
+            pclose(fp_dad);
+
+            //Interface is not tentative which means DAD process has been completed for link local especially
+            if ( FALSE == IsTentativeLinklocalFound )
+            {
                 break;
             }
-            CcspTraceError(("%s %d: Interface(%s) still tentative: %s\n", __FUNCTION__, __LINE__, pInterfaceName, buffer));
-            pclose(fp_dad);
         }
         usleep(INTF_V6LL_INTERVAL_IN_MSEC * USECS_IN_MSEC);
         waitTime -= INTF_V6LL_INTERVAL_IN_MSEC;
