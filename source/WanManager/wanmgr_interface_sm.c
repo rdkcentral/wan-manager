@@ -3274,9 +3274,9 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
     }
 
     //Check whether virtual interface is Up and Running or not to proceed further
-    if ( FALSE == WanManager_IsNetworkInterfaceUp( pVirtIf->Name ))
+    if ( FALSE == WanManager_IsNetworkInterfaceUp( p_VirtIf->Name ))
     {
-        CcspTraceError(("%s %d: Interface '%s' is not ready\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        CcspTraceError(("%s %d: Interface '%s' is not ready\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         return WAN_STATE_VALIDATING_WAN;
     }
 
