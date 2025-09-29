@@ -369,10 +369,6 @@ typedef struct _WANMGR_IPV6_DATA
 typedef struct _WANMGR_IPV6_RA_DATA 
 {
     IPV6_RA_STATUS       enIPv6RAStatus;
-    bool                 IsRAReceived;           // Confirms whether RA received or not
-    bool                 IsMFlagSet;             // Stateful address conf. (Managed) M-flag
-    bool                 IsOFlagSet;             // Stateful other conf. (Other) O-flag
-    bool                 IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
     bool                 DHCPStartStatusFlag;    // Confirms whether DHCP client needs to start or not based on RA flags
     char                 acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
     unsigned int         uiRouterLifetime;       //Router LifeTime
