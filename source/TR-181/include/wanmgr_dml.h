@@ -374,18 +374,8 @@ typedef struct _WANMGR_IPV6_RA_DATA
     bool                 IsOFlagSet;             // Stateful other conf. (Other) O-flag
     bool                 IsAFlagSet;             // PIO(Prefix Information Option) Autonomous address conf. A-flag (from prefix)
     bool                 DHCPStartStatusFlag;    // Confirms whether DHCP client needs to start or not based on RA flags
-    char                 acInterface[BUFLEN_64];
-    unsigned int         uiHopLimit;
-    unsigned int         uiMTUSize;
-    unsigned int         uiRouterLifetime;
-    unsigned int         uiReachableTime;
-    unsigned int         uiRetransmitTime;
-    char                 acPrefix[BUFLEN_128];
-    unsigned int         uiValidLifetime;
-    unsigned int         uiPreferredLifetime;
     char                 acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
-    char                 acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
-    unsigned int         uiDnssCount;
+    unsigned int         uiRouterLifetime;       //Router LifeTime
 } WANMGR_IPV6_RA_DATA;
 
 typedef struct _DML_WANIFACE_IP

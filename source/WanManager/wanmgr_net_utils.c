@@ -2788,25 +2788,39 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
     return ret;
 }
 
-/** WanManager_Get_IPv6_RA_Configuration() */
-int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WANMGR_IPV6_RA_DATA *p_RAInfo)
+/** WanManager_SendRS_And_ProcessRA() */
+ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
 {
-    FILE    *fp         = NULL;
-    char    cmd[BUFLEN_256]    = {0},
-            line[BUFLEN_512]   = {0};
+    ANSC_STATUS     returnStatus    = ANSC_STATUS_FAILURE;
+    FILE            *fp             = NULL;
+    char            cmd[BUFLEN_256]    = {0},
+                    line[BUFLEN_512]   = {0},
+                    acPrefix[BUFLEN_128] = {0};
+
+    unsigned int    uiReachableTime = 0,
+                    uiRetransmitTime = 0,
+                    uiValidLifetime = 0,
+                    uiPreferredLifetime = 0,
+                    uiHopLimit = 0,
+                    uiMTUSize = 0,
+                    uiDnssCount = 0;
+    char            acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
 
     // NULL check on received params
-    if ( ( NULL == p_VirtIf ) || ( NULL == p_RAInfo ) )
+    if ( NULL == pVirtIf )
     {
-       CcspTraceError(("%s %d: Invalid Argument of either Interface:%p or RAInfo:%p \n", __FUNCTION__, __LINE__, p_VirtIf, p_RAInfo));
-       return -1;
+       CcspTraceError(("%s %d: Invalid argument\n", __FUNCTION__, __LINE__));
+       return returnStatus;
     }
+
+    //Clear all memory of RA info since we haven't received any of the RA response
+    memset(&p_VirtIf->IP.Ipv6RA, 0, sizeof(WANMGR_IPV6_RA_DATA));
 
     //Wait until interface ready
     if ( ANSC_STATUS_FAILURE == WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse( p_VirtIf->Name, INTF_V6LL_TIMEOUT_IN_MSEC ) )
     {
        CcspTraceError(("%s %d: Interface not ready to use for IPv6 request so ignoring solicit request for '%s' \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-       return -1;
+       return ANSC_STATUS_FAILURE;
     }
 
     CcspTraceInfo(("%s %d: Requesting Router solicit for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -2816,11 +2830,8 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WANMGR_IPV
     fp = popen(cmd, "r");
     if (!fp) {
         CcspTraceError(("%s %d: Error Failed to Send Solicit for '%s' interface \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-        return -1;
+        return ANSC_STATUS_FAILURE;
     }
-
-    p_RAInfo->uiDnssCount = 0;
-    snprintf(p_RAInfo->acInterface, sizeof(p_RAInfo->acInterface), "%s", p_VirtIf->Name);
 
     //Parse rdisc6 output
     while (fgets(line, sizeof(line), fp)) {
@@ -2829,41 +2840,41 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WANMGR_IPV
         if (strstr(line, "Hop limit") ||
             strstr(line, "Router preference") ||
             strstr(line, "Prefix ")) {
-            p_RAInfo->IsRAReceived = TRUE; // any of these indicate an RA parsed
+            p_VirtIf->IP.Ipv6RA->IsRAReceived = TRUE; // any of these indicate an RA parsed
         }
 
         if (strstr(line, "Stateful address conf.") && strstr(line, "Yes")){
-            p_RAInfo->IsMFlagSet = TRUE;
+            p_VirtIf->IP.Ipv6RA->IsMFlagSet = TRUE;
         }
         else if (strstr(line, "Stateful other conf.") && strstr(line, "Yes")){
-            p_RAInfo->IsOFlagSet = TRUE;
+            p_VirtIf->IP.Ipv6RA->IsOFlagSet = TRUE;
         }
         else if (strstr(line, "Autonomous address conf.") && strstr(line, "Yes")){
-            p_RAInfo->IsAFlagSet = TRUE;
+            p_VirtIf->IP.Ipv6RA->IsAFlagSet = TRUE;
         }
         else if (strstr(line, "Hop limit")) {
-            sscanf(line, "  Hop limit           : %u", &p_RAInfo->uiHopLimit);
+            sscanf(line, "  Hop limit           : %u", &uiHopLimit);
         }
         else if (strstr(line, "MTU")) {
-            sscanf(line, "  MTU                 : %u", &p_RAInfo->uiMTUSize);
+            sscanf(line, "  MTU                 : %u", &uiMTUSize);
         }
         else if (strstr(line, "Router lifetime")) {
-            sscanf(line, "  Router lifetime     : %u", &p_RAInfo->uiRouterLifetime);
+            sscanf(line, "  Router lifetime     : %u", &p_VirtIf->IP.Ipv6RA->uiRouterLifetime);
         }
         else if (strstr(line, "Reachable time")) {
-            sscanf(line, "  Reachable time      : %u", &p_RAInfo->uiReachableTime);
+            sscanf(line, "  Reachable time      : %u", &uiReachableTime);
         }
         else if (strstr(line, "Retransmit time")) {
-            sscanf(line, "  Retransmit time     : %u", &p_RAInfo->uiRetransmitTime);
+            sscanf(line, "  Retransmit time     : %u", &uiRetransmitTime);
         }
         else if (strstr(line, "Prefix")) {
-            sscanf(line, "  Prefix              : %127s", p_RAInfo->acPrefix);
+            sscanf(line, "  Prefix              : %127s", acPrefix);
         }
         else if (strstr(line, "Valid time")) {
-            sscanf(line, "      Valid time      : %u", &p_RAInfo->uiValidLifetime);
+            sscanf(line, "      Valid time      : %u", &uiValidLifetime);
         }
         else if (strstr(line, "Pref. time")) {
-            sscanf(line, "      Pref. time      : %u", &p_RAInfo->uiPreferredLifetime);
+            sscanf(line, "      Pref. time      : %u", &uiPreferredLifetime);
         }
         else if (strstr(line, "from")) { 
             char gw[INET6_ADDRSTRLEN] = {0};
@@ -2871,17 +2882,17 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WANMGR_IPV
                 struct in6_addr addr;
                 if (inet_pton(AF_INET6, gw, &addr) == 1)  //check parsed value is a valid ipv6 address
                 {
-                    strncpy(p_RAInfo->acDefaultGw, gw, sizeof(p_RAInfo->acDefaultGw)-1);
+                    strncpy(p_VirtIf->IP.Ipv6RA->acDefaultGw, gw, sizeof(p_VirtIf->IP.Ipv6RA->acDefaultGw)-1);
                 }
             }
         }
         else if (strstr(line, "Recursive DNS server")) {
             char dns[BUFLEN_64] = {0};
             if (sscanf(line, "  Recursive DNS server : %63s", dns) == 1) {
-                if (p_RAInfo->uiDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
-                    strncpy(p_RAInfo->acDnss[p_RAInfo->uiDnssCount], dns, 63);
-                    p_RAInfo->acDnss[p_RAInfo->uiDnssCount][63] = '\0';
-                    p_RAInfo->uiDnssCount++;
+                if (uiDnssCount < WANMGR_MAX_RA_DNS_SUPPORT) {
+                    strncpy(acDnss[uiDnssCount], dns, 63);
+                    acDnss[uiDnssCount][63] = '\0';
+                    uiDnssCount++;
                 }
             }
         }
@@ -2895,31 +2906,92 @@ int WanManager_Get_IPv6_RA_Configuration(DML_VIRTUAL_IFACE *p_VirtIf, WANMGR_IPV
 
     CcspTraceInfo(("*************************** RA Info ***********************************\n"));
     CcspTraceInfo(("Parsed RA Flags: M(Managed flag)=%s, O(OtherConfig flag)=%s, A(PIO-Autoconf flag)=%s, ra_sent=%s, seen_any_ra=%s\n",
-                                                    p_RAInfo->IsMFlagSet ? "Yes" : "No",
-                                                    p_RAInfo->IsOFlagSet ? "Yes" : "No",
-                                                    p_RAInfo->IsAFlagSet ? "Yes" : "No",
+                                                    p_VirtIf->IP.Ipv6RA->IsMFlagSet ? "Yes" : "No",
+                                                    p_VirtIf->IP.Ipv6RA->IsOFlagSet ? "Yes" : "No",
+                                                    p_VirtIf->IP.Ipv6RA->IsAFlagSet ? "Yes" : "No",
                                                     "yes",
-                                                    p_RAInfo->IsRAReceived ? "Yes" : "No"));
-    CcspTraceInfo(("Interface: %s\n", p_RAInfo->acInterface));
-    CcspTraceInfo(("Default GW: %s\n", p_RAInfo->acDefaultGw[0] ? p_RAInfo->acDefaultGw : "(none)"));
-    CcspTraceInfo(("Hop limit: %u\n", p_RAInfo->uiHopLimit));
-    CcspTraceInfo(("MTU: %u\n", p_RAInfo->uiMTUSize));
-    CcspTraceInfo(("Router lifetime: %u\n", p_RAInfo->uiRouterLifetime));
-    CcspTraceInfo(("Reachable time: %u\n", p_RAInfo->uiReachableTime));
-    CcspTraceInfo(("Retransmit time: %u\n", p_RAInfo->uiRetransmitTime));
-    CcspTraceInfo(("Prefix: %s\n", p_RAInfo->acPrefix[0] ? p_RAInfo->acPrefix : "(none)"));
-    CcspTraceInfo(("  Valid lifetime: %u\n", p_RAInfo->uiValidLifetime));
-    CcspTraceInfo(("  Preferred lifetime: %u\n", p_RAInfo->uiPreferredLifetime));
+                                                    p_VirtIf->IP.Ipv6RA->IsRAReceived ? "Yes" : "No"));
+    CcspTraceInfo(("Interface: %s\n", p_VirtIf->Name));
+    CcspTraceInfo(("Default GW: %s\n", p_VirtIf->IP.Ipv6RA->acDefaultGw[0] ? p_VirtIf->IP.Ipv6RA->acDefaultGw : "(none)"));
+    CcspTraceInfo(("Hop limit: %u\n", uiHopLimit));
+    CcspTraceInfo(("MTU: %u\n", uiMTUSize));
+    CcspTraceInfo(("Router lifetime: %u\n", p_VirtIf->IP.Ipv6RA->uiRouterLifetime));
+    CcspTraceInfo(("Reachable time: %u\n", uiReachableTime));
+    CcspTraceInfo(("Retransmit time: %u\n", uiRetransmitTime));
+    CcspTraceInfo(("Prefix: %s\n", acPrefix[0] ? acPrefix : "(none)"));
+    CcspTraceInfo(("  Valid lifetime: %u\n", uiValidLifetime));
+    CcspTraceInfo(("  Preferred lifetime: %u\n", uiPreferredLifetime));
     CcspTraceInfo(("Recursive DNS servers:\n"));
-    for (int i = 0; i < p_RAInfo->uiDnssCount; i++) {
-        CcspTraceInfo(("  %s\n", p_RAInfo->acDnss[i]));
+    for (int i = 0; i < uiDnssCount; i++) {
+        CcspTraceInfo(("  %s\n", acDnss[i]));
     }
-    if (p_RAInfo->uiDnssCount == 0) {
+    if (uiDnssCount == 0) {
         CcspTraceInfo(("  (none)\n"));
     }
     CcspTraceInfo(("***********************************************************************\n"));
+    
+    /*
+    IPv6 Determination based on RA
+    ------------------------------
+    | M flag | O flag | Decision                                 |
+    | -----: | :----: | ---------------------------------------- |
+    |      1 |   \*   | **DHCPv6 (stateful)**                    |
+    |      0 |    1   | **SLAAC + DHCPv6 (stateless)**           |
+    |      0 |    0   | **SLAAC only**                           |
+    |      0 |    0   | **Manual/No RA**                         |
+    */
 
-    return 0;
+    pVirtIf->IP.Ipv6RA.enIPv6RAStatus      = IPV6_RA_UNKNOWN;
+    pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = FALSE;
+
+    if ( FALSE == pVirtIf->IP.Ipv6RA.IsRAReceived )
+    {
+        CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+    }
+    else
+    {
+        if ( ( FALSE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) && ( FALSE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
+        {
+            pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
+            pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = FALSE;
+            CcspTraceInfo(("%s %d: RA doesn't have DHCPv6 information for '%s' interface RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
+        }
+        else if ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
+        {
+            pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_ADDRESS_ON_DHCP;
+            pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = TRUE;
+            CcspTraceInfo(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
+        }
+        else if ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
+        {
+            pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DNS_ON_DHCP;
+            pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = TRUE;
+            CcspTraceInfo(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
+        }
+
+        //SLAAC Only use case
+        if ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet )
+        {
+            pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
+            CcspTraceInfo(("%s %d: RA have Autonomous Address Configuration for '%s' interface. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
+        }
+
+        //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
+        if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet ) )
+        {
+            //DNS Information from RA
+            if ( 0 < pVirtIf->IP.Ipv6RA.uiDnssCount )
+            {
+                if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[0][0] )
+                snprintf(pVirtIf->IP.Ipv6Data.nameserver, sizeof(pVirtIf->IP.Ipv6Data.nameserver), "%s", pVirtIf->IP.Ipv6RA.acDnss[0]);
+                
+                if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[1][0] )
+                snprintf(pVirtIf->IP.Ipv6Data.nameserver1, sizeof(pVirtIf->IP.Ipv6Data.nameserver1), "%s", pVirtIf->IP.Ipv6RA.acDnss[1]);
+            }
+        }
+    }
+
+    return ANSC_STATUS_SUCCESS;
 }
 
 /** WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse() */
@@ -2978,96 +3050,6 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
     {
         CcspTraceError(("%s %d: interface %s has valid link local address\n", __FUNCTION__, __LINE__, pInterfaceName));
         returnStatus = ANSC_STATUS_SUCCESS;
-    }
-
-    return returnStatus;
-}
-
-/** WanManager_SendRS_And_ProcessRA() */
-ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
-{
-    ANSC_STATUS  returnStatus = ANSC_STATUS_FAILURE;
-
-    // NULL check on received params
-    if ( NULL == pVirtIf )
-    {
-       CcspTraceError(("%s %d: Invalid argument\n", __FUNCTION__, __LINE__));
-       return returnStatus;
-    }
-
-    /*
-    IPv6 Determination based on RA
-    ------------------------------
-    | M flag | O flag | Decision                                 |
-    | -----: | :----: | ---------------------------------------- |
-    |      1 |   \*   | **DHCPv6 (stateful)**                    |
-    |      0 |    1   | **SLAAC + DHCPv6 (stateless)**           |
-    |      0 |    0   | **SLAAC only**                           |
-    |      0 |    0   | **Manual/No RA**                         |
-    */
-
-    //Clear all memory of RA info since we haven't received any of the RA response
-    memset(&pVirtIf->IP.Ipv6RA, 0, sizeof(WANMGR_IPV6_RA_DATA));
-
-    //Check and Request RA via RS and determine SLAAC based on received RA
-    if ( 0 == WanManager_Get_IPv6_RA_Configuration( pVirtIf, &pVirtIf->IP.Ipv6RA ) )
-    {
-        pVirtIf->IP.Ipv6RA.enIPv6RAStatus      = IPV6_RA_UNKNOWN;
-        pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = FALSE;
-
-        if ( FALSE == pVirtIf->IP.Ipv6RA.IsRAReceived )
-        {
-            CcspTraceError(("%s %d: RA has not received for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-        }
-        else
-        {
-            if ( ( FALSE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) && ( FALSE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) )
-            {
-                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
-                pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = FALSE;
-                CcspTraceInfo(("%s %d: RA doesn't have DHCPv6 information for '%s' interface RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
-            }
-            else if ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet )
-            {
-                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_ADDRESS_ON_DHCP;
-                pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = TRUE;
-                CcspTraceInfo(("%s %d: RA has DHCPv6 information for '%s' interface so we can go ahead of DHCPv6 server start to acquire all the IPv6 information. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
-            }
-            else if ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet )
-            {
-                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_DNS_ON_DHCP;
-                pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag = TRUE;
-                CcspTraceInfo(("%s %d: RA has SLAAC IPv6 but Other information like DNS at DHCPv6 server for '%s' interface so we can go ahead of DHCPv6 server start to acquire other information. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
-            }
-
-            //SLAAC Only use case
-            if ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet )
-            {
-                pVirtIf->IP.Ipv6RA.enIPv6RAStatus = IPV6_RA_VALID_SLAAC;
-                CcspTraceInfo(("%s %d: RA have Autonomous Address Configuration for '%s' interface. RAStatus:%d DHCPStartFlag:%d\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag));
-            }
-
-            //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
-            if ( ( TRUE == pVirtIf->IP.Ipv6RA.IsMFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsOFlagSet ) || ( TRUE == pVirtIf->IP.Ipv6RA.IsAFlagSet ) )
-            {
-                //DNS Information from RA
-                if ( 0 < pVirtIf->IP.Ipv6RA.uiDnssCount )
-                {
-                    if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[0][0] )
-                    snprintf(pVirtIf->IP.Ipv6Data.nameserver, sizeof(pVirtIf->IP.Ipv6Data.nameserver), "%s", pVirtIf->IP.Ipv6RA.acDnss[0]);
-                    
-                    if( '\0' != pVirtIf->IP.Ipv6RA.acDnss[1][0] )
-                    snprintf(pVirtIf->IP.Ipv6Data.nameserver1, sizeof(pVirtIf->IP.Ipv6Data.nameserver1), "%s", pVirtIf->IP.Ipv6RA.acDnss[1]);
-                }
-            }
-        }
-
-        returnStatus = ANSC_STATUS_SUCCESS;
-    }
-    else
-    {
-        CcspTraceError(("%s %d: Failed to send/receive RA for '%s' interface\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-        returnStatus = ANSC_STATUS_FAILURE;
     }
 
     return returnStatus;
