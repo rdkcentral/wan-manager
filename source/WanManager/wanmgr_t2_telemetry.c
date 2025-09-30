@@ -24,6 +24,7 @@ static void wanmgr_telemetry_append_key_value(char* key, const char* value)
  * gets the data required to send to T2 marker*/
 ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
 {
+    t2_init("wanmanagerT2");
     DML_WAN_IFACE *pIntf = Marker->pInterface;
     DML_VIRTUAL_IFACE *pVirtIntf = Marker->pVirtInterface;
     memset(MarkerArguments,0,sizeof(MarkerArguments));
@@ -211,6 +212,7 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
 	CcspTraceInfo(("%s: Calling t2_event_s().\n",__FUNCTION__));
         t2_event_s(WanMgr_TelemetryEventStr[Marker->enTelemetryMarkerID],MarkerArguments);
 //    }
+    t2_uninit();
     CcspTraceInfo(("%s %d: Successfully sent Telemetry event [%s] with arguments = [%s].\n",__FUNCTION__, __LINE__,WanMgr_TelemetryEventStr[Marker->enTelemetryMarkerID],MarkerArguments));
     return ANSC_STATUS_SUCCESS;
 }
