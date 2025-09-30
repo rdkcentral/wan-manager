@@ -2982,6 +2982,9 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
         //Read RA IPv6 and DNS Info and Update into WAN Virtual Interface Data Structure
         if ( ( TRUE == IsMFlagSet ) || ( TRUE == IsOFlagSet ) || ( TRUE == IsAFlagSet ) )
         {
+            //WAN Interface Name
+            snprintf( pVirtIf->IP.Ipv6Data.ifname, sizeof(pVirtIf->IP.Ipv6Data.ifname), "%s", pVirtIf->Name );
+
             //DNS Information from RA
             if ( 0 < uiDnssCount )
             {
