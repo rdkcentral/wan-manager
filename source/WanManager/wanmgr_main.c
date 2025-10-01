@@ -289,6 +289,11 @@ int main(int argc, char* argv[])
     read_capability(&appcaps);
     clear_caps(&appcaps); 
 
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: Calling t2_init(wanmanager)\n",__FUNCTION__));
+    t2_init("wanmanager");
+    CcspTraceInfo(("%s: Called t2_init(wanmanager)\n",__FUNCTION__));
+#endif    
     for (idx = 1; idx < argc; idx++)
     {
         if ( (strcmp(argv[idx], "-subsys") == 0) )
@@ -381,7 +386,7 @@ int main(int argc, char* argv[])
     WanMgrDmlWanWebConfigInit();
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
     //CcspTraceInfo(("%s: Calling t2_init(wanmanager)\n",__FUNCTION__));
-    //t2_init("wanmanager");
+    //t2_init(COMPONENT_NAME_WANMANAGER);
 #endif
     if ( bRunAsDaemon )
     {
