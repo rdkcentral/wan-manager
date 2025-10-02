@@ -324,12 +324,17 @@ int main(int argc, char* argv[])
         fputs(cmd, fd);
         fclose(fd);
     }
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
     CcspTraceInfo(("%s: Calling t2_init(wanmanager)\n",__FUNCTION__));
     t2_init("wanmanager");
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
     CcspTraceInfo(("%s: Called t2_init(wanmanager)\n",__FUNCTION__));
 #endif
-
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif    
 #ifdef INCLUDE_BREAKPAD
     breakpad_ExceptionHandler();
 #else
@@ -347,6 +352,9 @@ int main(int argc, char* argv[])
     signal(SIGQUIT, sig_handler);
     signal(SIGHUP, sig_handler);
 #endif //INCLUDE_BREAKPAD
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
 
     cmd_dispatch('e');
 #ifdef _COSA_SIM_
@@ -360,6 +368,9 @@ int main(int argc, char* argv[])
         fprintf(stderr, "Cdm_Init: %s\n", Cdm_StrError(err));
         exit(1);
     }
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
 
 #ifdef ENABLE_SD_NOTIFY
     sd_notifyf(0, "READY=1\n"
@@ -368,6 +379,9 @@ int main(int argc, char* argv[])
 
     CcspTraceInfo(("RDKB_SYSTEM_BOOT_UP_LOG : wanmanager sd_notify Called\n"));
 #endif //ENABLE_SD_NOTIFY
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
 
     /* Inform Webconfig framework if component is coming after crash */
     check_component_crash("/tmp/wanmanager_initialized");
@@ -377,6 +391,9 @@ int main(int argc, char* argv[])
     {
        close(fd_ret);
     }
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
 
     //CORE INT
     WanMgr_Core_Init();
@@ -388,6 +405,10 @@ int main(int argc, char* argv[])
     //CcspTraceInfo(("%s: Calling t2_init(wanmanager)\n",__FUNCTION__));
     //t2_init(COMPONENT_NAME_WANMANAGER);
 #endif
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
+    
     if ( bRunAsDaemon )
     {
         //MAIN THREAD
@@ -402,6 +423,9 @@ int main(int argc, char* argv[])
             cmd_dispatch(cmdChar);
         }
     }
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
 
 
     //CORE FINALISE
@@ -414,10 +438,17 @@ int main(int argc, char* argv[])
     exit(1);
     }
 
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
     ssp_cancel();
 
     //DATA DELETE
     WanMgr_Data_Delete();
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    CcspTraceInfo(("%s: %d KAVYA\n",__FUNCTION__,__LINE__));
+#endif
+    
     return 0;
 }
 
