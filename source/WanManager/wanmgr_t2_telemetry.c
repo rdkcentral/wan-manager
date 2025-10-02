@@ -1,6 +1,7 @@
 #include "wanmgr_t2_telemetry.h"
 #include "wanmgr_rdkbus_utils.h"
 
+#define BUFFER_LENGTH_256 256
 static char MarkerArguments[BUFFER_LENGTH_256] = {0};
 
 /*append api appends key value in pairs, separated by DELIMITER*/
