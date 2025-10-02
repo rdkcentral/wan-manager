@@ -700,8 +700,8 @@ static void *WanManagerSyseventHandler(void *args)
 
     for(;;)
     {
-        char name[BUFLEN_64] = {0};
-        char val[BUFLEN_512] = {0};
+        char name[BUFLEN_42] = {0};
+        char val[BUFLEN_42] = {0};
         char cmd_str[BUF_SIZE] = {0};
         int namelen = sizeof(name);
         int vallen  = sizeof(val);
