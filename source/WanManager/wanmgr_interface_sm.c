@@ -41,7 +41,6 @@
 
 #define IF_SIZE      32
 #define LOOP_TIMEOUT 50000 // timeout in microseconds. This is the state machine loop interval
-
 #define RESOLV_CONF_FILE "/etc/resolv.conf"
 #define LOOPBACK "127.0.0.1"
 
@@ -50,8 +49,6 @@
 #define IPOE_HEALTH_CHECK_V6_STATUS "ipoe_health_check_ipv6_status"
 #define IPOE_STATUS_FAILED "failed"
 #endif
-
-#define WIFI_READY_CHECK_FILE            "/tmp/wifi_ready_to_process"
 
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
@@ -3094,13 +3091,6 @@ static eWanState_t wan_state_phy_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
             pInterface->Selection.Status == WAN_IFACE_NOT_SELECTED)
     {
         return wan_transition_exit(pWanIfaceCtrl);
-    }
-
-    //TBC: Workaround, Return failure if the component not ready
-    if((0 == strncmp(pInterface->BaseInterface,WIFI_BASE_IFACE_PATH, strlen(WIFI_BASE_IFACE_PATH))) &&
-       (access(WIFI_READY_CHECK_FILE, F_OK) != 0))
-    {
-        return WAN_STATE_PHY_CONFIGURING;
     }
 
     return wan_transition_configuring_interface(pWanIfaceCtrl);
