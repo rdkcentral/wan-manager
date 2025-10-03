@@ -325,10 +325,9 @@ int main(int argc, char* argv[])
         fclose(fd);
     }
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-//    CcspTraceInfo(("%s: Calling t2_init(wanmanager)\n",__FUNCTION__));
-//    t2_init("wanmanager");
-//    CcspTraceInfo(("%s: Called t2_init(wanmanager)\n",__FUNCTION__));
+    t2_init("wanmanager");
 #endif
+
 #ifdef INCLUDE_BREAKPAD
     breakpad_ExceptionHandler();
 #else
@@ -383,11 +382,6 @@ int main(int argc, char* argv[])
     waitUntilSystemReady();
 
     WanMgrDmlWanWebConfigInit();
-#ifdef ENABLE_FEATURE_TELEMETRY2_0
-    CcspTraceInfo(("%s: Calling t2_init(wanmanager)\n",__FUNCTION__));
-    t2_init("wanmanager");
-    CcspTraceInfo(("%s: Called t2_init(wanmanager)\n",__FUNCTION__));
-#endif
     
     if ( bRunAsDaemon )
     {
