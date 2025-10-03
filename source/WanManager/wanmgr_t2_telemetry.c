@@ -199,12 +199,7 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
         default:
             ;
     }
-//    t2_init("wanmanager");
-    CcspTraceInfo(("%s: Calling t2_event_s().\n",__FUNCTION__));
     t2_event_s(WanMgr_TelemetryEventStr[Marker->enTelemetryMarkerID],MarkerArguments);
-    CcspTraceInfo(("%s: Called t2_event_s().\n",__FUNCTION__));
-//    t2_uninit();
-
     CcspTraceInfo(("%s %d: Successfully sent Telemetry event [%s] with arguments = [%s].\n",__FUNCTION__, __LINE__,WanMgr_TelemetryEventStr[Marker->enTelemetryMarkerID],MarkerArguments));
     return ANSC_STATUS_SUCCESS;
 }
