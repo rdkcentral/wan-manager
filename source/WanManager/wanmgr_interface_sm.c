@@ -1876,19 +1876,27 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
         CcspTraceInfo(("%s %d - Already WAN interface %s created\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
     }
 
+        CcspTraceInfo(("%s %d - A1B2 TARNSITION_STRART MODE =%d\n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.VlanDiscoveryMode));
     /*TODO: VLAN should not be set for Remote Interface, for More info, refer RDKB-42676*/
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
         if(p_VirtIf->VLAN.VLANInUse == NULL || strlen(p_VirtIf->VLAN.VLANInUse) <=0)
         {
+        CcspTraceInfo(("%s %d - A1B2 TARNSITION_STRART VLANINuse EMPTY!!!! =%d\n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.VlanDiscoveryMode));
             p_VirtIf->VLAN.ActiveIndex = 0;
             DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
 	    //Use temporary use of Vlaninterface
-            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
+            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
         }
-
+        if((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) > 0))
+	{
+    CcspTraceInfo(("%s %d A1B2 WanMr_RdkBus_ConfigureVlan-002-ONCE check and CPY ONCE!!\n", __FUNCTION__, __LINE__));
+            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
+		
+	}
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
 
+    CcspTraceInfo(("%s %d A1B2 WanMgr_RdkBus_ConfigureVlan-002-TRUE\n", __FUNCTION__, __LINE__));
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
@@ -1992,6 +2000,7 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
     {
         if (pInterface->IfaceType != REMOTE_IFACE) //TODO NEW_DESIGN rework for remote interface
         {
+    CcspTraceInfo(("%s %d A1B2 WanMgr_RdkBus_ConfigureVlan-003-FALSE\n", __FUNCTION__, __LINE__));
             WanMgr_RdkBus_ConfigureVlan(p_VirtIf, FALSE);        
             WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_ERROR_VLAN_DOWN);	    
             /* VLAN link is not created yet if LinkStatus is CONFIGURING. Change it to down. */
@@ -2158,21 +2167,30 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+    CcspTraceInfo(("%s %d A1B2 Refresh Check-001\n", __FUNCTION__, __LINE__));
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
+    CcspTraceInfo(("%s %d A1B2 Refresh Check-002 p_VirtIf->VLAN.VlanDiscoveryMode=%d p_VirtIf->VLAN.VLANInUse=%d\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse)));
+    //VlanInUse wont be there as its refreshing wan ....due to failures..or it would be having
+    //Either way..should nt iterate over the interface to fint eh vlan to be userd!!??
+    // ActiveVlanInUse might be there
         /*Discovery shouldbe disallowed when the VlanDiscoveryMode is once*/    
         if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
+        //if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS && (strlen(p_VirtIf->VLAN.VLANInUse) > 0)))
         {
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
             if (p_VirtIf->VLAN.Reset == TRUE || p_VirtIf->VLAN.ActiveIndex == -1)
             {
+    CcspTraceInfo(("%s %d A1B2 Refresh Check-003\n", __FUNCTION__, __LINE__));
                 /* Reset to first Vlan Interface*/
                 pVlanIf = p_VirtIf->VLAN.InterfaceList;
             }else
             {
+    CcspTraceInfo(("%s %d A1B2 Refresh Check-004\n", __FUNCTION__, __LINE__));
                 pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
                 if(pVlanIf == NULL || pVlanIf->next == NULL)
                 {
+    CcspTraceInfo(("%s %d A1B2 Refresh Check-005\n", __FUNCTION__, __LINE__));
                     /* Next Vlan Interface not available reset to Head*/
                     pVlanIf = p_VirtIf->VLAN.InterfaceList;
                 }else
@@ -2183,11 +2201,13 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
 
             }
             p_VirtIf->VLAN.ActiveIndex = pVlanIf->Index;
+    CcspTraceInfo(("%s %d A1B2 Refresh Check-006 stored in ActiveVlanInuse\n", __FUNCTION__, __LINE__));
 	    //Use temporary use of Vlaninterface
             strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, (sizeof(p_VirtIf->VLAN.VLANInUse) - 1));
         }
 
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
+    CcspTraceInfo(("%s %d A1B2 WanMgr_RdkBus_ConfigureVlan-001-TRUE\n", __FUNCTION__, __LINE__));
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
