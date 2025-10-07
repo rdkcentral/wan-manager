@@ -211,6 +211,7 @@ CcspTraceInfo(("%s %d: KARUN:Clang (IJK::DEF) THe ActiveInUser\n",__FUNCTION__,_
 #endif
 
         CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->UPDATED #ofInterfaces==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(p_VirtIf->VLAN.NoOfInterfaceEntries)));
+	CcspTraceInfo(("  CCCCCCCCCCCCCCCCCCCCCc HERE with the Discover and do not iteratre of to process and stage it !!!!"));
     for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
     {
         DML_VLAN_IFACE_TABLE* p_VlanIf = (DML_VLAN_IFACE_TABLE *) AnscAllocateMemory( sizeof(DML_VLAN_IFACE_TABLE));

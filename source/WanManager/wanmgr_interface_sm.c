@@ -3123,7 +3123,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 
 
 	  //VLAN:IJK
-            p_VirtIf->VLAN.Expired = TRUE; //VLAN:IJK
+     ///   p_VirtIf->VLAN.Expired = TRUE; //VLAN:IJK
 					   //
 	rook_bypass = 0;
       }else{
