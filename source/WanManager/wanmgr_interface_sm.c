@@ -3069,7 +3069,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
     if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	 ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&
-	   (strlen(p_VirtIf->VLAN.VLANInUse) < 0) )))
+	   (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
     {
  	//CcspTraceInfo(("%s %d  VLAN.NoOfInterfacesEntries=%d \n",
  	CcspTraceInfo(("%s %d  A1B2: TimeOUTCheck: VLAN.NoOfInterfacesEntries=%d \n",
@@ -3155,7 +3155,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
     if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	 ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&
-	   (strlen(p_VirtIf->VLAN.VLANInUse) < 0) )))
+	   (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
     {
  	CcspTraceInfo(("%s %d  A1B2: CheckTimeOut :: VLAN.NoOfInterfacesEntries=%d \n",
 			       	__FUNCTION__, __LINE__,
@@ -3211,7 +3211,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
     if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	 ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&
-	   (strlen(p_VirtIf->VLAN.VLANInUse) < 0) )))
+	   (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
     {
  	CcspTraceInfo(("%s %d  A1B2:   CheckTimeOut :: VLAN.NoOfInterfacesEntries=%d \n",
 			       	__FUNCTION__, __LINE__,
