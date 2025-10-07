@@ -304,7 +304,10 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.NoOfInterfaceEntries));
 #endif
-#if 0
+
+    //VLAN:DEF -- reverting the masking one--for previous implent it would be 0 commented
+    // for now uncommenting
+#if 1
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT, instancenum, (virtInsNum + 1));
@@ -324,16 +327,40 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
 
+
+#if 1
+    //VALN:DEF
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, instancenum, (virtInsNum + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);//VlanDiscoveryModeOnce)
+#endif
+
+    //VLAN:DEF this is for ActiveInIUse
+    //Thereby the masking of number of enteries will be taken away
+#if 1
+        CcspTraceInfo(("%s %d KARUN:Clang (DEF)  Reading ACTIVE--VLANINUSE !!!\n", __FUNCTION__, __LINE__));
+    //VALN:DEF
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, instancenum, (virtInsNum + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    AnscCopyString(pVirtIf->VLAN.ActiveInIUse, param_value);//VlanDiscoveryModeOnce)
+#endif
+
+    //VLAN:DEF-- reverting the changes, So has to use the ActiveInUse
     // Exculding the interface count to determien vlan is enabled or not 
-#if 0    
+#if 1    
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) || pVirtIf->VLAN.NoOfInterfaceEntries > 0)
 #endif
-#if 1
+#if 0
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)))
 #endif
     {
         //CcspTraceInfo(("%s %d Valid VLAN interface is configured. Use VLAN\n", __FUNCTION__, __LINE__));
         CcspTraceInfo(("%s %d ARUN: Clang  VLANINUSE !!!\n", __FUNCTION__, __LINE__));
+        CcspTraceInfo(("%s %d KARUN:Clang (DEF)  VLANINUSE !!!\n", __FUNCTION__, __LINE__));
         pVirtIf->VLAN.Enable = TRUE;
     }
 

@@ -164,10 +164,20 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
     {
         CcspTraceError(("%s %d Invalid memory \n", __FUNCTION__, __LINE__));
     }
+
+//VLAN:DEF
+#if 1
+   CcspTraceInfo(("%s %d: KARUN:Clang (DEF)-ConfVlan-TablePopulation VlanDiscoveryModeOnce=%d ACTIVEInUse==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.ActiveVlanInUse))));
+if(strlen(p_VirtIf->VLAN.ActiveVlanInUse) > 0)
+{
+CcspTraceInfo(("%s %d: KARUN:Clang (DEF) THe ActiveInUser=%s\n",p_VirtIf->VLAN.ActiveVlanInUse));
+}
+#endif    
+
 // ARUN: ABC: If the vlanDiscoveryMode is enabled and that of
 // Vlaninuse contains valid entry then lets defere the scanning
 // by controlling #of interfaces , else update farom psm
-#if 1
+#if 0
    CcspTraceInfo(("%s %d: ARUN:Clang by noe the Mode value should be read VlanDiscoveryModeOnce=%d INUSEEEEE==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.VLANInUse))));
    if((p_VirtIf->VLAN.VlanDiscoveryModeOnce) && (!strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE))) )
    {
@@ -177,6 +187,23 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
    else
    {
         CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->Populate vlatable \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+	// WanMgr_UpdateVlanTable(p_VirtIf);
+	WanMgrDml_LoadVlanTable(p_VirtIf);
+   }
+#endif
+
+//VLAN:DEF
+#if 0
+   CcspTraceInfo(("%s %d: ARUN:Alang by noe the Mode value should be read VlanDiscoveryModeOnce=%d INUSEEEEE==%d  ActiveVlanInUse=%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.VLANInUse)),(strlen(p_VirtIf->VLAN.ActiveVlanInUse))));
+   if((p_VirtIf->VLAN.VlanDiscoveryModeOnce) && (!strncmp(p_VirtIf->VLAN.ActiveVlanInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE))) )
+   {
+        CcspTraceInfo(("%s %d: ARUN:Alang VlanDiscoveryModeOnce=%d Defering vlan table entry \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+        CcspTraceInfo(("%s %d: ARUN:Alang Setting VlanInUse <----- ActiveVlanInUse\n", __FUNCTION__, __LINE__));
+    //	p_VirtIf->VLAN.NoOfInterfaceEntries = 0;
+   }
+   else
+   {
+        CcspTraceInfo(("%s %d: ARUN:Alang VlanDiscoveryModeOnce=%d -->Populate vlatable \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
 	// WanMgr_UpdateVlanTable(p_VirtIf);
 	WanMgrDml_LoadVlanTable(p_VirtIf);
    }
@@ -287,6 +314,7 @@ ANSC_STATUS WanMgr_WanIfaceConfInit(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
                 p_VirtIf->baseIfIdx = idx; //Add base interface index 
                 get_Virtual_Interface_FromPSM((idx+1), i , p_VirtIf);
                 CcspTraceInfo(("%s %d Adding %d \n", __FUNCTION__, __LINE__, p_VirtIf->VirIfIdx));
+                CcspTraceInfo(("%s %d KARUN:DEF CREATING VlanNode After reading from PSM and then to Table Adding %d \n", __FUNCTION__, __LINE__, p_VirtIf->VirIfIdx));
                 WanMgr_VirtIfConfVLAN(p_VirtIf, idx);
                 WanMgr_AddVirtualToList(&(pIfaceData->data.VirtIfList), p_VirtIf);
             }
@@ -851,6 +879,10 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->VLAN.ActiveIndex = -1;
     pVirtIf->VLAN.NoOfInterfaceEntries = 0;
     memset(pVirtIf->VLAN.VLANInUse,0, sizeof(pVirtIf->VLAN.VLANInUse));
+//VLAN:DEF    
+#if 1   
+    memset(pVirtIf->VLAN.ActiveVlanInUse,0, sizeof(pVirtIf->VLAN.ActiveVlanInUse));
+#endif    
     pVirtIf->Reset = FALSE;
     memset(pVirtIf->IP.Interface, 0, 64);
     memset(pVirtIf->IP.DHCPv4Iface, 0, 128);

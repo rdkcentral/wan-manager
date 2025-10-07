@@ -523,6 +523,7 @@ typedef struct _DML_VIRTUALIF_VLAN
     struct timespec             TimerStart;
 #if 1
     UINT                        VlanDiscoveryModeOnce; //001
+    CHAR                        ActiveVLANInUse[BUFLEN_128]; //VLAN:DEF
 #endif
 } DML_VIRTUALIF_VLAN;
 

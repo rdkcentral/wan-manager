@@ -52,6 +52,7 @@
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_MARKING_ENTRY          "dmsb.wanmanager.if.%d.VirtualInterface.%d.Marking.%d.Entry"
 #define PSM_WANMANAGER_IF_VIRIF_ENABLE                      "dmsb.wanmanager.if.%d.VirtualInterface.%d.Enable"
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERYMODE          "dmsb.wanmanager.if.%d.VirtualInterface.%d.VlanDiscoveryModeOnce"
+#define PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE           "dmsb.wanmanager.if.%d.VirtualInterface.%d.ActiveVlanInUse" // VLAN:DEF
 #define PSM_WANMANAGER_IF_VIRIF_ALIAS                       "dmsb.wanmanager.if.%d.VirtualInterface.%d.Alias"
 #define PSM_WANMANAGER_IF_VIRIF_NAME                        "dmsb.wanmanager.if.%d.VirtualInterface.%d.Name"
 #define PSM_WANMANAGER_IF_VIRIF_IP_INTERFACE                "dmsb.wanmanager.if.%d.VirtualInterface.%d.IPInterface"

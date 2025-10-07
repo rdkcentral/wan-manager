@@ -1878,8 +1878,11 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     {
         if(p_VirtIf->VLAN.VLANInUse == NULL || strlen(p_VirtIf->VLAN.VLANInUse) <=0)
         {
+		// VLAN:DEF instead of the first entry if there is ActiveVlanInUse set that up??? and no load up the Table to Scan
+		// In Here WanMgr_RdkBus_ConfigureVlan if #ifInterfece >1 then associates timer and says configruing
             p_VirtIf->VLAN.ActiveIndex = 0;
             DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
+	    // VLAN:DEF instead of the pVlanIf->Interface to be ActiveVlanInUse
             strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
         }
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
@@ -3051,6 +3054,29 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
+    //VLAN:DEF = Inhere the we check for the timer if nu of entries or more than 1
+    //If it's 1 then there is no point of waiting
+    //Catch is even in #ofInterfaces are > 1 , then lets use the ActiveInUse if set
+    //
+    //if(VlanDiscovery=Always &&n ActiveVlanInUse)
+    // {
+    // 	set the ValNInuse wot ActiVland In Use --> ActiveInUse could have been stored during update PSMInUsePsm
+    // 					       --> of this fail they do not want to try next vlanINterface
+    // }else{
+    // 	old logic, trying all the the interfaces
+    // }
+    //
+    // Implies where ever Timeout is happening had to append this logic , forcing to use ActiveVlanInUse
+    //
+    // char dmQuery[BUFLEN_256] = {0};
+    // char dmValue[BUFLEN_256] = {0};
+    //if(p_VirtIf->VLAN.Enable == TRUE && (strlen(p_VirtIf->VLAN.VLANInUse) > 0))
+    //        strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
+    //        strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, (sizeof(p_VirtIf->VLAN.VLANInUse) - 1));
+    
+     CcspTraceInfo(("%s %d  KARUN (DEF) Check NumerofInterfaceEntries=%d  ActiveVlanInUse=%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries),strlen(p_VirtIf->VLAN.ActiveVlanInUse)));
+    strncpy(p_VirtIf->VLAN.VLANInUse,p_VirtIf->VLAN.ActiveVlanInUse,sizeof(p_VirtIf->VLAN.VLANInUse));
+   CcspaTraceInfo(("%s %d  KARUN (DEF) VLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.VLANInUse,strlen(p_VirtIf->VLAN.VLANInUse)));
     if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {
  	CcspTraceInfo(("%s %d  VLANBARUN-STATE-003==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
