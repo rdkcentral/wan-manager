@@ -178,7 +178,7 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
 	 CheckFlag = 0;
     }	    
 
-#if 1 //VLAN:LMN
+#if 0 //VLAN:LMN
     if(p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE &&
 		    !strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) )
     {

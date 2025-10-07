@@ -1889,6 +1889,8 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
            ///strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse)); //DAN
 
 	    // VLAN::IJK
+
+            CcspTraceInfo(("%s %d - LMN-111111111111111111111 CHECK_LEN_n_cpy=%d\n", __FUNCTION__, __LINE__,(strlen(p_VirtIf->VLAN.VLANInUse))));
             strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
             CcspTraceInfo(("%s %d - IJK Already  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
 
@@ -2173,6 +2175,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     {
 	     CcspTraceInfo(("ARUN: DISALLWO - NOt using old logic Check2 (LETS not process of ONce=%d\n",p_VirtIf->VLAN.VlanDiscoveryModeOnce));
       //if(p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)
+            CcspTraceInfo(("%s %d - LMN-2222222222222222222  FILTERING>>>>\n", __FUNCTION__, __LINE__));
       if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS)) 
         {
 		CcspTraceInfo(("ARUN: Trying NEXT VInterface!!!!  \n"));
