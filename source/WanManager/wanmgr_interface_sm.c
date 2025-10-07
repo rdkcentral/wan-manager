@@ -1946,7 +1946,7 @@ static eWanState_t wan_transition_ppp_configure(WanMgr_IfaceSM_Controller_t* pWa
 
 static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
-    CcspTraceInfo(("%s %d \n", __FUNCTION__, __LINE__));
+  //  CcspTraceInfo(("%s %d \n", __FUNCTION__, __LINE__));
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
         return ANSC_STATUS_FAILURE;
@@ -2006,7 +2006,7 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
     {
         if (pInterface->IfaceType != REMOTE_IFACE) //TODO NEW_DESIGN rework for remote interface
         {
-            CcspTraceInfo(("%s %d A1B2 WanMgr_RdkBus_ConfigureVlan-003-FALSE\n", __FUNCTION__, __LINE__));
+           // CcspTraceInfo(("%s %d A1B2 WanMgr_RdkBus_ConfigureVlan-003-FALSE\n", __FUNCTION__, __LINE__));
             WanMgr_RdkBus_ConfigureVlan(p_VirtIf, FALSE);        
             WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_ERROR_VLAN_DOWN);	    
             /* VLAN link is not created yet if LinkStatus is CONFIGURING. Change it to down. */
@@ -2173,7 +2173,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    CcspTraceInfo(("%s %d A1B2  ITERATION-CHECK Refresh Check-001\n", __FUNCTION__, __LINE__));
+   // CcspTraceInfo(("%s %d A1B2  ITERATION-CHECK Refresh Check-001\n", __FUNCTION__, __LINE__));
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
         CcspTraceInfo(("%s %d A1B2 RefreshWan Check-002 p_VirtIf->VLAN.VlanDiscoveryMode=%d p_VirtIf->VLAN.VLANInUse=%d ActiveVlanInUse=%d\n",
@@ -2181,7 +2181,8 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
 				p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse),strlen(p_VirtIf->VLAN.ActiveVLANInUse)));//A007
         /*Discovery shouldbe disallowed when the VlanDiscoveryMode is once*/    
         if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && 
-			((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS)  && (strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0)))
+			((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS)))
+			//((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS)  && (strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0)))
 			//((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS)  && (strlen(p_VirtIf->VLAN.VLANInUse) > 0)))
         {
                  CcspTraceInfo(("%s %d A1B2 ITERATION-CHECK--YES\n", __FUNCTION__, __LINE__));
