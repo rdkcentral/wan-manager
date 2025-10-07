@@ -1753,7 +1753,7 @@ ANSC_STATUS DmlSetDiscoveryModeToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
 
     // Storing internal VLANInUse , as it safe to decalre it
     CcspTraceInfo(("%s %d A1B2: Copying to VLANInUse !!!!!!!!!!!!!-A007 CCCCCC => %s\n", __FUNCTION__, __LINE__));
-    if(strncmp(pVirtIf->VLAN.VLANInUse,pVirtIf->VLAN.ActiveVLAN)  != 0)
+    if(strncmp(pVirtIf->VLAN.VLANInUse,pVirtIf->VLAN.ActiveVLAN,sizeof(pVirtIf->VLAN.VLANInUse))  != 0)
     {
         CcspTraceInfo(("%s %d A1B2: Copying to VLANInUse !!!!!!!!!!!!!-A007 NOT-SAME so Copying => %s\n", __FUNCTION__, __LINE__));
         // Updating VLANInUse as well
