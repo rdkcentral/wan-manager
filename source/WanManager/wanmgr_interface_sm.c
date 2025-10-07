@@ -2997,6 +2997,8 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
 /*********************************************************************************/
 static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
+    CcspTraceInfo(("%s %d  I-VLANBARUN \n", __FUNCTION__, __LINE__));
+    CcspTraceError(("%s %d E-VLANBARUN \n", __FUNCTION__, __LINE__));
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
         return ANSC_STATUS_FAILURE;
