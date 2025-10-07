@@ -311,8 +311,10 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
 
 
+        CcspTraceInfo(("%s %d A1B2: VLANInUse CPYED=%d\n", __FUNCTION__, __LINE__,strlen(pVirtIf->VLAN.VLANInUse)));
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) || pVirtIf->VLAN.NoOfInterfaceEntries > 0)
     {
+        CcspTraceInfo(("%s %d A1B2: VLANInUse CPYED=%d (IN setting VLAN.Enable to TRUE)\n", __FUNCTION__, __LINE__,strlen(pVirtIf->VLAN.VLANInUse)));
         CcspTraceInfo(("%s %d Valid VLAN interface is configured. Use VLAN\n", __FUNCTION__, __LINE__));
         pVirtIf->VLAN.Enable = TRUE;
     }
