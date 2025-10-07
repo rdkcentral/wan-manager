@@ -978,9 +978,6 @@ ANSC_STATUS WanMgr_RdkBus_setWanIpInterfaceData(DML_VIRTUAL_IFACE*  pVirtIf)
         CcspTraceInfo(("%s %d - Updating %s => %s\n", __FUNCTION__, __LINE__,dmQuery, pVirtIf->PPP.Interface));
     }else if(pVirtIf->VLAN.Enable == TRUE)
     {
-	//VLAN:IJK
-        //retStatus = WanMgr_RdkBus_SetParamValues( PAM_COMPONENT_NAME, PAM_DBUS_PATH, dmQuery, pVirtIf->VLAN.VLANInUse, ccsp_string, TRUE );
-        //CcspTraceInfo(("%s %d - Updating %s => %s\n", __FUNCTION__, __LINE__,dmQuery,pVirtIf->VLAN.VLANInUse));
         retStatus = WanMgr_RdkBus_SetParamValues( PAM_COMPONENT_NAME, PAM_DBUS_PATH, dmQuery, pVirtIf->VLAN.ActiveVLANInUse, ccsp_string, TRUE );
         CcspTraceInfo(("%s %d - Updating %s => %s\n", __FUNCTION__, __LINE__,dmQuery,pVirtIf->VLAN.ActiveVLANInUse));
     }
@@ -1006,15 +1003,7 @@ ANSC_STATUS  WanMgr_RdkBus_ConfigureVlan(DML_VIRTUAL_IFACE* pVirtIf, BOOL VlanEn
         memset(&(pVirtIf->VLAN.TimerStart), 0, sizeof(struct timespec));
         clock_gettime(CLOCK_MONOTONIC_RAW, &(pVirtIf->VLAN.TimerStart));
     }
-    //VLAN:IJK
-    //CcspTraceInfo(("%s %d %s VLAN %s\n", __FUNCTION__,__LINE__, VlanEnable? "Enabling":"Disabling",pVirtIf->VLAN.VLANInUse));
-    //snprintf( acSetParamName, sizeof(acSetParamName), "%s.Enable", pVirtIf->VLAN.VLANInUse);
-
-    //VLAN:IJK
-    //CcspTraceInfo(("%s %d %s VLAN %s\n", __FUNCTION__,__LINE__, VlanEnable? "Enabling":"Disabling",pVirtIf->VLAN.ActiveVLANInUse));
-    CcspTraceInfo((" SSSSSSSS --(IJK:: RBus ConfugrueVLan ActiveVLAN)%s %d %s VLAN %s\n", __FUNCTION__,__LINE__, 
-			    VlanEnable? "Enabling":"Disabling",
-			    pVirtIf->VLAN.ActiveVLANInUse));
+    CcspTraceInfo(("%s %d %s VLAN %s\n", __FUNCTION__,__LINE__, VlanEnable? "Enabling":"Disabling",pVirtIf->VLAN.ActiveVLANInUse));
     snprintf( acSetParamName, sizeof(acSetParamName), "%s.Enable", pVirtIf->VLAN.ActiveVLANInUse);
     snprintf( acSetParamValue, DATAMODEL_PARAM_LENGTH, "%s", VlanEnable? "true":"false" );
 
@@ -1040,8 +1029,6 @@ ANSC_STATUS WanManager_ConfigurePPPSession(DML_VIRTUAL_IFACE* pVirtIf, BOOL PPPE
     syscfg_set_commit(NULL, SYSCFG_WAN_INTERFACE_NAME, pVirtIf->Name);
 
 #ifdef DYNAMIC_CONFIGURE_PPP_LOWERLAYER
-    //VLAN:IJK
-    // snprintf( acSetParamName, sizeof(acSetParamName), "%s.Name", pVirtIf->VLAN.VLANInUse);
     snprintf( acSetParamName, sizeof(acSetParamName), "%s.Name", pVirtIf->VLAN.ActiveVLANInUse);
 
     ret = WanMgr_RdkBus_GetParamValues( VLAN_COMPONENT_NAME, VLAN_DBUS_PATH, acSetParamName, acSetParamValue );

@@ -165,36 +165,7 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
         CcspTraceError(("%s %d Invalid memory \n", __FUNCTION__, __LINE__));
     }
 
-    CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->UPDATED #ofInterfaces==%d \n", __FUNCTION__, __LINE__,
-			    (p_VirtIf->VLAN.VlanDiscoveryModeOnce),
-			    (p_VirtIf->VLAN.NoOfInterfaceEntries)));
-
-#if 0 //VLAN:LMN
-    // VLAN:LMN
-    //
-    CcspTraceInfo(("  CCCCCCCCCCCCCCCCCCCCCc HERE with the Discover and do not iteratre of to process and stage it !!!!"));
-    CcspTraceInfo(("  DDDDD if iscoveryMode=Once and VlanInUse then lets not load the table\n"));
-    int CheckFlag = 1;
-    if( (p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && (p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE))
-    {
-   	 CcspTraceInfo(("  DDDDD if iscoveryMode=Onc NOT filling the TABLE!!!\n"));
-	 CheckFlag = 0;
-    }	    
-
-    if(p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE &&
-		    !strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) )
-    {
-	    p_VirtIf->VLAN.NoOfInterfaceEntries = 0;
-    }
-    else
-    {
-	    // Update vlantable from PSM
-		//WanMgr_UpdateVlanTable(p_VirtIf);
-		WanMgrDml_LoadVlanTable(p_VirtIf);
-    }
-#endif
     for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
-    //for(int i =0; ((i < p_VirtIf->VLAN.NoOfInterfaceEntries) && (CheckFlag)); i++)
     {
         DML_VLAN_IFACE_TABLE* p_VlanIf = (DML_VLAN_IFACE_TABLE *) AnscAllocateMemory( sizeof(DML_VLAN_IFACE_TABLE));
         if(p_VlanIf == NULL)
@@ -215,7 +186,6 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
         retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
         AnscCopyString(p_VlanIf->Interface, param_value);
 
-        CcspTraceInfo(("%s %d ARUN:Clang Adding Vlan Interface entry %d \n", __FUNCTION__, __LINE__, p_VlanIf->Index));
         CcspTraceInfo(("%s %d Adding Vlan Interface entry %d \n", __FUNCTION__, __LINE__, p_VlanIf->Index));
         WanMgr_AddVirtVlanIfToList(&(p_VirtIf->VLAN.InterfaceList), p_VlanIf);
     }
@@ -298,7 +268,6 @@ ANSC_STATUS WanMgr_WanIfaceConfInit(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
                 p_VirtIf->baseIfIdx = idx; //Add base interface index 
                 get_Virtual_Interface_FromPSM((idx+1), i , p_VirtIf);
                 CcspTraceInfo(("%s %d Adding %d \n", __FUNCTION__, __LINE__, p_VirtIf->VirIfIdx));
-                CcspTraceInfo(("%s %d KARUN:DEF CREATING VlanNode After reading from PSM and then to Table Adding %d \n", __FUNCTION__, __LINE__, p_VirtIf->VirIfIdx));
                 WanMgr_VirtIfConfVLAN(p_VirtIf, idx);
                 WanMgr_AddVirtualToList(&(pIfaceData->data.VirtIfList), p_VirtIf);
             }
@@ -854,7 +823,7 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_DOWN;
     pVirtIf->VLAN.Enable = FALSE;
     // Initalizing the DiscoveryMode and ActiveVLANInUse
-    pVirtIf->VLAN.VlanDiscoveryModeOnce = VLAN_DISCOVERY_MODE_ALWAYS; //MODE always..and return
+    pVirtIf->VLAN.VlanDiscoveryModeOnce = VLAN_DISCOVERY_MODE_ALWAYS;
     memset(pVirtIf->VLAN.ActiveVLANInUse,0, sizeof(pVirtIf->VLAN.ActiveVLANInUse));
 
     pVirtIf->VLAN.NoOfMarkingEntries = 0;
@@ -1143,83 +1112,4 @@ DML_VIRTUAL_IFACE* WanMgr_GetActiveVirtIfData_locked(void)
         WanMgrDml_GetIfaceData_release(NULL);
     }
     return NULL;
-}
-
-
-//when psm vlan changes or 
-//ARUN: ABC wrapper function to load vlantable
-int  WanMgrDml_LoadVlanTable(DML_VIRTUAL_IFACE *p_VirtIf)
-{
-    int retPsmGet = CCSP_SUCCESS;
-    CcspTraceInfo(("%s %d ARUN:Clang LOAD_TABLE: Loading VlanTable \n", __FUNCTION__, __LINE__));
-    if(p_VirtIf ==NULL)
-    {
-        CcspTraceError(("%s %d Invalid memory \n", __FUNCTION__, __LINE__));
-	return -1;
-    }
-#if 0
-    _ansc_memset(param_name, 0, sizeof(param_name));
-    _ansc_memset(param_value, 0, sizeof(param_value));
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT, instancenum, (virtInsNum + 1));
-    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.NoOfInterfaceEntries));
-#endif
-    DML_VLAN_IFACE_TABLE* pVlanIf = p_VirtIf->VLAN.InterfaceList;
-    // Had to free existing entry of Vlan
-    CcspTraceInfo(("%s %d ARUN:Clang LOAD_TABLE: Clearing VlanTable \n", __FUNCTION__, __LINE__));
-    while(pVlanIf != NULL)
-    {
-	    DML_VLAN_IFACE_TABLE* temp = pVlanIf;
-	    pVlanIf = pVlanIf->next;
-	    AnscFreeMemory(temp);
-    }
-    p_VirtIf->VLAN.InterfaceList = NULL; 
-
-    //Need to get number of interface entries
-    char param_value_cnt[256];
-    char param_name_cnt[512];
-    snprintf(param_name_cnt,sizeof(param_name_cnt), PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT, (p_VirtIf->baseIfIdx+1), (p_VirtIf->VirIfIdx +1));
-    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name_cnt, param_value_cnt, sizeof(param_value_cnt));
-    if(retPsmGet != CCSP_SUCCESS)
-    {
-	    
-       CcspTraceInfo(("%s %d ARUN:Clang LOAD_TABLE: Unable to get interface count \n", __FUNCTION__, __LINE__));
-       return -1;
-    }
-
-    p_VirtIf->VLAN.NoOfInterfaceEntries = atoi(param_value_cnt);
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 0)
-    {
-
-       CcspTraceInfo(("%s %d ARUN:Clang LOAD_TABLE: Numberif INbterfaces=%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
-	     p_VirtIf->VLAN.Enable = TRUE;
-    }
-
-       CcspTraceInfo(("%s %d ARUN:Clang LOAD_TABLE: Loading vlaninterfaces \n", __FUNCTION__, __LINE__));
-    for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
-    {
-       CcspTraceInfo(("%s %d ARUN:Clang LOAD_TABLE: Loading vlaninterfaces index=%d\n", __FUNCTION__, __LINE__,i));
-        DML_VLAN_IFACE_TABLE* p_VlanIf = (DML_VLAN_IFACE_TABLE *) AnscAllocateMemory( sizeof(DML_VLAN_IFACE_TABLE));
-        if(p_VlanIf == NULL)
-        {
-            CcspTraceError(("%s %d: AnscAllocateMemory failed \n", __FUNCTION__, __LINE__));
-            return ANSC_STATUS_FAILURE;
-        }
-        p_VlanIf->Index = i;
-        p_VlanIf->VirIfIdx = p_VirtIf->VirIfIdx;
-        p_VlanIf->baseIfIdx = p_VirtIf->baseIfIdx;
-
-        memset(p_VlanIf->Interface,0, sizeof(p_VlanIf->Interface));
-
-        char param_value[256]={0};
-        char param_name[512]={0};
-        retPsmGet = CCSP_SUCCESS;
-       // _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_ENTRY, (Ifid+1), (p_VirtIf->VirIfIdx +1),(i+1));
-        snprintf(param_name, sizeof(param_name), PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_ENTRY, (p_VirtIf->baseIfIdx+1), (p_VirtIf->VirIfIdx +1),(i+1));
-        retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-
-        AnscCopyString(p_VlanIf->Interface, param_value);
-        WanMgr_AddVirtVlanIfToList(&(p_VirtIf->VLAN.InterfaceList), p_VlanIf);
-    }
-    return 0;
 }
