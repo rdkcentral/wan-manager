@@ -318,7 +318,6 @@ static int wan_tearDownMapt()
 }
 #endif
 
-
 #if 1
 int Get_CommandOutput(char Command[],char *OutputValue);
 void copy_command_output(FILE *fp, char * buf, int len);
@@ -3028,6 +3027,8 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 {
     CcspTraceInfo(("%s %d  I-VLANBARUN-Again \n", __FUNCTION__, __LINE__));
     CcspTraceError(("%s %d E-VLANBARUN-Again \n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d  I-VLANBARUN-configuringl \n", __FUNCTION__, __LINE__));
+    CcspTraceError(("%s %d E-VLANBARUN-configuringl \n", __FUNCTION__, __LINE__));
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
         return ANSC_STATUS_FAILURE;
