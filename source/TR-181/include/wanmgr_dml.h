@@ -507,6 +507,13 @@ typedef struct _DML_VLAN_IFACE_TABLE
     CHAR                        Interface[BUFLEN_128];;
 }DML_VLAN_IFACE_TABLE;
 
+//VLAN:LMN
+typedef enum _VLAN_DISCOVERY_MODE
+{
+	VLAN_DISCOVERY_MODE_ALWAYS = 0,
+	VLAN_DISCOVERY_MODE_ONCE,
+} VLAN_DISCOVERY_MODE;
+
 typedef struct _DML_VIRTUALIF_VLAN
 {
     BOOL                        Enable;
@@ -522,17 +529,12 @@ typedef struct _DML_VIRTUALIF_VLAN
     BOOL                        Reset;
     struct timespec             TimerStart;
 #if 1
-    UINT                        VlanDiscoveryModeOnce; //001
+    //UINT                        VlanDiscoveryModeOnce; //001
+    VLAN_DISCOVERY_MODE         VlanDiscoveryModeOnce; //001
     CHAR                        ActiveVLANInUse[BUFLEN_128]; //VLAN:DEF, VLAN:IJK
 #endif
 } DML_VIRTUALIF_VLAN;
 
-//VLAN:LMN
-typedef enum _VLAN_DISCOVERY_MODE
-{
-	VLAN_DISCOVERY_MODE_ALWAYS = 0,
-	VLAN_DISCOVERY_MODE_ONCE,
-} VLAN_DISCOVERY_MODE;
 
 typedef struct _DML_VIRTUAL_IFACE
 {

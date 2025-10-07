@@ -2173,7 +2173,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     {
 	     CcspTraceInfo(("ARUN: DISALLWO - NOt using old logic Check2 (LETS not process of ONce=%d\n",p_VirtIf->VLAN.VlanDiscoveryModeOnce));
       //if(p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)
-      if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryModeOnce)) 
+      if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS)) 
         {
 		CcspTraceInfo(("ARUN: Trying NEXT VInterface!!!!  \n"));
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
@@ -3081,7 +3081,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
        int rook_bypass = 1; 
        //VLAN:IJK
        //if((strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce > 0 ))
-      if((strlen(p_VirtIf->VLAN.VLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce > 0 ))
+      if((strlen(p_VirtIf->VLAN.VLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE))
       {
 	  //VLAN:IJK	
 	  strncpy(p_VirtIf->VLAN.ActiveVLANInUse,p_VirtIf->VLAN.VLANInUse,sizeof(p_VirtIf->VLAN.VLANInUse));
@@ -3210,7 +3210,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
 
        int rook_bypass = 1; 
        //VLAN:IJK
-      if((strlen(p_VirtIf->VLAN.VLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce > 0 ))
+      if((strlen(p_VirtIf->VLAN.VLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE ))
       {
 	  //VLAN:IJK -- this copy is not needed -- TODO  during loading from PSM
 	  //Rather better to mirror in working rather than during Config update
@@ -3319,7 +3319,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
        int rook_bypass = 1; 
 //VLAN:IJK
       //if((strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce > 0 ))
-      if((strlen(p_VirtIf->VLAN.VLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce > 0 ))
+      if((strlen(p_VirtIf->VLAN.VLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE ))
       {
 	  //VLAN:IJK   
 	  strncpy(p_VirtIf->VLAN.ActiveVLANInUse,p_VirtIf->VLAN.VLANInUse,sizeof(p_VirtIf->VLAN.VLANInUse));

@@ -172,7 +172,7 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
     CcspTraceInfo(("  DDDDD if iscoveryMode=Once and VlanInUse then lets not load the table\n"));
     // VLAN:LMN
     int CheckFlag = 1;
-    if( (p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && (p_VirtIf->VLAN.VlanDiscoveryModeOnce))
+    if( (p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && (p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE))
     {
    	 CcspTraceInfo(("  DDDDD if iscoveryMode=Onc NOT filling the TABLE!!!\n"));
 	 CheckFlag = 0;
