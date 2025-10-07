@@ -311,10 +311,8 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
 
 
-        CcspTraceInfo(("%s %d A1B2: VLANInUse CPYED=%d\n", __FUNCTION__, __LINE__,strlen(pVirtIf->VLAN.VLANInUse)));
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) || pVirtIf->VLAN.NoOfInterfaceEntries > 0)
     {
-        CcspTraceInfo(("%s %d A1B2: VLANInUse CPYED=%d (IN setting VLAN.Enable to TRUE)\n", __FUNCTION__, __LINE__,strlen(pVirtIf->VLAN.VLANInUse)));
         CcspTraceInfo(("%s %d Valid VLAN interface is configured. Use VLAN\n", __FUNCTION__, __LINE__));
         pVirtIf->VLAN.Enable = TRUE;
     }
@@ -1746,38 +1744,6 @@ PCONTEXT_LINK_OBJECT SListGetEntryByInsNum( PSLIST_HEADER pListHead, ULONG Insta
     return NULL;
 }
 
-ANSC_STATUS DmlSetDiscoveryModeToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
-{
-#if 0
-    char param_value[256] = {0};
-    char param_name[512] = {0};
-    AnscCopyString(param_value, pVirtIf->VLAN.ActiveVLAN);
-
-    // Storing internal VLANInUse , as it safe to decalre it
-    CcspTraceInfo(("\n%s %d A1B2: Copying to VLANInUse !!!!!!!!!!!!!-A007 CCCCCC => %s\n", __FUNCTION__, __LINE__));
-   // if(strncmp(pVirtIf->VLAN.VLANInUse,pVirtIf->VLAN.ActiveVLAN,sizeof(pVirtIf->VLAN.VLANInUse))  != 0) //COS
-   if(1)
-    {
-        CcspTraceInfo(("\n%s %d A1B2: Copying to VLANInUse !!!!!!!!!!!!!-A007 NOT-SAME so Copying => %s\n", __FUNCTION__, __LINE__));
-        // Updating VLANInUse as well
-        AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
-    }
-    else{
-        CcspTraceInfo(("\n%s %d A1B2: Copying to VLANInUse !!!!!!!!!!!!!-A007 SAME so NOT copying => %s\n", __FUNCTION__, __LINE__));
-		
-    }
-#endif
-#if 0	
-    char param_value[256] = {0};
-    char param_name[512] = {0};
-
-    _ansc_sprintf(param_value, "%d", VLAN_DISCOVERY_MODE_ONCE);
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERYMODE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-#endif    
-    return ANSC_STATUS_SUCCESS;
-}
-
 ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
 {
     char param_value[256] = {0};
@@ -1789,7 +1755,6 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
 
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
     CcspTraceInfo(("%s %d Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
-    CcspTraceInfo(("%s %d A1B2: Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
     return ANSC_STATUS_SUCCESS;
 }

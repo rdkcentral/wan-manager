@@ -268,7 +268,6 @@ ANSC_STATUS WanMgr_WanIfaceConfInit(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
                 p_VirtIf->baseIfIdx = idx; //Add base interface index 
                 get_Virtual_Interface_FromPSM((idx+1), i , p_VirtIf);
                 CcspTraceInfo(("%s %d Adding %d \n", __FUNCTION__, __LINE__, p_VirtIf->VirIfIdx));
-                CcspTraceInfo(("%s %d A1B2: and next callign WanMgr_VirtIfConfVLAN:  Adding %d \n", __FUNCTION__, __LINE__, p_VirtIf->VirIfIdx));
                 WanMgr_VirtIfConfVLAN(p_VirtIf, idx);
                 WanMgr_AddVirtualToList(&(pIfaceData->data.VirtIfList), p_VirtIf);
             }
