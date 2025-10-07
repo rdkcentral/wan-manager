@@ -521,6 +521,9 @@ typedef struct _DML_VIRTUALIF_VLAN
     BOOL                        Expired;
     BOOL                        Reset;
     struct timespec             TimerStart;
+#if 1
+    UINT                        VlanDiscoveryModeOnce; //001
+#endif
 } DML_VIRTUALIF_VLAN;
 
 typedef struct _DML_VIRTUAL_IFACE
