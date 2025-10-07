@@ -171,7 +171,7 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
 if(strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0)
 {
 //CcspTraceInfo(("%s %d: KARUN:Clang (DEF) THe ActiveInUser\n",p_VirtIf->VLAN.ActiveVLANInUse));
-CcspTraceInfo(("%s %d: KARUN:Clang (DEF) THe ActiveInUser\n",__FUNCTION__,__LINE__));
+CcspTraceInfo(("%s %d: KARUN:Clang (IJK::DEF) THe ActiveInUser\n",__FUNCTION__,__LINE__));
 }
 #endif    
 

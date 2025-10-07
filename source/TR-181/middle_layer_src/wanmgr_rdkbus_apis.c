@@ -328,7 +328,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
 
 
-#if 1
+#if 0
     //VALN:DEF
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -1799,14 +1799,16 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     char param_value[256] = {0};
     char param_name[512] = {0};
 
+    //VLAN:IJK	
+   // AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
+    AnscCopyString(param_value, pVirtIf->VLAN.ActiveVLANInUse);
 
-    AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
-    CcspTraceInfo(("%s %d KARUN:DEF Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("%s %d Update::IJK VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("%s %d SSSSS(Acti -2 - vlaninuse)-->KARUN:IJK Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 // VLAN:DEF mirrioring the vlaninuse
-#if 1
+#if 0
    // memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     //PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE
