@@ -168,9 +168,12 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
     CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->UPDATED #ofInterfaces==%d \n", __FUNCTION__, __LINE__,
 			    (p_VirtIf->VLAN.VlanDiscoveryModeOnce),
 			    (p_VirtIf->VLAN.NoOfInterfaceEntries)));
+
+#if 0 //VLAN:LMN
+    // VLAN:LMN
+    //
     CcspTraceInfo(("  CCCCCCCCCCCCCCCCCCCCCc HERE with the Discover and do not iteratre of to process and stage it !!!!"));
     CcspTraceInfo(("  DDDDD if iscoveryMode=Once and VlanInUse then lets not load the table\n"));
-    // VLAN:LMN
     int CheckFlag = 1;
     if( (p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && (p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE))
     {
@@ -178,7 +181,6 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
 	 CheckFlag = 0;
     }	    
 
-#if 0 //VLAN:LMN
     if(p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE &&
 		    !strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) )
     {
