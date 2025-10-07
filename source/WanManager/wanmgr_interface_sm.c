@@ -3074,8 +3074,8 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
     //        strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
     //        strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, (sizeof(p_VirtIf->VLAN.VLANInUse) - 1));
     
-     CcspTraceInfo(("%s %d  KARUN (DEF) Check NumerofInterfaceEntries=%d  ActiveVlanInUse=%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries),strlen(p_VirtIf->VLAN.ActiveVlanInUse)));
-    strncpy(p_VirtIf->VLAN.VLANInUse,p_VirtIf->VLAN.ActiveVlanInUse,sizeof(p_VirtIf->VLAN.VLANInUse));
+     CcspTraceInfo(("%s %d  KARUN (DEF) Check NumerofInterfaceEntries=%d  ActiveVlanInUse=%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries),strlen(p_VirtIf->VLAN.ActiveVLANInUse)));
+    strncpy(p_VirtIf->VLAN.VLANInUse,p_VirtIf->VLAN.ActiveVLANInUse,sizeof(p_VirtIf->VLAN.VLANInUse));
    CcspaTraceInfo(("%s %d  KARUN (DEF) VLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.VLANInUse,strlen(p_VirtIf->VLAN.VLANInUse)));
     if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {

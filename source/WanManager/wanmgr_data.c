@@ -167,10 +167,10 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
 
 //VLAN:DEF
 #if 1
-   CcspTraceInfo(("%s %d: KARUN:Clang (DEF)-ConfVlan-TablePopulation VlanDiscoveryModeOnce=%d ACTIVEInUse==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.ActiveVlanInUse))));
-if(strlen(p_VirtIf->VLAN.ActiveVlanInUse) > 0)
+   CcspTraceInfo(("%s %d: KARUN:Clang (DEF)-ConfVlan-TablePopulation VlanDiscoveryModeOnce=%d ACTIVEInUse==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.ActiveVLANInUse))));
+if(strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0)
 {
-CcspTraceInfo(("%s %d: KARUN:Clang (DEF) THe ActiveInUser=%s\n",p_VirtIf->VLAN.ActiveVlanInUse));
+CcspTraceInfo(("%s %d: KARUN:Clang (DEF) THe ActiveInUser=%s\n",p_VirtIf->VLAN.ActiveVLANInUse));
 }
 #endif    
 
@@ -881,7 +881,7 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     memset(pVirtIf->VLAN.VLANInUse,0, sizeof(pVirtIf->VLAN.VLANInUse));
 //VLAN:DEF    
 #if 1   
-    memset(pVirtIf->VLAN.ActiveVlanInUse,0, sizeof(pVirtIf->VLAN.ActiveVlanInUse));
+    memset(pVirtIf->VLAN.ActiveVLANInUse,0, sizeof(pVirtIf->VLAN.ActiveVLANInUse));
 #endif    
     pVirtIf->Reset = FALSE;
     memset(pVirtIf->IP.Interface, 0, 64);
