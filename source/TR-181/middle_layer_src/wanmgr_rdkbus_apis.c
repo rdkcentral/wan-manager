@@ -326,6 +326,8 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
+    // VLAN: LMN
+    AnscCopyString(pVirtIf->VLAN.ActiveVLANInUse, param_value);
 
 
 #if 0
