@@ -2279,6 +2279,7 @@ static eWanState_t wan_transition_ipv4_up(WanMgr_IfaceSM_Controller_t* pWanIface
     }
 
     DmlSetVLANInUseToPSMDB(p_VirtIf);
+    DmlSetDiscoveryModeToPSMDB(p_VirtIf);
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV4 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
 
     return WAN_STATE_IPV4_LEASED;
@@ -2552,6 +2553,7 @@ static eWanState_t wan_transition_ipv6_up(WanMgr_IfaceSM_Controller_t* pWanIface
     }
 
     DmlSetVLANInUseToPSMDB(p_VirtIf);
+    DmlSetDiscoveryModeToPSMDB(p_VirtIf);
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
     return WAN_STATE_IPV6_LEASED;
 }
@@ -2932,6 +2934,7 @@ static eWanState_t wan_transition_standby(WanMgr_IfaceSM_Controller_t* pWanIface
 
     Update_Interface_Status();
     DmlSetVLANInUseToPSMDB(p_VirtIf);
+    DmlSetDiscoveryModeToPSMDB(p_VirtIf);
     CcspTraceInfo(("%s %d - TRANSITION WAN_STATE_STANDBY\n", __FUNCTION__, __LINE__));
     return WAN_STATE_STANDBY;
 }
