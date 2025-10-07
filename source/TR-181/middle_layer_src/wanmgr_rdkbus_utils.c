@@ -996,7 +996,9 @@ ANSC_STATUS  WanMgr_RdkBus_ConfigureVlan(DML_VIRTUAL_IFACE* pVirtIf, BOOL VlanEn
     char acSetParamName[BUFLEN_256] ={0};
     char acSetParamValue[256] = {0};
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
-    if(VlanEnable && pVirtIf->VLAN.NoOfInterfaceEntries > 1)
+        CcspTraceInfo(("%s %d  A1B2  TTTTTTTTTTTTTTTTTTTTTT Starting VlanTimer pVirtIf->VLAN.NoOfInterfaceEntries==%d\n", __FUNCTION__,__LINE__,pVirtIf->VLAN.NoOfInterfaceEntries));
+    //if(VlanEnable && pVirtIf->VLAN.NoOfInterfaceEntries > 1)
+    if(VlanEnable && pVirtIf->VLAN.NoOfInterfaceEntries >= 1) //A007
     {
         //Start VLAN discovery Timer
         CcspTraceInfo(("%s %d  Starting VlanTimer\n", __FUNCTION__,__LINE__));

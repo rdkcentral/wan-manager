@@ -1753,7 +1753,7 @@ ANSC_STATUS DmlSetDiscoveryModeToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     CcspTraceInfo((" >>>>>>>>>>>>>A1B2 DmlSetDiscoveryModeToPSMDB A1B2: Updating Mode from==%d  To  VLAN_DISCOVERY_MODE_ONCE==%d VLANInUseLEN=%d\n",pVirtIf->VLAN.VlanDiscoveryMode,VLAN_DISCOVERY_MODE_ONCE,strlen(pVirtIf->VLAN.VLANInUse)));
     if(strlen(pVirtIf->VLAN.VLANInUse) > 0)
     {
-    CcspTraceInfo((" A1B2 DmlSetDiscoveryModeToPSMDB A1B2: VLANInUse=%s\n",strlen(pVirtIf->VLAN.VLANInUse)));
+    CcspTraceInfo((" A1B2 >>>>>>>>>>.DmlSetDiscoveryModeToPSMDB A1B2: VLANInUse=%s\n",strlen(pVirtIf->VLAN.VLANInUse)));
 
     }
     _ansc_sprintf(param_value, "%d", VLAN_DISCOVERY_MODE_ONCE);
@@ -1771,7 +1771,7 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     AnscCopyString(param_value, pVirtIf->VLAN.ActiveVLANInUse);
 
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d >>>>>A1B2 Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("%s %d >>>>>A1B2 AAAAAAAAAAAAAAAAAAAAAAAA  Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     CcspTraceInfo(("%s %d Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
     //Device.X_RDK_Ethernet.VLANTermination.1
