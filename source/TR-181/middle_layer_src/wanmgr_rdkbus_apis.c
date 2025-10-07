@@ -1774,6 +1774,10 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     CcspTraceInfo(("%s %d A1B2 Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     CcspTraceInfo(("%s %d Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+    //Device.X_RDK_Ethernet.VLANTermination.1
+    
+    CcspTraceInfo(("%s %d >>>>>>>A1B2-->Updating VLANInUse Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
     return ANSC_STATUS_SUCCESS;
 }
 
