@@ -85,4 +85,6 @@ WANMGR_IFACE_GROUP* WanMgr_GetIfaceGroup_locked(UINT iface_index);
 void WanMgrDml_GetIfaceGroup_release(void);
 ANSC_STATUS WanMgr_UpdatePrevData(void);
 void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index);
+//ARUN: ABC:Clang functiont to load vlan table
+int WanMgrDml_LoadVlanTable(DML_VIRTUAL_IFACE *p_VirtIf);
 #endif  //_WANMGR_DATA_H_

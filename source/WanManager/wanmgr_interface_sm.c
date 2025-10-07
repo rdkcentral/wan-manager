@@ -3029,10 +3029,10 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
 /*********************************************************************************/
 static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
-    CcspTraceInfo(("%s %d  I-VLANBARUN-Again \n", __FUNCTION__, __LINE__));
-    CcspTraceError(("%s %d E-VLANBARUN-Again \n", __FUNCTION__, __LINE__));
-    CcspTraceInfo(("%s %d  I-VLANBARUN-configuringl \n", __FUNCTION__, __LINE__));
-    CcspTraceError(("%s %d E-VLANBARUN-configuringl \n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d  I-VLANBARUN-AgainC \n", __FUNCTION__, __LINE__));
+    CcspTraceError(("%s %d E-VLANBARUN-AgainC \n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d  I-VLANBARUN-configuringM \n", __FUNCTION__, __LINE__));
+    CcspTraceError(("%s %d E-VLANBARUN-configuringM \n", __FUNCTION__, __LINE__));
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
         return ANSC_STATUS_FAILURE;
