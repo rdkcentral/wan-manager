@@ -978,7 +978,6 @@ ANSC_STATUS WanMgr_RdkBus_setWanIpInterfaceData(DML_VIRTUAL_IFACE*  pVirtIf)
         CcspTraceInfo(("%s %d - Updating %s => %s\n", __FUNCTION__, __LINE__,dmQuery, pVirtIf->PPP.Interface));
     }else if(pVirtIf->VLAN.Enable == TRUE)
     {
-        CcspTraceInfo(("%s %d A1B2: ActiveVlan WanMgr_RdkBus_setWanIpInterfaceData\n", __FUNCTION__,__LINE__));
         retStatus = WanMgr_RdkBus_SetParamValues( PAM_COMPONENT_NAME, PAM_DBUS_PATH, dmQuery, pVirtIf->VLAN.ActiveVLAN, ccsp_string, TRUE );
         CcspTraceInfo(("%s %d - Updating %s => %s\n", __FUNCTION__, __LINE__,dmQuery,pVirtIf->VLAN.ActiveVLAN));
     }
@@ -1004,7 +1003,6 @@ ANSC_STATUS  WanMgr_RdkBus_ConfigureVlan(DML_VIRTUAL_IFACE* pVirtIf, BOOL VlanEn
         memset(&(pVirtIf->VLAN.TimerStart), 0, sizeof(struct timespec));
         clock_gettime(CLOCK_MONOTONIC_RAW, &(pVirtIf->VLAN.TimerStart));
     }
-        CcspTraceInfo(("%s %d A1B2: ActiveVlan WanMgr_RdkBus_ConfigureVlan=%d and act=%d", __FUNCTION__,__LINE__,strlen(pVirtIf->VLAN.VLANInUse),strlen(pVirtIf->VLAN.ActiveVLAN)));
     CcspTraceInfo(("%s %d %s VLAN %s\n", __FUNCTION__,__LINE__, VlanEnable? "Enabling":"Disabling",pVirtIf->VLAN.ActiveVLAN));
     snprintf( acSetParamName, sizeof(acSetParamName), "%s.Enable", pVirtIf->VLAN.ActiveVLAN);
     snprintf( acSetParamValue, DATAMODEL_PARAM_LENGTH, "%s", VlanEnable? "true":"false" );

@@ -2167,7 +2167,6 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
 			((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS) ||
 			 ((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&  (strlen(p_VirtIf->VLAN.VLANInUse) <=0))))
         {
-	CcspTraceInfo(("\n A1B2: Check in <<Wan_transistion_Refreshed>> Allow next Interface? - YES\n?"));
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
             if (p_VirtIf->VLAN.Reset == TRUE || p_VirtIf->VLAN.ActiveIndex == -1)
             {
@@ -4146,19 +4145,16 @@ static void* WanMgr_InterfaceSMThread( void *arg )
             case WAN_STATE_OBTAINING_IP_ADDRESSES:
                 {
                     iface_sm_state = wan_state_obtaining_ip_addresses(pWanIfaceCtrl);
-		    // A1B2 shoudl be here
                     break;
                 }
             case WAN_STATE_IPV4_LEASED:
                 {
                     iface_sm_state = wan_state_ipv4_leased(pWanIfaceCtrl);
-		    // A1B2 shoudl be here
                     break;
                 }
             case WAN_STATE_IPV6_LEASED:
                 {
                     iface_sm_state = wan_state_ipv6_leased(pWanIfaceCtrl);
-		    // A1B2 shoudl be here
                     break;
                 }
             case WAN_STATE_DUAL_STACK_ACTIVE:
@@ -4186,7 +4182,6 @@ static void* WanMgr_InterfaceSMThread( void *arg )
             case WAN_STATE_STANDBY:
                 {
                     iface_sm_state = wan_state_standby(pWanIfaceCtrl);
-		    // A1B2 shoudl be here
                     break;
                 }
             case WAN_STATE_EXIT :
