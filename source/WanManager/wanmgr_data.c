@@ -165,53 +165,10 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
         CcspTraceError(("%s %d Invalid memory \n", __FUNCTION__, __LINE__));
     }
 
-//VLAN:DEF
-#if 1
-   CcspTraceInfo(("%s %d: KARUN:Clang (DEF)-ConfVlan-TablePopulation VlanDiscoveryModeOnce=%d ACTIVEInUse==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.ActiveVLANInUse))));
-if(strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0)
-{
-//CcspTraceInfo(("%s %d: KARUN:Clang (DEF) THe ActiveInUser\n",p_VirtIf->VLAN.ActiveVLANInUse));
-CcspTraceInfo(("%s %d: KARUN:Clang (IJK::DEF) THe ActiveInUser\n",__FUNCTION__,__LINE__));
-}
-#endif    
-
-// ARUN: ABC: If the vlanDiscoveryMode is enabled and that of
-// Vlaninuse contains valid entry then lets defere the scanning
-// by controlling #of interfaces , else update farom psm
-#if 0
-   CcspTraceInfo(("%s %d: ARUN:Clang by noe the Mode value should be read VlanDiscoveryModeOnce=%d INUSEEEEE==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.VLANInUse))));
-   if((p_VirtIf->VLAN.VlanDiscoveryModeOnce) && (!strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE))) )
-   {
-        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d Defering vlan table entry \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-    	p_VirtIf->VLAN.NoOfInterfaceEntries = 0;
-   }
-   else
-   {
-        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->Populate vlatable \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-	// WanMgr_UpdateVlanTable(p_VirtIf);
-	WanMgrDml_LoadVlanTable(p_VirtIf);
-   }
-#endif
-
-//VLAN:DEF
-#if 0
-   CcspTraceInfo(("%s %d: ARUN:Alang by noe the Mode value should be read VlanDiscoveryModeOnce=%d INUSEEEEE==%d  ActiveVlanInUse=%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(strlen(p_VirtIf->VLAN.VLANInUse)),(strlen(p_VirtIf->VLAN.ActiveVlanInUse))));
-   if((p_VirtIf->VLAN.VlanDiscoveryModeOnce) && (!strncmp(p_VirtIf->VLAN.ActiveVlanInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE))) )
-   {
-        CcspTraceInfo(("%s %d: ARUN:Alang VlanDiscoveryModeOnce=%d Defering vlan table entry \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-        CcspTraceInfo(("%s %d: ARUN:Alang Setting VlanInUse <----- ActiveVlanInUse\n", __FUNCTION__, __LINE__));
-    //	p_VirtIf->VLAN.NoOfInterfaceEntries = 0;
-   }
-   else
-   {
-        CcspTraceInfo(("%s %d: ARUN:Alang VlanDiscoveryModeOnce=%d -->Populate vlatable \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-	// WanMgr_UpdateVlanTable(p_VirtIf);
-	WanMgrDml_LoadVlanTable(p_VirtIf);
-   }
-#endif
-
-        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->UPDATED #ofInterfaces==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(p_VirtIf->VLAN.NoOfInterfaceEntries)));
-	CcspTraceInfo(("  CCCCCCCCCCCCCCCCCCCCCc HERE with the Discover and do not iteratre of to process and stage it !!!!"));
+    CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->UPDATED #ofInterfaces==%d \n", __FUNCTION__, __LINE__,
+			    (p_VirtIf->VLAN.VlanDiscoveryModeOnce),
+			    (p_VirtIf->VLAN.NoOfInterfaceEntries)));
+    CcspTraceInfo(("  CCCCCCCCCCCCCCCCCCCCCc HERE with the Discover and do not iteratre of to process and stage it !!!!"));
     for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
     {
         DML_VLAN_IFACE_TABLE* p_VlanIf = (DML_VLAN_IFACE_TABLE *) AnscAllocateMemory( sizeof(DML_VLAN_IFACE_TABLE));
@@ -871,20 +828,15 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->RemoteStatus = WAN_IFACE_STATUS_DISABLED;
     pVirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_DOWN;
     pVirtIf->VLAN.Enable = FALSE;
-#if 1
-    // ABC:
-    // Initalizing the DiscoveryMode of PSM
+    // Initalizing the DiscoveryMode and ActiveVLANInUse
     pVirtIf->VLAN.VlanDiscoveryModeOnce = 0;
-#endif
+    memset(pVirtIf->VLAN.ActiveVLANInUse,0, sizeof(pVirtIf->VLAN.ActiveVLANInUse));
+
     pVirtIf->VLAN.NoOfMarkingEntries = 0;
     pVirtIf->VLAN.Timeout = 0;
     pVirtIf->VLAN.ActiveIndex = -1;
     pVirtIf->VLAN.NoOfInterfaceEntries = 0;
     memset(pVirtIf->VLAN.VLANInUse,0, sizeof(pVirtIf->VLAN.VLANInUse));
-//VLAN:DEF    
-#if 1   
-    memset(pVirtIf->VLAN.ActiveVLANInUse,0, sizeof(pVirtIf->VLAN.ActiveVLANInUse));
-#endif    
     pVirtIf->Reset = FALSE;
     memset(pVirtIf->IP.Interface, 0, 64);
     memset(pVirtIf->IP.DHCPv4Iface, 0, 128);

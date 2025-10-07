@@ -329,18 +329,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
 
 #if 0
-    //VALN:DEF
-    _ansc_memset(param_name, 0, sizeof(param_name));
-    _ansc_memset(param_value, 0, sizeof(param_value));
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, instancenum, (virtInsNum + 1));
-    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);//VlanDiscoveryModeOnce)
-#endif
-
-    //VLAN:DEF this is for ActiveInIUse
-    //Thereby the masking of number of enteries will be taken away
-#if 0
-        CcspTraceInfo(("%s %d KARUN:Clang (DEF)  Reading ACTIVE--VLANINUSE !!!\n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d KARUN:Clang (DEF)  Reading ACTIVE--VLANINUSE !!!\n", __FUNCTION__, __LINE__));
     //VALN:DEF
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -1807,17 +1796,7 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     CcspTraceInfo(("%s %d Update::IJK VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     CcspTraceInfo(("%s %d SSSSS(Acti -2 - vlaninuse)-->KARUN:IJK Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-// VLAN:DEF mirrioring the vlaninuse
-#if 0
-   // memset(param_value, 0, sizeof(param_value));
-    memset(param_name, 0, sizeof(param_name));
-    //PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("\n %s %d KARUN:DEF Update ActiveVLANInUse to PSM %s=> %s\n", __FUNCTION__, __LINE__,param_name,param_value));
-    WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-
-#endif
-     return ANSC_STATUS_SUCCESS;
+    return ANSC_STATUS_SUCCESS;
 }
 
 ANSC_STATUS DmlSetWanActiveLinkInPSMDB( UINT uiInterfaceIdx , bool storeValue )
