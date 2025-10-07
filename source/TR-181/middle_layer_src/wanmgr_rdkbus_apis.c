@@ -1752,12 +1752,15 @@ ANSC_STATUS DmlSetDiscoveryModeToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     char param_value[256] = {0};
     char param_name[512] = {0};
 
+    CcspTraceInfo((" A1B2 >>>>>>>>>>.DmlSetDiscoveryModeToPSMDB ---> Setting \n"));
+#if 0
     CcspTraceInfo((" >>>>>>>>>>>>>A1B2 DmlSetDiscoveryModeToPSMDB A1B2: Updating Mode from==%d  To  VLAN_DISCOVERY_MODE_ONCE==%d VLANInUseLEN=%d\n",pVirtIf->VLAN.VlanDiscoveryMode,VLAN_DISCOVERY_MODE_ONCE,strlen(pVirtIf->VLAN.VLANInUse)));
     if(strlen(pVirtIf->VLAN.VLANInUse) > 0)
     {
     CcspTraceInfo((" A1B2 >>>>>>>>>>.DmlSetDiscoveryModeToPSMDB A1B2: VLANInUse=%s\n",strlen(pVirtIf->VLAN.VLANInUse)));
 
     }
+#endif
     _ansc_sprintf(param_value, "%d", VLAN_DISCOVERY_MODE_ONCE);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERYMODE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
     CcspTraceInfo(("%s %d A1B2 DmlSetDiscoveryModeToPSMDB A1B2 UpdatedVLANInDISCOVERY--->MODE to PSM=%s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));

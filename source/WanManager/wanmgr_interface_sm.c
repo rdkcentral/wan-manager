@@ -3072,13 +3072,16 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
      * if[ Mode == Always  OR  (Mode == Once && VlanInUse < 0) ] OR [ If_Only_One_Interface ] 
      *
      */     
-     	CcspTraceInfo(("%s %d - PROBLEM 003-CEHCK \n", __FUNCTION__, __LINE__));
+     	CcspTraceInfo(("%s %d - PROBLEM 003-CEHCK--OLD \n", __FUNCTION__, __LINE__));
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1))
+   #if 0
     //if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
     if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	 ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.ActiveVLANInUse) <= 0) ) ||
 	   ( (p_VirtIf->VLAN.Enable == TRUE) && (p_VirtIf->VLAN.Status !=  WAN_IFACE_LINKSTATUS_UP) ) )))
 	   //(strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
+     #endif
     {
      	CcspTraceInfo(("%s %d - PROBLEM 003-IN \n", __FUNCTION__, __LINE__));
  	//CcspTraceInfo(("%s %d  VLAN.NoOfInterfacesEntries=%d \n",
