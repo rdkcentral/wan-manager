@@ -3123,7 +3123,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
      CcspTraceInfo(("%s %d  LMN-PIPE KARUN (DEF) --TIMECHECK(001) ==DISCOVERYMODE=%d \n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.VlanDiscoveryModeOnce));
     //if(1)//rook_bypass)
     //if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
     {
  	CcspTraceInfo(("%s %d  IJK:: (111) VLANBARUN-STATE-MONO==%d \n",
 			       	__FUNCTION__, __LINE__,
@@ -3256,7 +3256,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
     //VLAN:DEF
     //if(1)//rook_bypass)
     //if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
     {
  	CcspTraceInfo(("%s %d IJK:: (222) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(VlanDiscovery_Timeout(p_VirtIf))
@@ -3362,7 +3362,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
     //VLAN:DEF
     //if(1)//rook_bypass)
     //if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
     {
  	CcspTraceInfo(("%s %d  IJK::(333) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(VlanDiscovery_Timeout(p_VirtIf))
