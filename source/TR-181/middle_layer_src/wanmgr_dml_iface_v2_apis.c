@@ -1547,7 +1547,7 @@ BOOL WanVirtualIf_GetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
             *pBool = p_VirtIf->VLAN.Reset;
             ret = TRUE;
         }
-	a//VLAN:LMN
+	//VLAN:LMN
 	//ARUN:XYZ , VlanDiscoveryModeOnce
         if (strcmp(ParamName, "VlanDiscoveryModeOnce") == 0)
         {
