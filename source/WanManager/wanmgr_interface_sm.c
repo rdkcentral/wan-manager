@@ -1890,7 +1890,13 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
             strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
         CcspTraceInfo(("%s %d - IJK Already  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
 
-        }
+        }else{
+	//VLAN:IJK
+	//
+            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
+        CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
+	
+	}
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
@@ -2221,6 +2227,7 @@ CcspTraceInfo(("ARUN: DISALLWOOOOO - VLANFEnable=%d VLANReset=%d\n",(p_VirtIf->V
             CcspTraceInfo(("%s %d IJK:::(usine ActivVLANInUse) VLAN Discovery . Trying VlanIndex: %d : (ActiveVLANInUse=%s)\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.ActiveIndex, p_VirtIf->VLAN.ActiveVLANInUse));
         }
 
+            CcspTraceInfo(("%s %d IJK:::(usine ActivVLANInUse) NNNEEEEE TRYING next (ActiveVLANInUse=%s)\n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.ActiveVLANInUse));
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
@@ -3106,6 +3113,10 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 	  CcspTraceInfo(("%s %d  KARUN (DEF) -- rook_bypass!!!!! AFT VLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.VLANInUse,strlen(p_VirtIf->VLAN.VLANInUse)));
 	  CcspTraceInfo(("%s %d  KARUN (DEF) -- rook_bypass!!!!! AFT AAAA---(IJK)---AvtiveVLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.ActiveVLANInUse,strlen(p_VirtIf->VLAN.ActiveVLANInUse)));
 
+
+	  //VLAN:IJK
+            p_VirtIf->VLAN.Expired = TRUE; //VLAN:IJK
+					   //
 	rook_bypass = 0;
       }else{
 
