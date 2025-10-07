@@ -2187,6 +2187,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
 			 ((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&  (strlen(p_VirtIf->VLAN.VLANInUse) <=0))))
 			// ((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&  (strlen(p_VirtIf->VLAN.VLANInUse) > 0))))
         {
+	CcspTraceInfo(("\n A1B2: Check in <<Wan_transistion_Refreshed>> Allow next Interface? - YES\n?"));
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
             if (p_VirtIf->VLAN.Reset == TRUE || p_VirtIf->VLAN.ActiveIndex == -1)
             {
@@ -2206,7 +2207,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
                 }
 
             }
-		CcspTraceInfo(("\n A1B2: Check in <<Wan_transistion_Refreshed>> Allow next Interface??--YES \n"));
+		CcspTraceInfo(("\n A1B2: Check in <<Wan_transistion_Refreshed>> Nxt-Interface??--YES \n"));
             p_VirtIf->VLAN.ActiveIndex = pVlanIf->Index;
             CcspTraceInfo(("\n%s %d A1B2 Refresh Check-006 stored in ActiveVlanInuse\n", __FUNCTION__, __LINE__));
 	    //Use temporary use of Vlaninterface
@@ -3093,6 +3094,7 @@ if { ( #Interface > 0) && [  (Mode == ALWAYS) || (Mode == ONCE && strlen(VLANInU
 	 ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) > 0) )) ) ) 
 	// ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )) ) ) 
     #endif
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1)) 
     {
 	CcspTraceInfo(("\n A1B2: Check in <<vlan_config>> and mode should we allow scanning??-- Yes Check if timedout"));
 	if(VlanDiscovery_Timeout(p_VirtIf))
@@ -3171,10 +3173,13 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
 	   //(strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
      #endif
 	CcspTraceInfo(("\n A1B2: Check in <<Ppp_config>> and mode should we allow scanning??"));
+#if 0
    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	 ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )) ) ) 
 	// ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) > 0) )) ) ) 
+#endif
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1)) 
     {
 	CcspTraceInfo(("\n A1B2: Check in <<Ppp_config>> and mode should we allow scanning??--YES check timedout??"));
 	if(VlanDiscovery_Timeout(p_VirtIf))
@@ -3235,10 +3240,13 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
 	   //(strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
    #endif
 	CcspTraceInfo(("\n A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??"));
+#if 0
     if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )) ) ) 
 	// ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) > 0) )) ) ) 
+#endif
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1)) 
     {
 	CcspTraceInfo(("\n A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??--YES check timedout??--YES check timedout??"));
         if(VlanDiscovery_Timeout(p_VirtIf))
