@@ -1891,7 +1891,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
         if((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) > 0))
 	{
     CcspTraceInfo(("%s %d A1B2 WanMr_RdkBus_ConfigureVlan-002-ONCE check and CPY ONCE!!\n", __FUNCTION__, __LINE__));
-            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
+            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, p_VirtIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
 		
 	}
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
