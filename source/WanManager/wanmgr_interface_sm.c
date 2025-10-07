@@ -3045,20 +3045,24 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
 /*********************************************************************************/
 static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
+     	CcspTraceInfo(("%s %d - PROBLEM 001\n", __FUNCTION__, __LINE__));
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
+     	CcspTraceInfo(("%s %d - PROBLEM 001-FAILED\n", __FUNCTION__, __LINE__));
         return ANSC_STATUS_FAILURE;
     }
 
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+     	CcspTraceInfo(("%s %d - PROBLEM 002\n", __FUNCTION__, __LINE__));
     if (pWanIfaceCtrl->WanEnable == FALSE ||
             pInterface->Selection.Enable == FALSE ||
             p_VirtIf->Enable == FALSE ||
             pInterface->Selection.Status == WAN_IFACE_NOT_SELECTED ||
             pInterface->BaseInterfaceStatus !=  WAN_IFACE_PHY_STATUS_UP)
     {
+     	CcspTraceInfo(("%s %d - PROBLEM 002-FAILED\n", __FUNCTION__, __LINE__));
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
@@ -3068,6 +3072,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
      * if[ Mode == Always  OR  (Mode == Once && VlanInUse < 0) ] OR [ If_Only_One_Interface ] 
      *
      */     
+     	CcspTraceInfo(("%s %d - PROBLEM 003-CEHCK \n", __FUNCTION__, __LINE__));
     //if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
     if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
@@ -3075,12 +3080,14 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 	   (strlen(p_VirtIf->VLAN.ActiveVLANInUse) <= 0) )))
 	   //(strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
     {
+     	CcspTraceInfo(("%s %d - PROBLEM 003-IN \n", __FUNCTION__, __LINE__));
  	//CcspTraceInfo(("%s %d  VLAN.NoOfInterfacesEntries=%d \n",
  	CcspTraceInfo(("%s %d  A1B2: TimeOUTCheck: VLAN.NoOfInterfacesEntries=%d \n",
 			       	__FUNCTION__, __LINE__,
 				(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
+     	CcspTraceInfo(("%s %d - PROBLEM 003-IN-TIMEOUT \n", __FUNCTION__, __LINE__));
  	    CcspTraceInfo(("%s %d  VLAN had timedout!!\n", __FUNCTION__, __LINE__));
             p_VirtIf->VLAN.Expired = TRUE;
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
@@ -3088,10 +3095,14 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
     } 
 
 
+     	CcspTraceInfo(("%s %d - PROBLEM 004-CEHCK VLAN.Eanble=%d\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.Enable));
     if(p_VirtIf->VLAN.Enable == TRUE)
     {
+     	CcspTraceInfo(("%s %d - PROBLEM 004-LinkUP=%d\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.Status));
         if(p_VirtIf->VLAN.Status !=  WAN_IFACE_LINKSTATUS_UP)
         {
+     	CcspTraceInfo(("%s %d - PROBLEM 004-LinkNOT---UP=%d\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.Status));
+    	 
             return WAN_STATE_VLAN_CONFIGURING;
         }
 

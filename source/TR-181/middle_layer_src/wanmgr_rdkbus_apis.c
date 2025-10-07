@@ -312,8 +312,10 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
   //  AnscCopyString(pVirtIf->VLAN.ActiveVLANInUse, param_value);
 
 
+     	CcspTraceInfo(("%s %d - PROBLEM 011-LinkUP\n", __FUNCTION__, __LINE__));
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) || pVirtIf->VLAN.NoOfInterfaceEntries > 0)
     {
+     	CcspTraceInfo(("%s %d - PROBLEM 011-LinkUP===VLAN.ENABLE is TRUE now\n", __FUNCTION__, __LINE__));
         CcspTraceInfo(("%s %d Valid VLAN interface is configured. Use VLAN\n", __FUNCTION__, __LINE__));
         pVirtIf->VLAN.Enable = TRUE;
     }
