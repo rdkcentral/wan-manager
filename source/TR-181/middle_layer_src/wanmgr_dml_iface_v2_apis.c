@@ -1547,6 +1547,7 @@ BOOL WanVirtualIf_GetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
             *pBool = p_VirtIf->VLAN.Reset;
             ret = TRUE;
         }
+	a//VLAN:LMN
 	//ARUN:XYZ , VlanDiscoveryModeOnce
         if (strcmp(ParamName, "VlanDiscoveryModeOnce") == 0)
         {
@@ -1644,7 +1645,7 @@ BOOL WanVirtualIf_SetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
             //This DM is used for Resetting VLAN discovery.
 	    if( (bValue == TRUE) &&
 		 (p_VirtIf->VLAN.Reset != bValue) && /*Chnage of value*/
-		 (p_VirtIf->VLAN.VlanDiscoveryModeOnce) )
+		 (p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE) ) // == VLAN_DISCOVERY_MODE_ONCE ,,,VLAN_DISCOVERY_MODE_ALWAYS
 	    {
 
                 CcspTraceInfo(("%s %d ARUN:Clang Reset perfroedm and COS calling LoadVlanTable -- TRIGEGR \n", __FUNCTION__, __LINE__));

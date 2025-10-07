@@ -307,7 +307,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     //VLAN:DEF -- reverting the masking one--for previous implent it would be 0 commented
     // for now uncommenting
-#if 1
+#if 0 // VLAN:LMN
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT, instancenum, (virtInsNum + 1));
@@ -340,10 +340,10 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     //VLAN:DEF-- reverting the changes, So has to use the ActiveInUse
     // Exculding the interface count to determien vlan is enabled or not 
-#if 1    
+#if 0    
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) || pVirtIf->VLAN.NoOfInterfaceEntries > 0)
 #endif
-#if 0
+#if 1 //VLAN::LMN
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)))
 #endif
     {

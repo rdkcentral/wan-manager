@@ -177,8 +177,22 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
    	 CcspTraceInfo(("  DDDDD if iscoveryMode=Onc NOT filling the TABLE!!!\n"));
 	 CheckFlag = 0;
     }	    
-    //for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
-    for(int i =0; ((i < p_VirtIf->VLAN.NoOfInterfaceEntries) && (CheckFlag)); i++)
+
+#if 1 //VLAN:LMN
+    if(p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ONCE &&
+		    !strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) )
+    {
+	    p_VirtIf->VLAN.NoOfInterfaceEntries = 0;
+    }
+    else
+    {
+	    // Update vlantable from PSM
+		WanMgr_UpdateVlanTable(p_VirtIf);
+		WanMgrDml_LoadVlanTable(p_VirtIf);
+    }
+#endif
+    for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
+    //for(int i =0; ((i < p_VirtIf->VLAN.NoOfInterfaceEntries) && (CheckFlag)); i++)
     {
         DML_VLAN_IFACE_TABLE* p_VlanIf = (DML_VLAN_IFACE_TABLE *) AnscAllocateMemory( sizeof(DML_VLAN_IFACE_TABLE));
         if(p_VlanIf == NULL)
@@ -838,7 +852,7 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_DOWN;
     pVirtIf->VLAN.Enable = FALSE;
     // Initalizing the DiscoveryMode and ActiveVLANInUse
-    pVirtIf->VLAN.VlanDiscoveryModeOnce = 0;
+    pVirtIf->VLAN.VlanDiscoveryModeOnce = VLAN_DISCOVERY_MODE_ALWAYS; //MODE always..and return
     memset(pVirtIf->VLAN.ActiveVLANInUse,0, sizeof(pVirtIf->VLAN.ActiveVLANInUse));
 
     pVirtIf->VLAN.NoOfMarkingEntries = 0;
