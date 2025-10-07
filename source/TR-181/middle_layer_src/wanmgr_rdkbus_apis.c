@@ -591,14 +591,11 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_TIMEOUT, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
-    //ABC: Delying the interface count, unless the disccovery mode and inuse
-#if 1
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     _ansc_sprintf(param_value, "%d", pVirtIf->VLAN.NoOfInterfaceEntries );
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-#endif
 
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));

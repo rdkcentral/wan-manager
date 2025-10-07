@@ -507,7 +507,6 @@ typedef struct _DML_VLAN_IFACE_TABLE
     CHAR                        Interface[BUFLEN_128];;
 }DML_VLAN_IFACE_TABLE;
 
-//VLAN:LMN
 typedef enum _VLAN_DISCOVERY_MODE
 {
 	VLAN_DISCOVERY_MODE_ALWAYS = 0,
