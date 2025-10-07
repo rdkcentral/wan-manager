@@ -1750,7 +1750,7 @@ ANSC_STATUS DmlSetDiscoveryModeToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     char param_value[256] = {0};
     char param_name[512] = {0};
 
-CcspTraceInfo(("===> A1B2 UPDATING MODE TO BE SET From==%d   VLAN_DISCOVERY_MODE_ONCE==%d\n",pVirtIf->VLAN.VlanDiscoveryMode,VLAN_DISCOVERY_MODE_ONCE));
+    CcspTraceInfo(("===> CCCCA1B2 UPDATING MODE TO BE SET From==%d   VLAN_DISCOVERY_MODE_ONCE==%d\n",pVirtIf->VLAN.VlanDiscoveryMode,VLAN_DISCOVERY_MODE_ONCE));
     //_ansc_sprintf(param_value, "%d", pVirtIf->VLAN.VlanDiscoveryMod );
     //p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS
     _ansc_sprintf(param_value, "%d", VLAN_DISCOVERY_MODE_ONCE);
