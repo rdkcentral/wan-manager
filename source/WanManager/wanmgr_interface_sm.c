@@ -2178,9 +2178,9 @@ if((strlen(p_VirtIf->VLAN.VLANInUse) > 0) && (VlanDiscovery == TRUE) )
 CcspTraceInfo(("ARUN: DISALLWO - Check1 Inuse=%d\n",strlen(p_VirtIf->VLAN.VLANInUse)));
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
-	     CcspTraceInfo(("ARUN: DISALLWO - Check2 allow_discovery=%d\n",allow_discovery));
-       //if(p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)
-       if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE) && (allow_discovery == FALSE))
+	     CcspTraceInfo(("ARUN: DISALLWO - NOt using old logic Check2 allow_discovery=%d\n",allow_discovery));
+      if(p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)
+     //  if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE) && (allow_discovery == FALSE))
         {
 		CcspTraceInfo(("ARUN: Trying NEXT VInterface!!!!  allow_discovery=%d\n",allow_discovery));
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
