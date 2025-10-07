@@ -188,6 +188,13 @@ static ANSC_STATUS WanManager_ClearDHCPData(DML_VIRTUAL_IFACE * pVirtIf);
  *************************************************************************************/
 static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
 
+/*************************************************************************************
+ * Function to determine if VLAN scan has expired or not
+ * Input: Pointer to DML_VIRTUAL_IFACE
+ * @return 1 if timedout else 0
+ *************************************************************************************/
+static inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf); 
+
 #ifdef FEATURE_MAPT
 
 /*************************************************************************************
@@ -318,12 +325,6 @@ static int wan_tearDownMapt()
 }
 #endif
 
-/*******************************************************
- * Function to determine if VLAN scan has expired or not
- * Input: Pointer to DML_VIRTUAL_IFACE
- * @return 1 if timedout else 0
- * *****************************************************/
-static inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf); 
 
 /************************************************************************************
  * @brief Get the status of Interface State Machine.
@@ -1885,18 +1886,21 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
         CcspTraceInfo(("%s %d - A1B2 TARNSITION_STRART VLANINuse EMPTY!!!! =%d\n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.VlanDiscoveryMode));
             p_VirtIf->VLAN.ActiveIndex = 0;
             DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
+	    strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
 	    //Use temporary use of Vlaninterface
             strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
         }
-        if((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) > 0))
+        //if((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) > 0))
+        if((strlen(p_VirtIf->VLAN.VLANInUse) > 0))
 	{
-    CcspTraceInfo(("%s %d A1B2 WanMr_RdkBus_ConfigureVlan-002-ONCE check and CPY ONCE!!\n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d A1B2 WanMr_RdkBus_ConfigureVlan-002-ONCE check and CPY ONCE and VLANInUse is PRESENT!!\n", __FUNCTION__, __LINE__));
             strncpy(p_VirtIf->VLAN.ActiveVLANInUse, p_VirtIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
 		
 	}
+	//A1B2: Always is default flow 
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
 
-    CcspTraceInfo(("%s %d A1B2 WanMgr_RdkBus_ConfigureVlan-002-TRUE\n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d A1B2 Sending2VlanMgr-->WanMgr_RdkBus_ConfigureVlan-002-TRUE\n", __FUNCTION__, __LINE__));
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
@@ -2175,7 +2179,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     //Either way..should nt iterate over the interface to fint eh vlan to be userd!!??
     // ActiveVlanInUse might be there
         /*Discovery shouldbe disallowed when the VlanDiscoveryMode is once*/    
-        if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
+        if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && ((p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS)  && (strlen(p_VirtIf->VLAN.VLANInUse) > 0)))
         //if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS && (strlen(p_VirtIf->VLAN.VLANInUse) > 0)))
         {
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
@@ -3049,9 +3053,20 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
+    //if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
+    CcspTraceInfo(("%s %d A1B2- VLAN_CONFIGURING :: neeed NoOfInterfaceEntries=%d p_VirtIf->VLAN.VlanDiscoveryMode=%d strlen(p_VirtIf->VLAN.VLANInUse)=%d\n", 
+			    __FUNCTION__, __LINE__,p_VirtIf->VLAN.NoOfInterfaceEntries,p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse)));
+    /* Actually If_only_One_Interface check is not needed, if in ONCE mode there might and interface
+     * if[ Mode == Always  OR  (Mode == Once && VlanInUse < 0) ] OR [ If_Only_One_Interface ] 
+     *
+     */     
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
+       ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
+	 ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&
+	   (strlen(p_VirtIf->VLAN.VLANInUse) < 0) )))
     {
- 	CcspTraceInfo(("%s %d  VLAN.NoOfInterfacesEntries=%d \n",
+ 	//CcspTraceInfo(("%s %d  VLAN.NoOfInterfacesEntries=%d \n",
+ 	CcspTraceInfo(("%s %d  A1B2: TimeOUTCheck: VLAN.NoOfInterfacesEntries=%d \n",
 			       	__FUNCTION__, __LINE__,
 				(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(VlanDiscovery_Timeout(p_VirtIf))
@@ -3099,8 +3114,48 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
+    CcspTraceInfo(("%s %d A1B2-Check if timeaoutLOGIC  neeed NoOfInterfaceEntries=%d p_VirtIf->VLAN.VlanDiscoveryMode=%d strlen(p_VirtIf->VLAN.VLANInUse)=%d\n", 
+			    __FUNCTION__, __LINE__,p_VirtIf->VLAN.NoOfInterfaceEntries,p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse)));
+    /*1. When in always , #interface >1  ALWAYS check for the timeout to pick up Next interface
+     *2. When in always , When Len(VlanInUse) < 0 ==> Then Check Next Interface
+     *3. When in always , When Len(VlanInUse) > 0 ==> Then Do not check for Next Interface
+     *4. When in Once   , When Len(VlanInUse) > 0 ==> Then Do not check for Next Interface
+     *5. When in Once   , When Len(VlanInUse) < 0 ==> Then Do not check for Next Interface (should not occur)
+     */
+    /*1. (p_VirtIf->VLAN.NoOfInterfaceEntries > 1)
+     *    If there are more than one interface
+     *
+     * if((Always && #Interface>1) || (Once && VlanInUse<0 && #interface>1)) 
+     * {
+     *     [ Timeout ? ]
+     *      Expired=True
+     *     //Check the next Interface 
+     * }
+     *
+     * refresh_Wan
+     * if(Expire || Rest) &&  (Once && VlanInUse<0 && #interface>1)
+     * {
+     *     if(VlainUse == Empty or Index = -1)
+     *        Use Head
+     *      else {
+     *		Find next elements
+     *      }
+     * }
+     * New_Vlan
+     */
+    /*
+     *
+     * */
+    CcspTraceInfo(("%s %d A1B2- PPP_CONFIGURING :: neeed NoOfInterfaceEntries=%d p_VirtIf->VLAN.VlanDiscoveryMode=%d strlen(p_VirtIf->VLAN.VLANInUse)=%d\n", 
+			    __FUNCTION__, __LINE__,p_VirtIf->VLAN.NoOfInterfaceEntries,p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse)));
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
+       ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
+	 ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&
+	   (strlen(p_VirtIf->VLAN.VLANInUse) < 0) )))
     {
+ 	CcspTraceInfo(("%s %d  A1B2:PPP TimeOUTCheck: VLAN.NoOfInterfacesEntries=%d \n",
+			       	__FUNCTION__, __LINE__,
+				(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
             p_VirtIf->VLAN.Expired = TRUE;
@@ -3145,8 +3200,17 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
+    CcspTraceInfo(("%s %d A1B2- VALIDATING_WAN :: neeed NoOfInterfaceEntries=%d p_VirtIf->VLAN.VlanDiscoveryMode=%d strlen(p_VirtIf->VLAN.VLANInUse)=%d\n", 
+			    __FUNCTION__, __LINE__,p_VirtIf->VLAN.NoOfInterfaceEntries,p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse)));
+    //if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
+       ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
+	 ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) &&
+	   (strlen(p_VirtIf->VLAN.VLANInUse) < 0) )))
     {
+ 	CcspTraceInfo(("%s %d  A1B2:Validating TimeOUTCheck: VLAN.NoOfInterfacesEntries=%d \n",
+			       	__FUNCTION__, __LINE__,
+				(p_VirtIf->VLAN.NoOfInterfaceEntries)));
         if(VlanDiscovery_Timeout(p_VirtIf))
 	{
             p_VirtIf->VLAN.Expired = TRUE;
