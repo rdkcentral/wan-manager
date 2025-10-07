@@ -2302,7 +2302,9 @@ static eWanState_t wan_transition_ipv4_up(WanMgr_IfaceSM_Controller_t* pWanIface
         return WAN_STATE_DUAL_STACK_ACTIVE;
     }
 
+    CcspTraceInfo(("%s %d - A1B2 Calling DmlSetVLANInUseToPSMDB from wan_transition_ipv4_up\n", __FUNCTION__, __LINE__));
     DmlSetVLANInUseToPSMDB(p_VirtIf);
+    CcspTraceInfo(("%s %d - A1B2 Calling  DmlSetDiscoveryModeToPSMDB from wan_transition_ipv4_up\n", __FUNCTION__, __LINE__));
     DmlSetDiscoveryModeToPSMDB(p_VirtIf);
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV4 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
 
@@ -2576,7 +2578,9 @@ static eWanState_t wan_transition_ipv6_up(WanMgr_IfaceSM_Controller_t* pWanIface
         return WAN_STATE_DUAL_STACK_ACTIVE;
     }
 
+    CcspTraceInfo(("%s %d - A1B2 Calling DmlSetVLANInUseToPSMDB from wan_transition_ipv6_up\n", __FUNCTION__, __LINE__));
     DmlSetVLANInUseToPSMDB(p_VirtIf);
+    CcspTraceInfo(("%s %d - A1B2 alling  DmlSetDiscoveryModeToPSMDB from wan_transition_ipv6_up\n", __FUNCTION__, __LINE__));
     DmlSetDiscoveryModeToPSMDB(p_VirtIf);
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
     return WAN_STATE_IPV6_LEASED;
@@ -2957,7 +2961,9 @@ static eWanState_t wan_transition_standby(WanMgr_IfaceSM_Controller_t* pWanIface
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
 
     Update_Interface_Status();
+    CcspTraceInfo(("%s %d - A1B2 Calling DmlSetVLANInUseToPSMDB from wan_transition_standby\n", __FUNCTION__, __LINE__));
     DmlSetVLANInUseToPSMDB(p_VirtIf);
+    CcspTraceInfo(("%s %d - A1B2 Calling  DmlSetDiscoveryModeToPSMDB from wan_transition_standby\n", __FUNCTION__, __LINE__));
     DmlSetDiscoveryModeToPSMDB(p_VirtIf);
     CcspTraceInfo(("%s %d - TRANSITION WAN_STATE_STANDBY\n", __FUNCTION__, __LINE__));
     return WAN_STATE_STANDBY;
