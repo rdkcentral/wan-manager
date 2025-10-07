@@ -318,11 +318,13 @@ static int wan_tearDownMapt()
 }
 #endif
 
-#if 1
-int Get_CommandOutput(char Command[],char *OutputValue);
-void copy_command_output(FILE *fp, char * buf, int len);
-int is_timeout(DML_VIRTUAL_IFACE* p_VirtIf); //1 - yes and 0 - no
-#endif
+/*******************************************************
+ * Function to determine if VLAN scan has expired or not
+ * Input: Pointer to DML_VIRTUAL_IFACE
+ * @return 1 if timedout else 0
+ * *****************************************************/
+inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf); 
+
 /************************************************************************************
  * @brief Get the status of Interface State Machine.
  * @return TRUE on running else FALSE
@@ -2165,36 +2167,14 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
 
     CcspTraceInfo(("%s %d  I-ClanDiscovery =%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
     CcspTraceError(("%s %d E-CanDiscovery =%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-#if 1
-char OutputValue[120] = {0};
-Get_CommandOutput("sysevent get VlanDiscoverySupport",OutputValue);
-bool allow_discovery = FALSE;
-bool VlanDiscovery = FALSE;
-    
-    CcspTraceInfo(("%s %d  I-VLANDISCOVERY_MODE==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-    CcspTraceError(("%s %d E-VLANDISCOVERY_MODE==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-
-if(strncmp (OutputValue, "true", strlen("true")) == 0 )
-{
-	CcspTraceInfo(("ARUN: VlanDiscoverySupport- Check for iUse as well \n"));
-	VlanDiscovery = TRUE;
-}
-
-if((strlen(p_VirtIf->VLAN.VLANInUse) > 0) && (VlanDiscovery == TRUE) )
-{
-	CcspTraceInfo(("ARUN: DISALLWO THE SCANNING!!!! \n"));
-	allow_discovery = TRUE;
-}
-#endif
-CcspTraceInfo(("ARUN: DISALLWOOOOO - Check1 Inuse=%d\n",strlen(p_VirtIf->VLAN.VLANInUse)));
-CcspTraceInfo(("ARUN: DISALLWOOOOO - VLANFEnable=%d VLANReset=%d\n",(p_VirtIf->VLAN.Enable),(p_VirtIf->VLAN.Reset)));
+    CcspTraceInfo(("ARUN: DISALLWOOOOO - Check1 Inuse=%d\n",strlen(p_VirtIf->VLAN.VLANInUse)));
+    CcspTraceInfo(("ARUN: DISALLWOOOOO - VLANFEnable=%d VLANReset=%d\n",(p_VirtIf->VLAN.Enable),(p_VirtIf->VLAN.Reset)));
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
-	     CcspTraceInfo(("ARUN: DISALLWO - NOt using old logic Check2 allow_discovery=%d\n",allow_discovery));
+	     CcspTraceInfo(("ARUN: DISALLWO - NOt using old logic Check2 \n"));
       if(p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)
-     //  if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE) && (allow_discovery == FALSE))
         {
-		CcspTraceInfo(("ARUN: Trying NEXT VInterface!!!!  allow_discovery=%d\n",allow_discovery));
+		CcspTraceInfo(("ARUN: Trying NEXT VInterface!!!!  \n"));
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
             if (p_VirtIf->VLAN.Reset == TRUE || p_VirtIf->VLAN.ActiveIndex == -1)
             {
@@ -3125,7 +3105,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
  	CcspTraceInfo(("%s %d  IJK:: (111) VLANBARUN-STATE-MONO==%d \n",
 			       	__FUNCTION__, __LINE__,
 				(p_VirtIf->VLAN.NoOfInterfaceEntries)));
-	if(is_timeout(p_VirtIf))
+	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!! \n", __FUNCTION__, __LINE__));
             p_VirtIf->VLAN.Expired = TRUE;
@@ -3252,7 +3232,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
     if(1)//rook_bypass)
     {
  	CcspTraceInfo(("%s %d IJK:: (222) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
-	if(is_timeout(p_VirtIf))
+	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!!(002) \n", __FUNCTION__, __LINE__));
             p_VirtIf->VLAN.Expired = TRUE;
@@ -3354,7 +3334,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
     if(1)//rook_bypass)
     {
  	CcspTraceInfo(("%s %d  IJK::(333) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
-	if(is_timeout(p_VirtIf))
+	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!!(003) \n", __FUNCTION__, __LINE__));
             p_VirtIf->VLAN.Expired = TRUE;
@@ -4502,43 +4482,7 @@ void WanMgr_IfaceSM_Init(WanMgr_IfaceSM_Controller_t* pWanIfaceSMCtrl, INT iface
     }
 }
 
-int Get_CommandOutput(char Command[],char *OutputValue)
-{
-#define BUF_SIZE 512
-	char buf[BUF_SIZE] = {0};
-	FILE *fp;
-	CcspTraceInfo(("ARUN: %s:Command:%s\n", __FUNCTION__,Command));
-	fp = popen(Command,"r");
-	if( fp == NULL)
-	{
-		CcspTraceError(("ARUN: %s: Not able to read cmd\n", __FUNCTION__));
-		return -1;
-	}
-	else{
-		copy_command_output(fp, buf, sizeof(buf));
-	}
-	pclose(fp);
-	strcpy(OutputValue,buf);
-	CcspTraceInfo(("ARUN: CmdOupt:%s \n",OutputValue));
-	return 0;
-}
-
-void copy_command_output(FILE *fp, char * buf, int len)
-{
-	CcspTraceInfo(("ARUN:Testing %s: Line=%d\n", __FUNCTION__,__LINE__));
-	char *p;
-	if(fp);
-	{
-            fgets(buf, len, fp);
-	    buf[len-1] = '\0';
-	    if ((p = strchr(buf, '\n'))) {
-		    *p =0;
-	    }
-	}
-}
-
-
-int is_timeout(DML_VIRTUAL_IFACE* p_VirtIf)
+inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf)
 {
 int ret = 0;
     if(1)//p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )

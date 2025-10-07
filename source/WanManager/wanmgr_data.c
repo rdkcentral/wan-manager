@@ -169,7 +169,16 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
 			    (p_VirtIf->VLAN.VlanDiscoveryModeOnce),
 			    (p_VirtIf->VLAN.NoOfInterfaceEntries)));
     CcspTraceInfo(("  CCCCCCCCCCCCCCCCCCCCCc HERE with the Discover and do not iteratre of to process and stage it !!!!"));
-    for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
+    CcspTraceInfo(("  DDDDD if iscoveryMode=Once and VlanInUse then lets not load the table\n"));
+    // VLAN:LMN
+    int CheckFlag = 1;
+    if( (p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && (p_VirtIf->VLAN.VlanDiscoveryModeOnce))
+    {
+   	 CcspTraceInfo(("  DDDDD if iscoveryMode=Onc NOT filling the TABLE!!!\n"));
+	 CheckFlag = 0;
+    }	    
+    //for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
+    for(int i =0; ((i < p_VirtIf->VLAN.NoOfInterfaceEntries) && (CheckFlag)); i++)
     {
         DML_VLAN_IFACE_TABLE* p_VlanIf = (DML_VLAN_IFACE_TABLE *) AnscAllocateMemory( sizeof(DML_VLAN_IFACE_TABLE));
         if(p_VlanIf == NULL)
