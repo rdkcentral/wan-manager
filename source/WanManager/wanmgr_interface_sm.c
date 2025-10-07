@@ -2152,16 +2152,16 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    CcspTraceInfo(("%s %d  I-VLANBARUN-Fetching a value in this Case vlanDiscovery \n", __FUNCTION__, __LINE__));
-    CcspTraceError(("%s %d E-VLANBARUN-Fetching a value in this Case vlanDiscovery \n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d  I-ClanDiscovery =%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+    CcspTraceError(("%s %d E-CanDiscovery =%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
 #if 1
 char OutputValue[120] = {0};
 Get_CommandOutput("sysevent get VlanDiscoverySupport",OutputValue);
 bool allow_discovery = FALSE;
 bool VlanDiscovery = FALSE;
     
-    CcspTraceInfo(("%s %d  I-VLANBARUN-Fetching a value in this Case vlanDiscoveryT VLANDISCOVERY_MODE==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
-    CcspTraceError(("%s %d E-VLANBARUN-Fetching a value in this Case vlanDiscoveryT  VLANDISCOVERY_MODE==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+    CcspTraceInfo(("%s %d  I-VLANDISCOVERY_MODE==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+    CcspTraceError(("%s %d E-VLANDISCOVERY_MODE==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
 
 if(strncmp (OutputValue, "true", strlen("true")) == 0 )
 {
