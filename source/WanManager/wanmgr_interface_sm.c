@@ -3104,11 +3104,12 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 	if(is_timeout(p_VirtIf))
 	{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!! \n", __FUNCTION__, __LINE__));
-            //p_VirtIf->VLAN.Expired = TRUE;
-            //return wan_transition_physical_interface_down(pWanIfaceCtrl);
+            p_VirtIf->VLAN.Expired = TRUE;
+            return wan_transition_physical_interface_down(pWanIfaceCtrl);
 	}else{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) -- not-timed!! \n", __FUNCTION__, __LINE__));
 	}
+    #if 0
     if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {
  	CcspTraceInfo(("%s %d  VLANBARUN-STATE-003==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
@@ -3125,7 +3126,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
         }
     }
-
+   #endif	
     } //VLAN:DEF
 
 
@@ -3174,6 +3175,32 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
+       int rook_bypass = 1; 
+      if((strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce > 0 ))
+      {
+	  strncpy(p_VirtIf->VLAN.VLANInUse,p_VirtIf->VLAN.ActiveVLANInUse,sizeof(p_VirtIf->VLAN.VLANInUse));
+	  CcspTraceInfo(("%s %d  KARUN (DEF) -- rook_bypass!!!!!(002) AFT VLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.VLANInUse,strlen(p_VirtIf->VLAN.VLANInUse)));
+	  CcspTraceInfo(("%s %d  KARUN (DEF) -- rook_bypass!!!!!(002) AFT AvtiveVLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.ActiveVLANInUse,strlen(p_VirtIf->VLAN.ActiveVLANInUse)));
+	rook_bypass = 0;
+      }else{
+ 	CcspTraceInfo(("%s %d  KARUN (DEF) --ROOK_BYPASS(002) is NOT SET \n", __FUNCTION__, __LINE__));
+	rook_bypass = 1;
+      }
+
+
+    //VLAN:DEF
+    if(rook_bypass)
+    {
+	if(is_timeout(p_VirtIf))
+	{
+ 	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!!(002) \n", __FUNCTION__, __LINE__));
+            p_VirtIf->VLAN.Expired = TRUE;
+            return wan_transition_physical_interface_down(pWanIfaceCtrl);
+	}else{
+ 	    CcspTraceInfo(("%s %d  KARUN (DEF) -- not-timed!!(002) \n", __FUNCTION__, __LINE__));
+	}
+    }
+#if 0 //VLAN:DEF orgiginal
     if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {
         struct timespec CurrentTime;
@@ -3188,7 +3215,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
         }
     }
-
+#endif
     if(p_VirtIf->PPP.Enable == TRUE)
     {
         if(p_VirtIf->PPP.LinkStatus ==  WAN_IFACE_PPP_LINK_STATUS_UP && 
@@ -3226,6 +3253,30 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
+       int rook_bypass = 1; 
+      if((strlen(p_VirtIf->VLAN.ActiveVLANInUse) > 0 ) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce > 0 ))
+      {
+	  strncpy(p_VirtIf->VLAN.VLANInUse,p_VirtIf->VLAN.ActiveVLANInUse,sizeof(p_VirtIf->VLAN.VLANInUse));
+	  CcspTraceInfo(("%s %d  KARUN (DEF) -- rook_bypass!!!!!(003) AFT VLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.VLANInUse,strlen(p_VirtIf->VLAN.VLANInUse)));
+	  CcspTraceInfo(("%s %d  KARUN (DEF) -- rook_bypass!!!!!(003) AFT AvtiveVLANinUse Now=%s and len=%d \n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.ActiveVLANInUse,strlen(p_VirtIf->VLAN.ActiveVLANInUse)));
+	rook_bypass = 0;
+      }else{
+ 	CcspTraceInfo(("%s %d  KARUN (DEF) --ROOK_BYPASS(003) is NOT SET \n", __FUNCTION__, __LINE__));
+	rook_bypass = 1;
+      }
+    //VLAN:DEF
+    if(rook_bypass)
+    {
+	if(is_timeout(p_VirtIf))
+	{
+ 	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!!(003) \n", __FUNCTION__, __LINE__));
+            p_VirtIf->VLAN.Expired = TRUE;
+            return wan_transition_physical_interface_down(pWanIfaceCtrl);
+	}else{
+ 	    CcspTraceInfo(("%s %d  KARUN (DEF) -- not-timed!!(003) \n", __FUNCTION__, __LINE__));
+	}
+    }
+#if 0 //VLAN:DEF Orginal
     if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {
         struct timespec CurrentTime;
@@ -3240,7 +3291,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
         }
     }
-
+#endif
     //TODO: VLAN and PPP are validated in previous states. Use this state to validate WAN interface that does not use PPP or VLAN
     return wan_transition_wan_validated(pWanIfaceCtrl);
 
@@ -4416,7 +4467,7 @@ void copy_command_output(FILE *fp, char * buf, int len)
 
 int is_timeout(DML_VIRTUAL_IFACE* p_VirtIf)
 {
-UINT ret = 0;
+int ret = 0;
     if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {
  	CcspTraceInfo(("%s %d  VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
