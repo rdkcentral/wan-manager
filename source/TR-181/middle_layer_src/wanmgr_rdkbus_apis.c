@@ -1811,7 +1811,7 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     memset(param_name, 0, sizeof(param_name));
     //PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d KARUN:DEF Update ActiveVLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("\n %s %d KARUN:DEF Update ActiveVLANInUse to PSM %s=> %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
 #endif
