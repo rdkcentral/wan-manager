@@ -346,7 +346,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    AnscCopyString(pVirtIf->VLAN.ActiveInIUse, param_value);//VlanDiscoveryModeOnce)
+    AnscCopyString(pVirtIf->VLAN.ActiveVLANInUse, param_value);//VlanDiscoveryModeOnce)
 #endif
 
     //VLAN:DEF-- reverting the changes, So has to use the ActiveInUse
@@ -1803,8 +1803,18 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
     CcspTraceInfo(("%s %d Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("%s %d KARUN:DEF Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-    
+// VLAN:DEF mirrioring the vlaninuse
+#if 1
+   // memset(param_value, 0, sizeof(param_value));
+    memset(param_name, 0, sizeof(param_name));
+    //PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
+    CcspTraceInfo(("%s %d KARUN:DEF Update ActiveVLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+
+#endif
      return ANSC_STATUS_SUCCESS;
 }
 
