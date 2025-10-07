@@ -3031,11 +3031,10 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
 static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     CcspTraceInfo(("%s %d  I-VLANBARUN-AgainC \n", __FUNCTION__, __LINE__));
-    CcspTraceError(("%s %d E-VLANBARUN-AgainC \n", __FUNCTION__, __LINE__));
     CcspTraceInfo(("%s %d  I-VLANBARUN-configuringM \n", __FUNCTION__, __LINE__));
-    CcspTraceError(("%s %d E-VLANBARUN-configuringM \n", __FUNCTION__, __LINE__));
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-001 \n", __FUNCTION__, __LINE__));
         return ANSC_STATUS_FAILURE;
     }
 
@@ -3048,11 +3047,13 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
             pInterface->Selection.Status == WAN_IFACE_NOT_SELECTED ||
             pInterface->BaseInterfaceStatus !=  WAN_IFACE_PHY_STATUS_UP)
     {
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-002 \n", __FUNCTION__, __LINE__));
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
     if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-003==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
         struct timespec CurrentTime;
         /* get the current time */
         memset(&(CurrentTime), 0, sizeof(struct timespec));
@@ -3060,6 +3061,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 
         if(p_VirtIf->VLAN.Reset == TRUE || difftime(CurrentTime.tv_sec, p_VirtIf->VLAN.TimerStart.tv_sec) > p_VirtIf->VLAN.Timeout)
         {
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-004 -Timer expired --taking down the phy interface\n", __FUNCTION__, __LINE__));
             CcspTraceInfo(("%s %d VlanDiscovery timer expired.\n", __FUNCTION__, __LINE__));
             p_VirtIf->VLAN.Expired = TRUE;
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
@@ -3068,12 +3070,15 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 
     if(p_VirtIf->VLAN.Enable == TRUE)
     {
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-005 \n", __FUNCTION__, __LINE__));
         if(p_VirtIf->VLAN.Status !=  WAN_IFACE_LINKSTATUS_UP)
         {
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-006 \n", __FUNCTION__, __LINE__));
             return WAN_STATE_VLAN_CONFIGURING;
         }
 
 #if defined(_DT_WAN_Manager_Enable_)
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-007 \n", __FUNCTION__, __LINE__));
         /* VLAN status is successful. Add QOS markings*/
         //TODO: This is not a sky use case currently. For Sky markings are applied from VLAN Manager.
         WanManager_ConfigureMarking(pWanIfaceCtrl);
@@ -3081,8 +3086,10 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
     }
     else
     {
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-008 \n", __FUNCTION__, __LINE__));
         CcspTraceInfo(("%s %d VLAN not enabled. Moivng to wan_transition_ppp_configure \n", __FUNCTION__, __LINE__));
     }
+ 	CcspTraceInfo(("%s %d  VLANBARUN-STATE-009 \n", __FUNCTION__, __LINE__));
     //TODO: NEW_DESIGN check for Cellular case
     return wan_transition_ppp_configure(pWanIfaceCtrl);
 }

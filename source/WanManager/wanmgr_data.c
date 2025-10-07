@@ -181,6 +181,8 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
 	WanMgrDml_LoadVlanTable(p_VirtIf);
    }
 #endif
+
+        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->UPDATED #ofInterfaces==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce),(p_VirtIf->VLAN.NoOfInterfaceEntries)));
     for(int i =0; i < p_VirtIf->VLAN.NoOfInterfaceEntries; i++)
     {
         DML_VLAN_IFACE_TABLE* p_VlanIf = (DML_VLAN_IFACE_TABLE *) AnscAllocateMemory( sizeof(DML_VLAN_IFACE_TABLE));
@@ -202,6 +204,7 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
         retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
         AnscCopyString(p_VlanIf->Interface, param_value);
 
+        CcspTraceInfo(("%s %d ARUN:Clang Adding Vlan Interface entry %d \n", __FUNCTION__, __LINE__, p_VlanIf->Index));
         CcspTraceInfo(("%s %d Adding Vlan Interface entry %d \n", __FUNCTION__, __LINE__, p_VlanIf->Index));
         WanMgr_AddVirtVlanIfToList(&(p_VirtIf->VLAN.InterfaceList), p_VlanIf);
     }
