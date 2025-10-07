@@ -528,7 +528,7 @@ typedef struct _DML_VIRTUALIF_VLAN
     BOOL                        Reset;
     struct timespec             TimerStart;
     VLAN_DISCOVERY_MODE         VlanDiscoveryMode;
-    CHAR                        ActiveVLANInUse[BUFLEN_128];
+    CHAR                        ActiveVLAN[BUFLEN_128];
 } DML_VIRTUALIF_VLAN;
 
 
