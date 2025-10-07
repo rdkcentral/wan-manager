@@ -4328,7 +4328,7 @@ int Get_CommandOutput(char Command[],char *OutputValue)
 
 void copy_command_output(FILE *fp, char * buf, int len)
 {
-	CcspTraceInfo(("ARUN: %s: Line=%d\n", __FUNCTION__,__LINE__));
+	CcspTraceInfo(("ARUN:Testing %s: Line=%d\n", __FUNCTION__,__LINE__));
 	char *p;
 	if(fp);
 	{
