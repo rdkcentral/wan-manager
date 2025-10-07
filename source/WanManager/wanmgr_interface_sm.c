@@ -3133,7 +3133,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
       }
    
     //VLAN:DEF
-    if(rook_bypass)
+    if(1)//rook_bypass)
     {
  	CcspTraceInfo(("%s %d  IJK:: (111) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(is_timeout(p_VirtIf))
@@ -3245,7 +3245,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
 
 
     //VLAN:DEF
-    if(rook_bypass)
+    if(1)//rook_bypass)
     {
  	CcspTraceInfo(("%s %d IJK:: (222) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(is_timeout(p_VirtIf))
@@ -3340,7 +3340,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
 	rook_bypass = 1;
       }
     //VLAN:DEF
-    if(rook_bypass)
+    if(1)//rook_bypass)
     {
  	CcspTraceInfo(("%s %d  IJK::(333) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(is_timeout(p_VirtIf))
