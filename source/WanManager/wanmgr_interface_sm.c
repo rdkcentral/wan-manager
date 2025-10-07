@@ -1883,6 +1883,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     {
         if(p_VirtIf->VLAN.VLANInUse == NULL || strlen(p_VirtIf->VLAN.VLANInUse) <=0)
         {
+            CcspTraceInfo(("%s %d A1B2 WanMr_RdkBus_ConfigureVlan-021 : VLANInUse is present ,Copy2.\n", __FUNCTION__, __LINE__));
             p_VirtIf->VLAN.ActiveIndex = 0;
             DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
 	   
@@ -1892,7 +1893,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
         }
         if((strlen(p_VirtIf->VLAN.VLANInUse) > 0))
 	{
-            CcspTraceInfo(("%s %d A1B2 WanMr_RdkBus_ConfigureVlan-002 : VLANInUse is present ,Copy.\n", __FUNCTION__, __LINE__));
+            CcspTraceInfo(("%s %d A1B2 WanMr_RdkBus_ConfigureVlan-002 : VLANInUse is present ,Copy.=%d\n", __FUNCTION__, __LINE__,strlen(p_VirtIf->VLAN.VLANInUse)));
             strncpy(p_VirtIf->VLAN.ActiveVLAN, p_VirtIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.VLANInUse)-1);
 		
 	}
@@ -3078,6 +3079,12 @@ Implies
 if { ( #Interface > 0) && [  (Mode == ALWAYS) || (Mode == ONCE && strlen(VLANInUse) <= 0) ] }
  */
 	CcspTraceInfo(("\n A1B2: Check in <<vlan_config>> and mode should we allow scanning??"));
+   #if 0
+    //if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
+       ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
+	 ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )) ) ) 
+    #endif
    #if 1
     //if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
     if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&

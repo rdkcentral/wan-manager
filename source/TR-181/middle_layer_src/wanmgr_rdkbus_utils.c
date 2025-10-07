@@ -1004,6 +1004,7 @@ ANSC_STATUS  WanMgr_RdkBus_ConfigureVlan(DML_VIRTUAL_IFACE* pVirtIf, BOOL VlanEn
         memset(&(pVirtIf->VLAN.TimerStart), 0, sizeof(struct timespec));
         clock_gettime(CLOCK_MONOTONIC_RAW, &(pVirtIf->VLAN.TimerStart));
     }
+        CcspTraceInfo(("%s %d A1B2: ActiveVlan WanMgr_RdkBus_ConfigureVlan=%d and act=%d", __FUNCTION__,__LINE__,strlen(pVirtIf->VLAN.VLANInUse),strlen(pVirtIf->VLAN.ActiveVLAN)));
     CcspTraceInfo(("%s %d %s VLAN %s\n", __FUNCTION__,__LINE__, VlanEnable? "Enabling":"Disabling",pVirtIf->VLAN.ActiveVLAN));
     snprintf( acSetParamName, sizeof(acSetParamName), "%s.Enable", pVirtIf->VLAN.ActiveVLAN);
     snprintf( acSetParamValue, DATAMODEL_PARAM_LENGTH, "%s", VlanEnable? "true":"false" );
