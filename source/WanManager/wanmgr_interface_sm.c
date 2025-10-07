@@ -2159,6 +2159,10 @@ char OutputValue[120] = {0};
 Get_CommandOutput("sysevent get VlanDiscoverySupport",OutputValue);
 bool allow_discovery = FALSE;
 bool VlanDiscovery = FALSE;
+    
+    CcspTraceInfo(("%s %d  I-VLANBARUN-Fetching a value in this Case vlanDiscoveryT VLANDISCOVERY_MODE==%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+    CcspTraceError(("%s %d E-VLANBARUN-Fetching a value in this Case vlanDiscoveryT  VLANDISCOVERY_MODE==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+
 if(strncmp (OutputValue, "true", strlen("true")) == 0 )
 {
 	CcspTraceInfo(("ARUN: VlanDiscoverySupport- Check for iUse as well \n"));

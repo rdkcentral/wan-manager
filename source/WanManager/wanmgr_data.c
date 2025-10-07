@@ -822,6 +822,10 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->RemoteStatus = WAN_IFACE_STATUS_DISABLED;
     pVirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_DOWN;
     pVirtIf->VLAN.Enable = FALSE;
+#if 1
+    // Initalizing the DiscoveryMode of PSM
+    pVirtIf->VLAN.VlanDiscoveryModeOnce = FALSE;
+#endif
     pVirtIf->VLAN.NoOfMarkingEntries = 0;
     pVirtIf->VLAN.Timeout = 0;
     pVirtIf->VLAN.ActiveIndex = -1;

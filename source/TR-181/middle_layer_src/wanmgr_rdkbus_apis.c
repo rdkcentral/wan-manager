@@ -252,6 +252,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         pVirtIf->EnableDSLite = TRUE;
     }
 
+#if 1
+    // Read VlanDiscoveryModeOnce from bbhm_def_cfg.xml file ,
+    // Component specific persistance value for wanmanager
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERYMODE, instancenum, (virtInsNum + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.VlanDiscoveryModeOnce));
+#endif
+
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ENABLE, instancenum, (virtInsNum + 1));
