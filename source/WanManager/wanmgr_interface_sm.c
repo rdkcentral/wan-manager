@@ -1898,6 +1898,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
 
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
 
+        CcspTraceInfo(("%s %d - LMN-1111 CHECK_LEN_n_CPY\n", __FUNCTION__, __LINE__));
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
@@ -2001,6 +2002,7 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
     {
         if (pInterface->IfaceType != REMOTE_IFACE) //TODO NEW_DESIGN rework for remote interface
         {
+        CcspTraceInfo(("%s %d - LMN-2222 CHECK_LEN_n_CPY\n", __FUNCTION__, __LINE__));
             WanMgr_RdkBus_ConfigureVlan(p_VirtIf, FALSE);        
             WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_ERROR_VLAN_DOWN);	    
             /* VLAN link is not created yet if LinkStatus is CONFIGURING. Change it to down. */
@@ -2216,6 +2218,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
 
             CcspTraceInfo(("%s %d IJK:::(usine ActivVLANInUse) NNNEEEEE TRYING next (ActiveVLANInUse=%s)\n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.ActiveVLANInUse));
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
+        CcspTraceInfo(("%s %d - LMN-3333 CHECK_LEN_n_CPY\n", __FUNCTION__, __LINE__));
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
