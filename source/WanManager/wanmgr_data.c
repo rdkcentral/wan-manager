@@ -168,15 +168,15 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
 // Vlaninuse contains valid entry then lets defere the scanning
 // by controlling #of interfaces , else update farom psm
 #if 1
-   CcspTraceInfo(("%s %d: ARUN:Clang by noe the Mode value should be read VlanDiscoveryModeOnce=%d \n", __FUNCTION__, __LINE__,(pVirtIf->VLAN.VlanDiscoveryModeOnce)));
-   if((pVirtIf->VLAN.VlanDiscoveryModeOnce) && (!strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE))) )
+   CcspTraceInfo(("%s %d: ARUN:Clang by noe the Mode value should be read VlanDiscoveryModeOnce=%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+   if((p_VirtIf->VLAN.VlanDiscoveryModeOnce) && (!strncmp(p_VirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE))) )
    {
-        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d Defering vlan table entry \n", __FUNCTION__, __LINE__,(pVirtIf->VLAN.VlanDiscoveryModeOnce)));
-    	pVirtIf->VLAN.NoOfInterfaceEntries = 0;
+        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d Defering vlan table entry \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+    	p_VirtIf->VLAN.NoOfInterfaceEntries = 0;
    }
    else
    {
-        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->Populate vlatable \n", __FUNCTION__, __LINE__,(pVirtIf->VLAN.VlanDiscoveryModeOnce)));
+        CcspTraceInfo(("%s %d: ARUN:Clang VlanDiscoveryModeOnce=%d -->Populate vlatable \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
 	// WanMgr_UpdateVlanTable(p_VirtIf);
 	WanMgrDml_LoadVlanTable(p_VirtIf);
    }
