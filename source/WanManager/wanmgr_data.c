@@ -187,7 +187,7 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
     else
     {
 	    // Update vlantable from PSM
-		WanMgr_UpdateVlanTable(p_VirtIf);
+		//WanMgr_UpdateVlanTable(p_VirtIf);
 		WanMgrDml_LoadVlanTable(p_VirtIf);
     }
 #endif
