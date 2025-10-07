@@ -3077,7 +3077,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
 Implies
 if { ( #Interface > 0) && [  (Mode == ALWAYS) || (Mode == ONCE && strlen(VLANInUse) <= 0) ] }
  */
-	CcspTraceInfo((" A1B2: Check in <<Transistion_start>> and mode should we allow scanning??"));
+	CcspTraceInfo(("\n A1B2: Check in <<vlan_config>> and mode should we allow scanning??"));
    #if 1
     //if((p_VirtIf->VLAN.NoOfInterfaceEntries <= 1) ||
     if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
@@ -3085,10 +3085,10 @@ if { ( #Interface > 0) && [  (Mode == ALWAYS) || (Mode == ONCE && strlen(VLANInU
 	 ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )) ) ) 
     #endif
     {
-	CcspTraceInfo((" A1B2: Check in <<Transistion_start>> and mode should we allow scanning??-- Yes Check if timedout"));
+	CcspTraceInfo(("\n A1B2: Check in <<vlan_config>> and mode should we allow scanning??-- Yes Check if timedout"));
 	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
-		CcspTraceInfo((" A1B2: Check in <<Transistion_start>> and mode should we allow scanning??-- Yes Check if timedout?? --YES timedout"));
+		CcspTraceInfo(("\n A1B2: Check in <<vlan_config>> and mode should we allow scanning??-- Yes Check if timedout?? --YES timedout"));
             p_VirtIf->VLAN.Expired = TRUE;
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
 	}
@@ -3161,15 +3161,15 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
 	   (strlen(p_VirtIf->VLAN.ActiveVLAN) <= 0) )))
 	   //(strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
      #endif
-	CcspTraceInfo((" A1B2: Check in <<Ppp_config>> and mode should we allow scanning??"));
+	CcspTraceInfo(("\n A1B2: Check in <<Ppp_config>> and mode should we allow scanning??"));
    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	 ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )) ) ) 
     {
-	CcspTraceInfo((" A1B2: Check in <<Ppp_config>> and mode should we allow scanning??--YES check timedout??"));
+	CcspTraceInfo(("\n A1B2: Check in <<Ppp_config>> and mode should we allow scanning??--YES check timedout??"));
 	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
-		CcspTraceInfo((" A1B2: Check in <<Ppp_config>> and mode should we allow scanning??--YES check timedout??--YE timedout"));
+		CcspTraceInfo(("\n A1B2: Check in <<Ppp_config>> and mode should we allow scanning??--YES check timedout??--YE timedout"));
             p_VirtIf->VLAN.Expired = TRUE;
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
 	}
@@ -3224,15 +3224,15 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
 	   (strlen(p_VirtIf->VLAN.ActiveVLAN) <= 0) )))
 	   //(strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )))
    #endif
-	CcspTraceInfo((" A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??"));
+	CcspTraceInfo(("\n A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??"));
     if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) &&
        ( ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS ) ||
 	 ( ( (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ONCE) && (strlen(p_VirtIf->VLAN.VLANInUse) <= 0) )) ) ) 
     {
-	CcspTraceInfo((" A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??--YES check timedout??--YES check timedout??"));
+	CcspTraceInfo(("\n A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??--YES check timedout??--YES check timedout??"));
         if(VlanDiscovery_Timeout(p_VirtIf))
 	{
-	CcspTraceInfo((" A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??--YES check timedout??--YES check timedout??--YES timed"));
+	CcspTraceInfo(("\n A1B2: Check in <<Validating_Wan>> and mode should we allow scanning??--YES check timedout??--YES check timedout??--YES timed"));
             p_VirtIf->VLAN.Expired = TRUE;
             return wan_transition_physical_interface_down(pWanIfaceCtrl);
 	}
