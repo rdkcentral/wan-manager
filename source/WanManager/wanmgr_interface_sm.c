@@ -1882,22 +1882,40 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
 		// VLAN:DEF instead of the first entry if there is ActiveVlanInUse set that up??? and no load up the Table to Scan
 		// In Here WanMgr_RdkBus_ConfigureVlan if #ifInterfece >1 then associates timer and says configruing
             p_VirtIf->VLAN.ActiveIndex = 0;
-            DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
+            //DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
+           // DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
+
 	    // VLAN:DEF instead of the pVlanIf->Interface to be ActiveVlanInUse
             //strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
 
 	    // VLAN::IJK
-            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
-        CcspTraceInfo(("%s %d - IJK Already  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
+           // strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
+       // CcspTraceInfo(("%s %d - IJK Already  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
 
         }else{
 	//VLAN:IJK
 	//
-            strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
-        CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
+         //   strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
+       // CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
 	
 	}
+	if(strlen(p_VirtIf->VLAN.VLANInUse) <= 0)
+        CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  Wor00000\n", __FUNCTION__, __LINE__));//, (p_VirtIf->VLAN.ActiveVLANInUse)));
+	if(strlen(p_VirtIf->VLAN.ActiveVLANInUse) <= 0)
+        CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  AAAAAAAWor00000\n", __FUNCTION__, __LINE__));//, (p_VirtIf->VLAN.ActiveVLANInUse)));
+
+	//VLAN:IJK
+            DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
+           strncpy(p_VirtIf->VLAN.ActiveVLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
+        CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  Working ActiveVlanINUse==%s\n", __FUNCTION__, __LINE__, (p_VirtIf->VLAN.ActiveVLANInUse)));
+
+	if(strlen(p_VirtIf->VLAN.VLANInUse) <= 0)
+        CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  Wor00000ATF\n", __FUNCTION__, __LINE__));//, (p_VirtIf->VLAN.ActiveVLANInUse)));
+	if(strlen(p_VirtIf->VLAN.ActiveVLANInUse) <= 0)
+        CcspTraceInfo(("%s %d - IJK Already--NNNNNNNNEEEEEEEE  AAAAFT  AAAAWor00000\n", __FUNCTION__, __LINE__));//, (p_VirtIf->VLAN.ActiveVLANInUse)));
+											    //
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
+
         //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
