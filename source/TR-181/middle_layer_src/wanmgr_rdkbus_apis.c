@@ -252,15 +252,11 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         pVirtIf->EnableDSLite = TRUE;
     }
 
-#if 1 
-    // ABC: Read VlanDiscoveryModeOnce from bbhm_def_cfg.xml file ,
-    // Component specific persistance value for wanmanager
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERYMODE, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.VlanDiscoveryModeOnce));
-#endif
+    _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.VlanDiscoveryMode));
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -295,25 +291,12 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         pVirtIf->PPP.Enable = TRUE;
     }
 
-   //ARUN: ABC Delaying the the VlanCount with number of enteris
-   //as per discission it would be safe to control iteratio/scanning with the interface count.	
-#if 1
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.NoOfInterfaceEntries));
-#endif
 
-    //VLAN:DEF -- reverting the masking one--for previous implent it would be 0 commented
-    // for now uncommenting
-#if 0 // VLAN:LMN
-    _ansc_memset(param_name, 0, sizeof(param_name));
-    _ansc_memset(param_value, 0, sizeof(param_value));
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT, instancenum, (virtInsNum + 1));
-    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.NoOfInterfaceEntries));
-#endif
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -326,32 +309,12 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->VLAN.VLANInUse, param_value);
-    // VLAN: LMN
     AnscCopyString(pVirtIf->VLAN.ActiveVLANInUse, param_value);
 
 
-#if 0
-    CcspTraceInfo(("%s %d KARUN:Clang (DEF)  Reading ACTIVE--VLANINUSE !!!\n", __FUNCTION__, __LINE__));
-    //VALN:DEF
-    _ansc_memset(param_name, 0, sizeof(param_name));
-    _ansc_memset(param_value, 0, sizeof(param_value));
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ACTIVE_VLAN_INUSE, instancenum, (virtInsNum + 1));
-    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    AnscCopyString(pVirtIf->VLAN.ActiveVLANInUse, param_value);//VlanDiscoveryModeOnce)
-#endif
-
-    //VLAN:DEF-- reverting the changes, So has to use the ActiveInUse
-    // Exculding the interface count to determien vlan is enabled or not 
-#if 1    
     if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)) || pVirtIf->VLAN.NoOfInterfaceEntries > 0)
-#endif
-#if 0 //VLAN::LMN
-    if(!strncmp(pVirtIf->VLAN.VLANInUse, VLAN_TERMINATION_TABLE, strlen(VLAN_TERMINATION_TABLE)))
-#endif
     {
-        //CcspTraceInfo(("%s %d Valid VLAN interface is configured. Use VLAN\n", __FUNCTION__, __LINE__));
-        CcspTraceInfo(("%s %d ARUN: Clang  VLANINUSE !!!\n", __FUNCTION__, __LINE__));
-        CcspTraceInfo(("%s %d KARUN:Clang (DEF)  VLANINUSE !!!\n", __FUNCTION__, __LINE__));
+        CcspTraceInfo(("%s %d Valid VLAN interface is configured. Use VLAN\n", __FUNCTION__, __LINE__));
         pVirtIf->VLAN.Enable = TRUE;
     }
 
@@ -1790,13 +1753,10 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     char param_value[256] = {0};
     char param_name[512] = {0};
 
-    //VLAN:IJK	
-   // AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
     AnscCopyString(param_value, pVirtIf->VLAN.ActiveVLANInUse);
 
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d Update::IJK VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
-    CcspTraceInfo(("%s %d SSSSS(Acti -2 - vlaninuse)-->KARUN:IJK Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("%s %d Updateing VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
     return ANSC_STATUS_SUCCESS;
 }

@@ -1548,13 +1548,13 @@ BOOL WanVirtualIf_GetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
             ret = TRUE;
         }
 	//VLAN:LMN
-	//ARUN:XYZ , VlanDiscoveryModeOnce
-        if (strcmp(ParamName, "VlanDiscoveryModeOnce") == 0)
+	//ARUN:XYZ , VlanDiscoveryMode
+        if (strcmp(ParamName, "VlanDiscoveryMode") == 0)
         {
 		
-            CcspTraceInfo(("%s %d ARUN:Clang GET od this value VlanDiscoveryModeOnce====%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryModeOnce)));
+            CcspTraceInfo(("%s %d ARUN:Clang GET od this value VlanDiscoveryMode====%d\n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.VlanDiscoveryMode)));
             //This DM is used for Resetting VLAN discovery.
-            *pBool = p_VirtIf->VLAN.VlanDiscoveryModeOnce;
+            *pBool = p_VirtIf->VLAN.VlanDiscoveryMode;
             ret = TRUE;
         }
         WanMgr_VirtualIfaceData_release(p_VirtIf);

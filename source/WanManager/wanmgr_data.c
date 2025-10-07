@@ -823,7 +823,7 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_DOWN;
     pVirtIf->VLAN.Enable = FALSE;
     // Initalizing the DiscoveryMode and ActiveVLANInUse
-    pVirtIf->VLAN.VlanDiscoveryModeOnce = VLAN_DISCOVERY_MODE_ALWAYS;
+    pVirtIf->VLAN.VlanDiscoveryMode = VLAN_DISCOVERY_MODE_ALWAYS;
     memset(pVirtIf->VLAN.ActiveVLANInUse,0, sizeof(pVirtIf->VLAN.ActiveVLANInUse));
 
     pVirtIf->VLAN.NoOfMarkingEntries = 0;

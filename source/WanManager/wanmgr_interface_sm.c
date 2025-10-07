@@ -2161,7 +2161,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
         /*Discovery shouldbe disallowed when the VlanDiscoveryMode is once*/    
-        if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
+        if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)  && (p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
         {
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
             if (p_VirtIf->VLAN.Reset == TRUE || p_VirtIf->VLAN.ActiveIndex == -1)
@@ -3026,7 +3026,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
     {
  	CcspTraceInfo(("%s %d  VLAN.NoOfInterfacesEntries=%d \n",
 			       	__FUNCTION__, __LINE__,
@@ -3076,7 +3076,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
     {
 	if(VlanDiscovery_Timeout(p_VirtIf))
 	{
@@ -3122,7 +3122,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryModeOnce == VLAN_DISCOVERY_MODE_ALWAYS))
+    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
     {
         if(VlanDiscovery_Timeout(p_VirtIf))
 	{

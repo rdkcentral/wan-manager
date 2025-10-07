@@ -528,11 +528,8 @@ typedef struct _DML_VIRTUALIF_VLAN
     BOOL                        Expired;
     BOOL                        Reset;
     struct timespec             TimerStart;
-#if 1
-    //UINT                        VlanDiscoveryModeOnce; //001
-    VLAN_DISCOVERY_MODE         VlanDiscoveryModeOnce; //001
-    CHAR                        ActiveVLANInUse[BUFLEN_128]; //VLAN:DEF, VLAN:IJK
-#endif
+    VLAN_DISCOVERY_MODE         VlanDiscoveryMode;
+    CHAR                        ActiveVLANInUse[BUFLEN_128];
 } DML_VIRTUALIF_VLAN;
 
 
