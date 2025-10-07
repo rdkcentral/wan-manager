@@ -3063,8 +3063,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
     }
 
     //if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && ( p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS))
-    CcspTraceInfo(("%s %d A1B2- VLAN_CONFIGURING --TTORG :: neeed NoOfInterfaceEntries=%d p_VirtIf->VLAN.VlanDiscoveryMode=%d strlen(p_VirtIf->VLAN.VLANInUse)=%d ActiveInUse=%d\n", 
-			    __FUNCTION__, __LINE__,p_VirtIf->VLAN.NoOfInterfaceEntries,p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse),strlen(p_VirtIf->ActiveVLANInUse))); //A007
+    CcspTraceInfo(("%s %d A1B2- VLAN_CONFIGURING --TTORG :: neeed NoOfInterfaceEntries=%d p_VirtIf->VLAN.VlanDiscoveryMode=%d strlen(p_VirtIf->VLAN.VLANInUse)=%d ActiveInUse=%d\n",__FUNCTION__, __LINE__,p_VirtIf->VLAN.NoOfInterfaceEntries,p_VirtIf->VLAN.VlanDiscoveryMode,strlen(p_VirtIf->VLAN.VLANInUse),strlen(p_VirtIf->VLAN.ActiveVLANInUse))); //A007
     /* Actually If_only_One_Interface check is not needed, if in ONCE mode there might and interface
      * if[ Mode == Always  OR  (Mode == Once && VlanInUse < 0) ] OR [ If_Only_One_Interface ] 
      *
