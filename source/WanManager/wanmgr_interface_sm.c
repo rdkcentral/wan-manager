@@ -318,6 +318,11 @@ static int wan_tearDownMapt()
 }
 #endif
 
+
+#if 1
+int Get_CommandOutput(char Command[],char *OutputValue);
+void copy_command_output(FILE *fp, char * buf, int len);
+#endif
 /************************************************************************************
  * @brief Get the status of Interface State Machine.
  * @return TRUE on running else FALSE
@@ -2147,10 +2152,33 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+    CcspTraceInfo(("%s %d  I-VLANBARUN-Fetching a value in this Case vlanDiscovery \n", __FUNCTION__, __LINE__));
+    CcspTraceError(("%s %d E-VLANBARUN-Fetching a value in this Case vlanDiscovery \n", __FUNCTION__, __LINE__));
+#if 1
+char OutputValue[120] = {0};
+Get_CommandOutput("sysevent get VlanDiscoverySupport",OutputValue);
+bool allow_discovery = FALSE;
+bool VlanDiscovery = FALSE;
+if(strncmp (OutputValue, "true", strlen("true")) == 0 )
+{
+	CcspTraceInfo(("ARUN: VlanDiscoverySupport- Check for iUse as well \n"));
+	VlanDiscovery = TRUE;
+}
+
+if((strlen(p_VirtIf->VLAN.VLANInUse) > 0) && (VlanDiscovery == TRUE) )
+{
+	CcspTraceInfo(("ARUN: DISALLWO THE SCANNING!!!! \n"));
+	allow_discovery = TRUE;
+}
+#endif
+CcspTraceInfo(("ARUN: DISALLWO - Check1 Inuse=%d\n",strlen(p_VirtIf->VLAN.VLANInUse)));
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
-        if(p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)
+	     CcspTraceInfo(("ARUN: DISALLWO - Check2 allow_discovery=%d\n",allow_discovery));
+       //if(p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE)
+       if((p_VirtIf->VLAN.Expired == TRUE || p_VirtIf->VLAN.Reset == TRUE) && (allow_discovery == FALSE))
         {
+		CcspTraceInfo(("ARUN: Trying NEXT VInterface!!!!  allow_discovery=%d\n",allow_discovery));
             DML_VLAN_IFACE_TABLE* pVlanIf = NULL;
             if (p_VirtIf->VLAN.Reset == TRUE || p_VirtIf->VLAN.ActiveIndex == -1)
             {
@@ -4273,4 +4301,39 @@ void WanMgr_IfaceSM_Init(WanMgr_IfaceSM_Controller_t* pWanIfaceSMCtrl, INT iface
 #endif
         pWanIfaceSMCtrl->pIfaceData = NULL;        
     }
+}
+
+int Get_CommandOutput(char Command[],char *OutputValue)
+{
+#define BUF_SIZE 512
+	char buf[BUF_SIZE] = {0};
+	FILE *fp;
+	CcspTraceInfo(("ARUN: %s:Command:%s\n", __FUNCTION__,Command));
+	fp = popen(Command,"r");
+	if( fp == NULL)
+	{
+		CcspTraceError(("ARUN: %s: Not able to read cmd\n", __FUNCTION__));
+		return -1;
+	}
+	else{
+		copy_command_output(fp, buf, sizeof(buf));
+	}
+	pclose(fp);
+	strcpy(OutputValue,buf);
+	CcspTraceInfo(("ARUN: CmdOupt:%s \n",OutputValue));
+	return 0;
+}
+
+void copy_command_output(FILE *fp, char * buf, int len)
+{
+	CcspTraceInfo(("ARUN: %s: Line=%d\n", __FUNCTION__,__LINE__));
+	char *p;
+	if(fp);
+	{
+            fgets(buf, len, fp);
+	    buf[len-1] = '\0';
+	    if ((p = strchr(buf, '\n'))) {
+		    *p =0;
+	    }
+	}
 }
