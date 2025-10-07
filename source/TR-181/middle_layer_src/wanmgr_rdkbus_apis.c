@@ -339,7 +339,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     //VLAN:DEF this is for ActiveInIUse
     //Thereby the masking of number of enteries will be taken away
-#if 1
+#if 0
         CcspTraceInfo(("%s %d KARUN:Clang (DEF)  Reading ACTIVE--VLANINUSE !!!\n", __FUNCTION__, __LINE__));
     //VALN:DEF
     _ansc_memset(param_name, 0, sizeof(param_name));
