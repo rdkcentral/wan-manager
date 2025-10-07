@@ -3116,6 +3116,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
     //VLAN:DEF
     if(rook_bypass)
     {
+ 	CcspTraceInfo(("%s %d  IJK:: (111) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(is_timeout(p_VirtIf))
 	{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!! \n", __FUNCTION__, __LINE__));
@@ -3227,6 +3228,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
     //VLAN:DEF
     if(rook_bypass)
     {
+ 	CcspTraceInfo(("%s %d IJK:: (222) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(is_timeout(p_VirtIf))
 	{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!!(002) \n", __FUNCTION__, __LINE__));
@@ -3321,6 +3323,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
     //VLAN:DEF
     if(rook_bypass)
     {
+ 	CcspTraceInfo(("%s %d  IJK::(333) VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
 	if(is_timeout(p_VirtIf))
 	{
  	    CcspTraceInfo(("%s %d  KARUN (DEF) --TIMEOUTED!!(003) \n", __FUNCTION__, __LINE__));
@@ -4522,7 +4525,7 @@ void copy_command_output(FILE *fp, char * buf, int len)
 int is_timeout(DML_VIRTUAL_IFACE* p_VirtIf)
 {
 int ret = 0;
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
+    if(1)//p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
     {
  	CcspTraceInfo(("%s %d  VLANBARUN-STATE-MONO==%d \n", __FUNCTION__, __LINE__,(p_VirtIf->VLAN.NoOfInterfaceEntries)));
         struct timespec CurrentTime;
