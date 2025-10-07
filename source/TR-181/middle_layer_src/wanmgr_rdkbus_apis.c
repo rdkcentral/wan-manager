@@ -1750,12 +1750,10 @@ ANSC_STATUS DmlSetDiscoveryModeToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     char param_value[256] = {0};
     char param_name[512] = {0};
 
-    CcspTraceInfo(("===> CCCCA1B2 UPDATING MODE TO BE SET From==%d   VLAN_DISCOVERY_MODE_ONCE==%d\n",pVirtIf->VLAN.VlanDiscoveryMode,VLAN_DISCOVERY_MODE_ONCE));
-    //_ansc_sprintf(param_value, "%d", pVirtIf->VLAN.VlanDiscoveryMod );
-    //p_VirtIf->VLAN.VlanDiscoveryMode == VLAN_DISCOVERY_MODE_ALWAYS
+    CcspTraceInfo((" DmlSetDiscoveryModeToPSMDB A1B2: Updating Mode from==%d  To  VLAN_DISCOVERY_MODE_ONCE==%d\n",pVirtIf->VLAN.VlanDiscoveryMode,VLAN_DISCOVERY_MODE_ONCE));
     _ansc_sprintf(param_value, "%d", VLAN_DISCOVERY_MODE_ONCE);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERYMODE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d A1B2 Updateing VLANInDISCOVERY--->MODE to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("%s %d DmlSetDiscoveryModeToPSMDB A1B2 UpdatedVLANInDISCOVERY--->MODE to PSM=%s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
     return ANSC_STATUS_SUCCESS;
 }
@@ -1768,7 +1766,7 @@ ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
     AnscCopyString(param_value, pVirtIf->VLAN.ActiveVLANInUse);
 
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d Updateing VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+    CcspTraceInfo(("%s %d Updating VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
     return ANSC_STATUS_SUCCESS;
 }
