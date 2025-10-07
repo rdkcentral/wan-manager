@@ -323,7 +323,7 @@ static int wan_tearDownMapt()
  * Input: Pointer to DML_VIRTUAL_IFACE
  * @return 1 if timedout else 0
  * *****************************************************/
-inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf); 
+static inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf); 
 
 /************************************************************************************
  * @brief Get the status of Interface State Machine.
@@ -4482,7 +4482,7 @@ void WanMgr_IfaceSM_Init(WanMgr_IfaceSM_Controller_t* pWanIfaceSMCtrl, INT iface
     }
 }
 
-inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf)
+static inline int VlanDiscovery_Timeout(DML_VIRTUAL_IFACE* p_VirtIf)
 {
 int ret = 0;
     if(1)//p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
