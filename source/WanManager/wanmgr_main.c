@@ -325,6 +325,10 @@ int main(int argc, char* argv[])
         fclose(fd);
     }
 
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    t2_init("wanmanager");
+#endif
+
 #ifdef INCLUDE_BREAKPAD
     breakpad_ExceptionHandler();
 #else
@@ -379,9 +383,6 @@ int main(int argc, char* argv[])
     waitUntilSystemReady();
 
     WanMgrDmlWanWebConfigInit();
-#ifdef ENABLE_FEATURE_TELEMETRY2_0
-    t2_init(COMPONENT_NAME_WANMANAGER);
-#endif
     if ( bRunAsDaemon )
     {
         //MAIN THREAD
