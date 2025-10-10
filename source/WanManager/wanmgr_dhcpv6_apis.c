@@ -2176,8 +2176,10 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
                                 CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr));
 
                                 snprintf(p_VirtIf->IP.Ipv6Data.address, sizeof(p_VirtIf->IP.Ipv6Data.address), "%s", pstAddrEvent->addr);
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
                                 p_VirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
                                 p_VirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_ADD;
+#endif /** FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE */
                                 p_VirtIf->IP.Ipv6Changed             = TRUE;
                                 p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_UP;
                             }
@@ -2185,8 +2187,9 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
                         else if ( 0 == strncmp(pstAddrEvent->event, "DELADDR", strlen("DELADDR")) ) //Address Delete
                         {
                             CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Deleted for '%s' Deleted Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, pstAddrEvent->addr));
-
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
                             p_VirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_REMOVE;
+#endif /** FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE */
                             p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_DOWN;
                         }
                     }
