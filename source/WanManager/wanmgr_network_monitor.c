@@ -195,8 +195,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
     struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
     char ifname[IF_NAMESIZE],
-         ipv6_addr[INET6_ADDRSTRLEN],
-         eventInfo[BUFLEN_512] = {0};
+         ipv6_addr[INET6_ADDRSTRLEN];
     unsigned int  prefix_length = 0,
                   pref_lifetime = 0,
                   valid_lifetime = 0;
@@ -251,8 +250,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
        stAddrEvent.preferred_lft = pref_lifetime;
        stAddrEvent.valid_lft     = valid_lifetime;
 
-       snprintf(eventInfo, sizeof(eventInfo), "NEWADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for 'NEWADDR|%s|%s|%u|%u|%u' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
        ret = ANSC_STATUS_SUCCESS;
     } 
@@ -266,8 +264,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
        stAddrEvent.preferred_lft = pref_lifetime;
        stAddrEvent.valid_lft     = valid_lifetime;
 
-       snprintf(eventInfo, sizeof(eventInfo), "DELADDR|%s|%s|%u|%u|%u", ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Info 'DELADDR|%s|%s|%u|%u|%u'\n", __FUNCTION__, __LINE__, ifname, eventInfo, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
        ret = ANSC_STATUS_SUCCESS;
     }
