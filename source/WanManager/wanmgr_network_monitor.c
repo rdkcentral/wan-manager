@@ -250,7 +250,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
        stAddrEvent.preferred_lft = pref_lifetime;
        stAddrEvent.valid_lft     = valid_lifetime;
 
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for 'NEWADDR|%s|%s|%u|%u|%u' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, eventInfo, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for 'NEWADDR|%s|%u|%u|%u' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
        ret = ANSC_STATUS_SUCCESS;
     } 
@@ -264,7 +264,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
        stAddrEvent.preferred_lft = pref_lifetime;
        stAddrEvent.valid_lft     = valid_lifetime;
 
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Info 'DELADDR|%s|%s|%u|%u|%u'\n", __FUNCTION__, __LINE__, ifname, eventInfo, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Info 'DELADDR|%s|%u|%u|%u'\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
        ret = ANSC_STATUS_SUCCESS;
     }
