@@ -25,6 +25,6 @@ netmonitor_CPPFLAGS = -I$(top_srcdir)/source/TR-181/middle_layer_src \
                       -I$(top_srcdir)/source/TR-181/include \
                       -I$(top_srcdir)/source/WanManager
 
-netmonitor_CFLAGS = -DFEATURE_SUPPORT_RDKLOG $(DBUS_CFLAGS) $(SYSTEMD_CFLAGS)
+netmonitor_CFLAGS = -DFEATURE_SUPPORT_RDKLOG $(SYSTEMD_CFLAGS)
 netmonitor_SOURCES = network_route_monitor.c
-netmonitor_LDADD = -lccsp_common -lrdkloggers $(DBUS_LIBS) $(SYSTEMD_LDFLAGS) -lhal_platform -lapi_dhcpv4c -lwebconfig_framework -lmsgpackc -lnanomsg -lsyscfg -lsysevent -lpthread -lsecure_wrapper
+netmonitor_LDADD = -lccsp_common -lrdkloggers $(SYSTEMD_LDFLAGS) -lhal_platform -lapi_dhcpv4c -lwebconfig_framework -lmsgpackc -lnanomsg -lsyscfg -lsysevent -lpthread -lsecure_wrapper

@@ -2661,7 +2661,7 @@ ANSC_STATUS WanManager_get_interface_mac(char *interfaceName, char* macAddress, 
       fgets(fOutput, sizeof(fOutput), fp);
       fclose(fp);
 
-      if((fOutput[0] != '0') && (strlen(fOutput) != 0))
+      if((fOutput[0] != '\0') && (strlen(fOutput) != 0))
       {
           /* Remove \n char from the buffer */
           if ((ptr = strchr(fOutput, '\n')))
@@ -2669,7 +2669,7 @@ ANSC_STATUS WanManager_get_interface_mac(char *interfaceName, char* macAddress, 
               *ptr = 0;
           }
 
-          if((fOutput[0] != '0') && (strlen(fOutput) != 0))
+          if(strlen(fOutput) != 0)
           {
               snprintf(macAddress, macAddressSize, "%s", fOutput);
               CcspTraceInfo(("%s %d: [%s] Interface MAC Address = [%s]\n", __FUNCTION__, __LINE__, interfaceName, macAddress));
