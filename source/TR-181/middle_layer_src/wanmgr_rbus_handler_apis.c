@@ -1971,7 +1971,7 @@ ANSC_STATUS WanMgr_Configure_TAD_WCC(DML_VIRTUAL_IFACE *p_VirtIf,  WCC_EVENT Eve
     snprintf(pTADEvent->IPv4_DNS_Servers, sizeof(pTADEvent->IPv4_DNS_Servers), "%s,%s",p_VirtIf->IP.Ipv4Data.dnsServer,p_VirtIf->IP.Ipv4Data.dnsServer1);
     snprintf(pTADEvent->IPv4_Gateway, sizeof(pTADEvent->IPv4_Gateway), "%s",p_VirtIf->IP.Ipv4Data.gateway);
     snprintf(pTADEvent->IPv6_DNS_Servers, sizeof(pTADEvent->IPv6_DNS_Servers), "%s,%s",p_VirtIf->IP.Ipv6Data.nameserver,p_VirtIf->IP.Ipv6Data.nameserver1);
-    snprintf(pTADEvent->IPv6_Gateway, sizeof(pTADEvent->IPv6_Gateway), "%s",p_VirtIf->IP.Ipv6Route.defaultRoute,p_VirtIf->IP.Ipv6Route.defaultRoute);
+    snprintf(pTADEvent->IPv6_Gateway, sizeof(pTADEvent->IPv6_Gateway), "%s",p_VirtIf->IP.Ipv6RA.acDefaultGw);
     pTADEvent->Event = Event;
 
     //Run in thread to avoid mutex deadlock between WanManager and rbus handle
@@ -2396,7 +2396,20 @@ static void WanMgr_InterfaceStatus_EventHandler(rbusHandle_t handle, rbusEvent_t
         return;
     }
 
-    CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
+    rbusValue_t value;
+    value = rbusObject_GetValue(event->data, NULL);
+
+    char acStatus[16] = {0};
+    strncpy(acStatus , rbusValue_GetString(value, NULL),sizeof(acStatus)-1);
+
+    CcspTraceInfo(("%s %d: Received '%s' event value is '%s'\n", __FUNCTION__, __LINE__, eventName, ((acStatus[0] != '\0') ? acStatus : "Empty")));
+
+    //Ignore further processing when value is not valid
+    if ( '\0' == acStatus[0] )
+    {
+        CcspTraceInfo(("%s %d: Received '%s' event value is empty so ignoring process further\n", __FUNCTION__, __LINE__, eventName));
+        return;
+    }
 
     UINT uiLoopCount;
     UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
@@ -2411,12 +2424,6 @@ static void WanMgr_InterfaceStatus_EventHandler(rbusHandle_t handle, rbusEvent_t
 
             if( 0 == strncmp( eventName, pWanIfaceData->BaseInterface, strlen(pWanIfaceData->BaseInterface) ) )    
             {
-                rbusValue_t value;
-                value = rbusObject_GetValue(event->data, NULL);
-
-                char acStatus[16] = {0};
-                strncpy(acStatus , rbusValue_GetString(value, NULL),sizeof(acStatus)-1);
-                
                 pWanIfaceData->BaseInterfaceStatus = ( 0 == strncmp(acStatus, "Up", strlen("Up")) ) ?  WAN_IFACE_PHY_STATUS_UP : WAN_IFACE_PHY_STATUS_DOWN;
 
                 CcspTraceInfo(("%s %d: Prefix Value %s, phy status %d\n", __FUNCTION__, __LINE__, acStatus, pWanIfaceData->BaseInterfaceStatus));

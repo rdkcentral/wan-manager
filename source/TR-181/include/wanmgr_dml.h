@@ -33,6 +33,7 @@
 #define MAX_INTERFACE_GROUP           2
 #define WAN_MANAGER_VERSION         "1.5"
 #define WIFI_BASE_IFACE_PATH        "Device.WiFi.EndPoint."
+#define WANMGR_MAX_RA_DNS_SUPPORT       5   // Up to 5 DNS servers
 
 typedef enum _WANMGR_IFACE_SELECTION_STATUS
 {
@@ -177,6 +178,7 @@ typedef enum _DML_WAN_IP_SOURCE
     DML_WAN_IP_SOURCE_STATIC = 1,
     DML_WAN_IP_SOURCE_DHCP,
     DML_WAN_IP_SOURCE_PPP,
+    DML_WAN_IP_SOURCE_SLAAC
 } DML_WAN_IP_SOURCE;
 
 typedef enum _DML_WAN_IP_MODE
@@ -201,6 +203,7 @@ typedef enum _WANMGR_DHCPC_STATUS
     DHCPC_STARTED,
     DHCPC_STOPPED,
     DHCPC_FAILED,
+    DHCPC_DISABLED,
 } WANMGR_DHCPC_STATUS;
 
 typedef enum _TIMER_STATUS
@@ -299,6 +302,13 @@ typedef enum {
     WCC_RESTART,
 } WCC_EVENT;
 
+typedef enum {
+    IPV6_RA_UNKNOWN = 0,            /** if CPE failed to receive RA for RS request */
+    IPV6_RA_VALID_SLAAC,            /** if Managed Address flag(M) and Other Configuration(O) flag is Off  or Autonomous Configuration is set */
+    IPV6_RA_VALID_ADDRESS_ON_DHCP,  /** if Managed Address flag(M) is On */
+    IPV6_RA_VALID_DNS_ON_DHCP,      /** if Other Configuration(O) flag is On */
+} IPV6_RA_STATUS;
+
 typedef struct _DATAMODEL_PPP
 {
     BOOL                          Enable;
@@ -356,10 +366,12 @@ typedef struct _WANMGR_IPV6_DATA
    #endif
 } WANMGR_IPV6_DATA;
 
-typedef struct _WANMGR_IPV6_RA_DATA
+typedef struct _WANMGR_IPV6_RA_DATA 
 {
-   char defaultRoute[INET6_ADDRSTRLEN]; 
-   uint32_t defRouteLifeTime;
+    IPV6_RA_STATUS       enIPv6RAStatus;
+    bool                 DHCPStartStatusFlag;    // Confirms whether DHCP client needs to start or not based on RA flags
+    char                 acDefaultGw[INET6_ADDRSTRLEN];                          // Default Router
+    unsigned int         uiRouterLifetime;       //Router LifeTime
 } WANMGR_IPV6_RA_DATA;
 
 typedef struct _DML_WANIFACE_IP
@@ -390,7 +402,7 @@ typedef struct _DML_WANIFACE_IP
     BOOL                        Ipv6Renewed;
     WANMGR_IPV4_DATA            Ipv4Data;
     WANMGR_IPV6_DATA            Ipv6Data;
-    WANMGR_IPV6_RA_DATA         Ipv6Route;
+    WANMGR_IPV6_RA_DATA         Ipv6RA;
     ipc_dhcpv4_data_t*          pIpcIpv4Data;
     ipc_dhcpv6_data_t*          pIpcIpv6Data;
     int                         Dhcp4cPid;
