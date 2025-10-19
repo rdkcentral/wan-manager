@@ -24,6 +24,7 @@
 #include "wanmgr_rdkbus_apis.h"
 #include "dmsb_tr181_psm_definitions.h"
 #include "wanmgr_telemetry.h"
+#include "wanmgr_interface_apis.h"
 
 enum {
 ENUM_PHY = 1,
