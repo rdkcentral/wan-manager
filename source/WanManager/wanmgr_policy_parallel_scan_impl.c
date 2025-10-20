@@ -29,6 +29,7 @@
 #include "wanmgr_wan_failover.h"
 #include "wanmgr_net_utils.h"
 #include "wanmgr_telemetry.h"
+#include "wanmgr_interface_apis.h"
 
 #define ETH_HW_CONFIGURATION_DM     "Device.Ethernet.Interface.%d.Upstream"
 #define ETH_PHY_PATH_DM             "Device.Ethernet.X_RDK_Interface.%d"
