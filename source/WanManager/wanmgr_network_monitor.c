@@ -244,7 +244,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     {
        memset(&stAddrEvent, 0, sizeof(IPv6NetLinkAddrEvent));
        snprintf(stAddrEvent.event, sizeof(stAddrEvent.event), "NEWADDR");
-       snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.event), "%s", ifname);
+       snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.ifname), "%s", ifname);
        snprintf(stAddrEvent.addr, sizeof(stAddrEvent.addr), "%s", ipv6_addr);
        stAddrEvent.prefix_len    = prefix_length;
        stAddrEvent.preferred_lft = pref_lifetime;
@@ -258,7 +258,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
     {
        memset(&stAddrEvent, 0, sizeof(IPv6NetLinkAddrEvent));
        snprintf(stAddrEvent.event, sizeof(stAddrEvent.event), "DELADDR");
-       snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.event), "%s", ifname);
+       snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.ifname), "%s", ifname);
        snprintf(stAddrEvent.addr, sizeof(stAddrEvent.addr), "%s", ipv6_addr);
        stAddrEvent.prefix_len    = prefix_length;
        stAddrEvent.preferred_lft = pref_lifetime;
