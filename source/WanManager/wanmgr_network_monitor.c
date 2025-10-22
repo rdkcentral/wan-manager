@@ -257,7 +257,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
        stAddrEvent.valid_lft     = valid_lifetime;
        CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
 
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for 'NEWADDR|%s|%u|%u|%u' interface, Info '%s'\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Info 'NEWADDR|%s|%u|%u|%u' interface\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
        CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        ret = ANSC_STATUS_SUCCESS;
