@@ -211,7 +211,7 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
         return ret;
     }
 
-    CcspTraceInfo(("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index, ifname, ifa->ifa_family));
+    //CcspTraceInfo(("%s-%d [ADDR EVENT] ifindex=%d name=%s family=%d\n", __FUNCTION__, __LINE__, ifa->ifa_index, ifname, ifa->ifa_family));
 
     int len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifa));
     struct rtattr *rta = IFA_RTA(ifa);
@@ -240,50 +240,34 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
         }
     }
 
-    CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
-
     if (nlh->nlmsg_type == RTM_NEWADDR) 
     {
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        memset(&stAddrEvent, 0, sizeof(IPv6NetLinkAddrEvent));
        snprintf(stAddrEvent.event, sizeof(stAddrEvent.event), "NEWADDR");
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.ifname), "%s", ifname);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        snprintf(stAddrEvent.addr, sizeof(stAddrEvent.addr), "%s", ipv6_addr);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        stAddrEvent.prefix_len    = prefix_length;
        stAddrEvent.preferred_lft = pref_lifetime;
        stAddrEvent.valid_lft     = valid_lifetime;
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
 
-       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Info 'NEWADDR|%s|%u|%u|%u' interface\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
+       CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Info 'NEWADDR|%s|%u|%u|%u'\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
     {
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        memset(&stAddrEvent, 0, sizeof(IPv6NetLinkAddrEvent));
        snprintf(stAddrEvent.event, sizeof(stAddrEvent.event), "DELADDR");
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        snprintf(stAddrEvent.ifname, sizeof(stAddrEvent.ifname), "%s", ifname);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        snprintf(stAddrEvent.addr, sizeof(stAddrEvent.addr), "%s", ipv6_addr);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        stAddrEvent.prefix_len    = prefix_length;
        stAddrEvent.preferred_lft = pref_lifetime;
        stAddrEvent.valid_lft     = valid_lifetime;
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
 
        CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_DELADDR (address removed/expired) for '%s' interface, Info 'DELADDR|%s|%u|%u|%u'\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
-       CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
        ret = ANSC_STATUS_SUCCESS;
     }
-
-    CcspTraceInfo(("%s-%d [ADDR EVENT] '%s'\n", __FUNCTION__, __LINE__, ifname));
 
     return ret;
 }

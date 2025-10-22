@@ -2149,8 +2149,6 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
     UINT uiLoopCount;
     UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
 
-    CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
-
     for( uiLoopCount = 0; uiLoopCount < TotalIfaces; uiLoopCount++ )
     {
         WanMgr_Iface_Data_t*   pWanDmlIfaceData = WanMgr_GetIfaceData_locked(uiLoopCount);
@@ -2158,7 +2156,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
         {
             DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data); 
 
-            CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+            //CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
 
             for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
             {
@@ -2201,13 +2199,11 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
                 }
             }
 
-            CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+            //CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
         }   
 
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
     }
-    
-    CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
-                    
+                        
     return ANSC_STATUS_SUCCESS;
 }
