@@ -3028,7 +3028,7 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
             while (fgets(buffer, sizeof(buffer), fp_dad) != NULL) 
             {
                 // Look only for link-local addresses (fe80::/10)
-                if (strstr(buffer, "fe80::") != NULL) {
+                if (strstr(buffer, "fe80") != NULL) {
                     IsTentativeLinklocalFound = TRUE;
                     CcspTraceError(("%s %d: Interface(%s) still tentative: %s\n", __FUNCTION__, __LINE__, pInterfaceName, buffer));
                 }
