@@ -1864,9 +1864,6 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
         return ANSC_STATUS_FAILURE;
     }
 
-    int  uptime = 0;
-    char buffer[64] = {0};
-
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
@@ -3132,6 +3129,9 @@ static eWanState_t wan_state_phy_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl
 
     if ( pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP )
     {
+        int  uptime = 0;
+        char buffer[64] = {0};
+
         WanManager_GetDateAndUptime( buffer, &uptime );
         LOG_CONSOLE("%s [tid=%ld] Wan_init_start:%d\n", buffer, syscall(SYS_gettid), uptime);
         WanManager_PrintBootEvents (WAN_INIT_START);
