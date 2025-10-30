@@ -3053,7 +3053,7 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
     }
     else
     {
-        CcspTraceError(("%s %d: interface %s has valid link local address\n", __FUNCTION__, __LINE__, pInterfaceName));
+        CcspTraceInfo(("%s %d: interface %s has valid link local address\n", __FUNCTION__, __LINE__, pInterfaceName));
         returnStatus = ANSC_STATUS_SUCCESS;
     }
 
