@@ -1895,12 +1895,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
 
     p_VirtIf->Interface_SM_Running = TRUE;
 
-    WanManager_GetDateAndUptime( buffer, &uptime );
-    LOG_CONSOLE("%s [tid=%ld] Wan_init_start:%d\n", buffer, syscall(SYS_gettid), uptime);
-
     WanMgr_GetSelectedIPMode(p_VirtIf); //Get SelectedIPMode
-
-    WanManager_PrintBootEvents (WAN_INIT_START);
 
     return WAN_STATE_PHY_CONFIGURING;
 }
@@ -3137,6 +3132,10 @@ static eWanState_t wan_state_phy_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl
 
     if ( pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP )
     {
+        WanManager_GetDateAndUptime( buffer, &uptime );
+        LOG_CONSOLE("%s [tid=%ld] Wan_init_start:%d\n", buffer, syscall(SYS_gettid), uptime);
+        WanManager_PrintBootEvents (WAN_INIT_START);
+
         return wan_transition_vlan_configure(pWanIfaceCtrl);
     }
 
