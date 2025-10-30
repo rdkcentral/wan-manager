@@ -2070,12 +2070,6 @@ ANSC_STATUS Update_Interface_Status()
                 strncpy(prevCurrentActiveInterface,pWanDmlData->CurrentActiveInterface, sizeof(prevCurrentActiveInterface) - 1);
                 memset(pWanDmlData->CurrentActiveInterface, 0, sizeof(pWanDmlData->CurrentActiveInterface));
                 strncpy(pWanDmlData->CurrentActiveInterface,CurrentActiveInterface, sizeof(pWanDmlData->CurrentActiveInterface) - 1);
-                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked((devMode == GATEWAY_MODE) ? CurrentActiveInterface : CELLULARMGR_WAN_NAME);
-                if(pVirtIf != NULL)
-                {
-                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_WAN_UP);
-                    WanMgr_VirtualIfaceData_release(pVirtIf);
-                }			
 #ifdef RBUS_BUILD_FLAG_ENABLE
                 publishCurrentActiveInf = TRUE;
 #endif //RBUS_BUILD_FLAG_ENABLE
@@ -2093,6 +2087,16 @@ ANSC_STATUS Update_Interface_Status()
             WanMgr_Rbus_String_EventPublish_OnValueChange(WANMGR_CONFIG_WAN_CURRENT_STATUS, pWanDmlData->CurrentStatus, CurrentWanStatus);
             memset(pWanDmlData->CurrentStatus, 0, sizeof(pWanDmlData->CurrentStatus));
             strncpy(pWanDmlData->CurrentStatus, CurrentWanStatus, sizeof(pWanDmlData->CurrentStatus) - 1);
+            if(strlen(CurrentActiveInterface) > 0 && strncmp(CurrentWanStatus,"Up",sizeof(CurrentWanStatus)) == 0)
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked((devMode == GATEWAY_MODE) ? CurrentActiveInterface : CELLULARMGR_WAN_NAME);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_WAN_UP);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }
+           }
+	    
         }
 #endif
 

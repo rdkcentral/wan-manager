@@ -324,6 +324,9 @@ int main(int argc, char* argv[])
         fputs(cmd, fd);
         fclose(fd);
     }
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+    t2_init("wanmanager");
+#endif
 
 #ifdef INCLUDE_BREAKPAD
     breakpad_ExceptionHandler();
@@ -379,9 +382,7 @@ int main(int argc, char* argv[])
     waitUntilSystemReady();
 
     WanMgrDmlWanWebConfigInit();
-#ifdef ENABLE_FEATURE_TELEMETRY2_0
-    t2_init(COMPONENT_NAME_WANMANAGER);
-#endif
+    
     if ( bRunAsDaemon )
     {
         //MAIN THREAD
@@ -397,7 +398,6 @@ int main(int argc, char* argv[])
         }
     }
 
-
     //CORE FINALISE
     WanMgr_Core_Finalise();
 
@@ -412,7 +412,7 @@ int main(int argc, char* argv[])
 
     //DATA DELETE
     WanMgr_Data_Delete();
-
+    
     return 0;
 }
 
