@@ -2871,7 +2871,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
             sscanf(line, "  Retransmit time     : %u", &uiRetransmitTime);
         }
         else if (strstr(line, "Prefix")) {
-            sscanf(line, "  Prefix              : %127s", acPrefix);
+            sscanf(line, "  Prefix              : %126s", acPrefix);
         }
         else if (strstr(line, "Valid time")) {
             sscanf(line, "      Valid time      : %u", &uiValidLifetime);
