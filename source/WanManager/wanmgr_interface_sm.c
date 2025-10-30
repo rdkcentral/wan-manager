@@ -1528,7 +1528,7 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         AnscTraceError(("%s %d -  Failed to remove inactive address \n", __FUNCTION__,__LINE__));
     }
 
-    //Remove the default route and IPv6 address explitcly
+    //Remove the default route and IPv6 address explicitly
     char acCmdLine[BUFLEN_128] = {0};
     CcspTraceInfo(("%s %d -  Deleting IPv6 default route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
     snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 route del default dev %s", p_VirtIf->Name);
