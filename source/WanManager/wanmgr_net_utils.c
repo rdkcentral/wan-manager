@@ -2881,7 +2881,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
         }
         else if (strstr(line, "from")) { 
             char gw[INET6_ADDRSTRLEN] = {0};
-            if (sscanf(line, " from %s)", gw) == 1) {
+            if (sscanf(line, " from %s", gw) == 1) {
                 struct in6_addr addr;
                 if (inet_pton(AF_INET6, gw, &addr) == 1)  //check parsed value is a valid ipv6 address
                 {
