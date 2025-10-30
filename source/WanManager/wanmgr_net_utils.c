@@ -2803,7 +2803,7 @@ ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf)
                     uiHopLimit = 0,
                     uiMTUSize = 0,
                     uiDnssCount = 0;
-    char            acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64];          // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
+    char            acDnss[WANMGR_MAX_RA_DNS_SUPPORT][BUFLEN_64] = {0};    // Up to WANMGR_MAX_RA_DNS_SUPPORT DNS servers
     bool            IsRAReceived,           // Confirms whether RA received or not
                     IsMFlagSet,             // Stateful address conf. (Managed) M-flag
                     IsOFlagSet,             // Stateful other conf. (Other) O-flag
