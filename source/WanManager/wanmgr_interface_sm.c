@@ -3134,7 +3134,6 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    
     if ((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
         !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
     {
