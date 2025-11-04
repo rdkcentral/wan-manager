@@ -102,7 +102,7 @@ ANSC_STATUS WanMgr_Read_GroupConf_FromPSM(WANMGR_IFACE_GROUP *pGroup, UINT group
  *
  * @return ANSC_STATUS_SUCCESS Always returns success status.
  */
-ANSC_STATUS UpdateAndPersisteVLANInUse(DML_VIRTUAL_IFACE * pVirtIf);
+ANSC_STATUS UpdateAndPersistVLANInUse(DML_VIRTUAL_IFACE * pVirtIf);
 
 ANSC_STATUS DmlGetTotalNoOfWanInterfaces(int *wan_if_count);
 int get_Remote_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTUAL_IFACE * pVirtIf);

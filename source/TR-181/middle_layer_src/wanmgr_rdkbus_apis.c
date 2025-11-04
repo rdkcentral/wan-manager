@@ -1751,7 +1751,7 @@ PCONTEXT_LINK_OBJECT SListGetEntryByInsNum( PSLIST_HEADER pListHead, ULONG Insta
  *
  * @return ANSC_STATUS_SUCCESS Always returns success status.
  */
-ANSC_STATUS UpdateAndPersisteVLANInUse(DML_VIRTUAL_IFACE * pVirtIf)
+ANSC_STATUS UpdateAndPersistVLANInUse(DML_VIRTUAL_IFACE * pVirtIf)
 {
     char param_value[256] = {0};
     char param_name[512] = {0};
