@@ -1877,6 +1877,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
         {
             CcspTraceInfo(("%s %d - interface %s : using previously found VLAN %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->VLAN.VlanInUse));
             strncpy(p_VirtIf->VLAN.CurrentVlan, p_VirtIf->VLAN.VlanInUse, sizeof(p_VirtIf->VLAN.CurrentVlan));
+            p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
         }
         else
         {
