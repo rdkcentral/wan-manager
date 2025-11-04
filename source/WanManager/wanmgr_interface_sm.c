@@ -3189,7 +3189,6 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
     memset(&(CurrentTime), 0, sizeof(struct timespec));
     clock_gettime(CLOCK_MONOTONIC_RAW, &(CurrentTime));
 
-    
     if (((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
         !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0) && // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
        (p_VirtIf->VLAN.Reset == TRUE || difftime(CurrentTime.tv_sec, p_VirtIf->VLAN.TimerStart.tv_sec) > p_VirtIf->VLAN.Timeout))||
