@@ -504,7 +504,7 @@ typedef struct _DML_VLAN_IFACE_TABLE
     ULONG                       Index;
     UINT                        VirIfIdx;
     UINT                        baseIfIdx;
-    CHAR                        Interface[BUFLEN_128];;
+    CHAR                        Interface[BUFLEN_128];
 }DML_VLAN_IFACE_TABLE;
 
 typedef enum _VLAN_DISCOVERY_MODE
