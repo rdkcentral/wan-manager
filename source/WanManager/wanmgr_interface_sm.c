@@ -2182,6 +2182,7 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
             }
             p_VirtIf->VLAN.ActiveIndex = pVlanIf->Index;
             strncpy(p_VirtIf->VLAN.CurrentVlan, pVlanIf->Interface, (sizeof(p_VirtIf->VLAN.CurrentVlan) - 1));
+            p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
             CcspTraceInfo(("%s %d VLAN Discovery . Trying VlanIndex: %d : %s\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.ActiveIndex, p_VirtIf->VLAN.CurrentVlan));
         }
 
