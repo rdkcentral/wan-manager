@@ -821,12 +821,15 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->Status = WAN_IFACE_STATUS_DISABLED;
     pVirtIf->RemoteStatus = WAN_IFACE_STATUS_DISABLED;
     pVirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_DOWN;
+
     pVirtIf->VLAN.Enable = FALSE;
     pVirtIf->VLAN.NoOfMarkingEntries = 0;
     pVirtIf->VLAN.Timeout = 0;
     pVirtIf->VLAN.ActiveIndex = -1;
     pVirtIf->VLAN.NoOfInterfaceEntries = 0;
     memset(pVirtIf->VLAN.VLANInUse,0, sizeof(pVirtIf->VLAN.VLANInUse));
+    memset(pVirtIf->VLAN.CurrentVlan,0, sizeof(pVirtIf->VLAN.CurrentVlan));
+    pVirtIf->VLAN.VlanDiscoveryMode = VLAN_DISCOVERY_MODE_ALWAYS;
     pVirtIf->Reset = FALSE;
     memset(pVirtIf->IP.Interface, 0, 64);
     memset(pVirtIf->IP.DHCPv4Iface, 0, 128);

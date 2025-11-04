@@ -507,13 +507,21 @@ typedef struct _DML_VLAN_IFACE_TABLE
     CHAR                        Interface[BUFLEN_128];;
 }DML_VLAN_IFACE_TABLE;
 
+typedef enum _VLAN_DISCOVERY_MODE
+{
+    VLAN_DISCOVERY_MODE_ALWAYS = 0, //Do VLAN discovery every reboot
+    VLAN_DISCOVERY_MODE_ONCE,  // Do VLAN discovery only if we did not find any VLANs previously
+} VLAN_DISCOVERY_MODE;
+
 typedef struct _DML_VIRTUALIF_VLAN
 {
     BOOL                        Enable;
-    CHAR                        VLANInUse[BUFLEN_128];
+    CHAR                        VLANInUse[BUFLEN_128]; //Valid VLAN found from the discovery (will be persisted)
+    CHAR                        CurrentVlan[BUFLEN_128]; //Temp variable for currently used/tried VLAN in the VISM. TODO : could be moved to VISM internal temp variable
     UINT                        ActiveIndex;
     UINT                        Timeout;
     UINT                        NoOfInterfaceEntries;
+    UINT                        DiscoveryMode; // VLAN_DISCOVERY_MODE
     DML_VLAN_IFACE_TABLE*       InterfaceList;
     UINT                        NoOfMarkingEntries;
     DML_VIRTIF_MARKING*         VirtMarking;

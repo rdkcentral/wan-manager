@@ -310,6 +310,12 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERYMODE, instancenum, (virtInsNum + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.VlanDiscoveryMode));
+
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_MARKING_COUNT, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.NoOfMarkingEntries));
@@ -1734,18 +1740,34 @@ PCONTEXT_LINK_OBJECT SListGetEntryByInsNum( PSLIST_HEADER pListHead, ULONG Insta
 
     return NULL;
 }
-
-ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
+/**
+ * @brief Updates the VLAN in use parameter and stores it to persisted memory.
+ *
+ * This function compares the VLANInUse field with the CurrentVlan field of the provided
+ * DML_VIRTUAL_IFACE structure. If they differ, it updates VLANInUse ,
+ * and persists the new value to the database using WanMgr_RdkBus_SetParamValuesToDB.
+ *
+ * @param[in,out] pVirtIf Pointer to the DML_VIRTUAL_IFACE structure whose VLAN information is to be updated.
+ *
+ * @return ANSC_STATUS_SUCCESS Always returns success status.
+ */
+ANSC_STATUS UpdateAndPersisteVLANInUse(DML_VIRTUAL_IFACE * pVirtIf)
 {
     char param_value[256] = {0};
     char param_name[512] = {0};
 
-
-    AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
-    WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+    // Compare VLANInUse with CurrentVlan and update if different
+    if (strcmp(pVirtIf->VLAN.VLANInUse, pVirtIf->VLAN.CurrentVlan) != 0)
+    {
+        CcspTraceInfo(("%s %d VLANInUse changed, updating: %s => %s\n", 
+                       __FUNCTION__, __LINE__, pVirtIf->VLAN.VLANInUse, pVirtIf->VLAN.CurrentVlan));
+        AnscCopyString(pVirtIf->VLAN.VLANInUse, pVirtIf->VLAN.CurrentVlan);
     
+        AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
+        _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
+        CcspTraceInfo(("%s %d Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+        WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+    }
      return ANSC_STATUS_SUCCESS;
 }
 

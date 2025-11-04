@@ -47,6 +47,7 @@
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE                  "dmsb.wanmanager.if.%d.VirtualInterface.%d.VlanInUse"
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_TIMEOUT                "dmsb.wanmanager.if.%d.VirtualInterface.%d.Timeout" //VLAN timeout
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_COUNT        "dmsb.wanmanager.if.%d.VirtualInterface.%d.VlanCount"
+#define PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERY_MODE         "dmsb.wanmanager.if.%d.VirtualInterface.%d.VlanDiscoveryMode"
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_ENTRY        "dmsb.wanmanager.if.%d.VirtualInterface.%d.VLAN.%d.Interface"
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_MARKING_COUNT          "dmsb.wanmanager.if.%d.VirtualInterface.%d.MarkingCount"
 #define PSM_WANMANAGER_IF_VIRIF_VLAN_MARKING_ENTRY          "dmsb.wanmanager.if.%d.VirtualInterface.%d.Marking.%d.Entry"
