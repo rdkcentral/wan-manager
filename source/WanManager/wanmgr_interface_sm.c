@@ -1884,6 +1884,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
             p_VirtIf->VLAN.ActiveIndex = 0;
             DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
             strncpy(p_VirtIf->VLAN.CurrentVlan, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.CurrentVlan));
+            p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
         }
 
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
