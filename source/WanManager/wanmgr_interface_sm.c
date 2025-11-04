@@ -1873,10 +1873,10 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     /*TODO: VLAN should not be set for Remote Interface, for More info, refer RDKB-42676*/
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
-        if(strlen(p_VirtIf->VLAN.VlanInUse) > 0)
+        if(strlen(p_VirtIf->VLAN.VLANInUse) > 0)
         {
-            CcspTraceInfo(("%s %d - interface %s : using previously found VLAN %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->VLAN.VlanInUse));
-            strncpy(p_VirtIf->VLAN.CurrentVlan, p_VirtIf->VLAN.VlanInUse, sizeof(p_VirtIf->VLAN.CurrentVlan));
+            CcspTraceInfo(("%s %d - interface %s : using previously found VLAN %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->VLAN.VLANInUse));
+            strncpy(p_VirtIf->VLAN.CurrentVlan, p_VirtIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.CurrentVlan));
             p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
         }
         else
@@ -3025,7 +3025,7 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
     }
 
     if ((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
-        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VlanInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
     {
         struct timespec CurrentTime;
         /* get the current time */
@@ -3082,7 +3082,7 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
 
 
     if ((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
-        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VlanInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
     {
         struct timespec CurrentTime;
         /* get the current time */
@@ -3136,7 +3136,7 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
 
     
     if ((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
-        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VlanInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
     {
         struct timespec CurrentTime;
         /* get the current time */
@@ -3191,7 +3191,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
 
     
     if (((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
-        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VlanInUse) > 0) && // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0) && // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
        (p_VirtIf->VLAN.Reset == TRUE || difftime(CurrentTime.tv_sec, p_VirtIf->VLAN.TimerStart.tv_sec) > p_VirtIf->VLAN.Timeout))||
        (p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status ==  WAN_IFACE_LINKSTATUS_DOWN ) ||
        (p_VirtIf->PPP.Enable == TRUE && p_VirtIf->PPP.LinkStatus ==  WAN_IFACE_PPP_LINK_STATUS_DOWN))
