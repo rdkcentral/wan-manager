@@ -521,7 +521,7 @@ typedef struct _DML_VIRTUALIF_VLAN
     UINT                        ActiveIndex;
     UINT                        Timeout;
     UINT                        NoOfInterfaceEntries;
-    UINT                        DiscoveryMode; // VLAN_DISCOVERY_MODE
+    VLAN_DISCOVERY_MODE         DiscoveryMode; 
     DML_VLAN_IFACE_TABLE*       InterfaceList;
     UINT                        NoOfMarkingEntries;
     DML_VIRTIF_MARKING*         VirtMarking;
