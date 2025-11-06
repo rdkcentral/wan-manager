@@ -29,6 +29,7 @@
 #ifdef RBUS_BUILD_FLAG_ENABLE
 #include "wanmgr_rbus_handler_apis.h"
 #endif //RBUS_BUILD_FLAG_ENABLE
+#include "wanmgr_network_monitor.h"
 
 ANSC_STATUS WanMgr_Core_Init(void)
 {
@@ -47,7 +48,13 @@ ANSC_STATUS WanMgr_Core_Init(void)
     {
         CcspTraceInfo(("%s %d - IPC Thread failed to start!\n", __FUNCTION__, __LINE__ ));
     }
-    v_secure_system("netmonitor &");
+    
+    //Starts the Network Monitor thread
+    retStatus = WanMgr_StartNetWorkMonitor();
+    if(retStatus != ANSC_STATUS_SUCCESS)
+    {
+        CcspTraceInfo(("%s %d - Network Monitor Thread failed to start!\n", __FUNCTION__, __LINE__ ));
+    }
 
     return retStatus;
 }

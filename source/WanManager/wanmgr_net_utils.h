@@ -43,6 +43,11 @@
 #define WAN_STATUS_UP   "up"
 #define WAN_STATUS_DOWN "down"
 
+#define MSECS_IN_SEC                      1000
+#define USECS_IN_MSEC                     1000
+#define INTF_V6LL_INTERVAL_IN_MSEC       (0.5 * MSECS_IN_SEC)  // 0.5 sec - half a second
+#define INTF_V6LL_TIMEOUT_IN_MSEC        (5 * MSECS_IN_SEC)    // 5 sec
+
 #define WAN_IF_MARKING_MAX_LIMIT       ( 15 )
 typedef  struct _CONTEXT_MARKING_LINK_OBJECT
 {
@@ -259,6 +264,7 @@ ANSC_STATUS WanManager_CheckGivenTypeExists(INT IfIndex, UINT uiTotalIfaces, DML
 ANSC_STATUS WanManager_CheckGivenPriorityExists(INT IfIndex, UINT uiTotalIfaces, INT priority, BOOL *Status);
 INT WanMgr_StartIpMonitor(UINT iface_index);
 bool WanManager_IsNetworkInterfaceAvailable( char *IfaceName );
+bool WanManager_IsNetworkInterfaceUp( char *IfaceName ) ;
 int WanMgr_RdkBus_AddIntfToLanBridge (char * PhyPath, BOOL AddToBridge);
 void WanManager_PrintBootEvents (WanBootEventState state);
 /***************************************************************************
@@ -271,4 +277,8 @@ BOOL IsValidIpAddress(int32_t af, const char *address);
 
 
 int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
+
+ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout);
+ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf);
+
 #endif // _WANMGR_NET_UTILS_H_
