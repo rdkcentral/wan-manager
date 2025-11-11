@@ -325,114 +325,72 @@ int isModuleLoaded(char *moduleName)
  ****************************************************************************/
 static INT IsIPObtained(char *pInterfaceName);
 
-int WanManager_Ipv6PrefixUtil(char *ifname, Ipv6OperType opr, int preflft, int vallft)
+/***************************************************************************
+ * @brief Utility function used to perform operation on IPV6 addresses
+ * for a particular interface
+ * @param p_VirtIf Pointer to the virtual interface
+ * @param opr indicates operation type (Delete/Set)
+ * @return 0 upon success else -1 returned
+ ***************************************************************************/
+int WanManager_Ipv6AddrUtil(DML_VIRTUAL_IFACE* p_VirtIf,Ipv6OperType opr)
 {
     char cmdLine[128] = {0};
-    char prefix[BUFLEN_48] = {0};
-    char prefixAddr[BUFLEN_48] = {0};
-    char IfaceName[BUFLEN_16] = {0};
-    int BridgeMode = 0;
-
-    memset(prefix, 0, sizeof(prefix));
-    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, sizeof(prefix));
-
-    memset(prefixAddr, 0, sizeof(prefixAddr));
-    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_GLOBAL_IPV6_PREFIX_SET, prefixAddr, sizeof(prefixAddr));
-
-    { //TODO : temporary debug code to identify the bridgemode sysevent failure issue.
-        char Output[BUFLEN_16] = {0};
-        if (sysevent_get(sysevent_fd, sysevent_token, "bridge_mode", Output, sizeof(Output)) !=0)
-        {
-            CcspTraceError(("%s-%d: bridge_mode sysevent get failed. \n", __FUNCTION__, __LINE__));
-        }
-        BridgeMode = atoi(Output);
-        CcspTraceInfo(("%s-%d: <<DEBUG>> bridge_mode sysevent value set to =%d \n", __FUNCTION__, __LINE__,  BridgeMode));
-    }
-
-    /*TODO:
-     *Below Code should be removed once V6 Prefix/IP is assigned on erouter0 Instead of brlan0 for sky Devices. 
-     */
-    strcpy(IfaceName, LAN_BRIDGE_NAME);
-    if (WanMgr_isBridgeModeEnabled() == TRUE)
-    {
-        memset(IfaceName, 0, sizeof(IfaceName));
-        strncpy(IfaceName, ifname, strlen(ifname));
-    }
-
-    CcspTraceInfo(("%s-%d: IfaceName=%s \n", __FUNCTION__, __LINE__, IfaceName));
 
     switch (opr)
     {
         case DEL_ADDR:
         {
-            if (strlen(prefix) > 0)
+            if (strlen( p_VirtIf->IP.Ipv6Data.address) > 0)
             {
-#if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) //Do not delete prefix from LAn bridge for the comcast platforms.
-#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
-                WanMgr_Config_Data_t    *pWanConfigData = WanMgr_GetConfigData_locked();
-                unsigned char           ConfigureWANIPv6OnLANBridgeSupport = FALSE;
-
-                if( NULL != pWanConfigData )
-                {
-                    ConfigureWANIPv6OnLANBridgeSupport = pWanConfigData->data.ConfigureWANIPv6OnLANBridgeSupport;
-                    WanMgrDml_GetConfigData_release(pWanConfigData);
-                }
-
-                if ( TRUE == ConfigureWANIPv6OnLANBridgeSupport )
-#endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
-                {
-                    memset(cmdLine, 0, sizeof(cmdLine));
-                    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/64 dev %s", prefixAddr, IfaceName);
-                    if (WanManager_DoSystemActionWithStatus("ip -6 addr del ADDR dev xxxx", cmdLine) != 0)
-                        CcspTraceError(("failed to run cmd: %s", cmdLine));
-                }
-#endif
                 memset(cmdLine, 0, sizeof(cmdLine));
-#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
-                snprintf(cmdLine, sizeof(cmdLine), "ip -6 route flush match %s ", prefix);
-#else
-                snprintf(cmdLine, sizeof(cmdLine), "ip -6 route flush %s ", prefix);
-#endif
-                if (WanManager_DoSystemActionWithStatus("ip -6 route flush PREFIX ", cmdLine) != 0)
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+                if (WanManager_DoSystemActionWithStatus("ip -6 addr del ADDR dev xxxx", cmdLine) != 0)
                     CcspTraceError(("failed to run cmd: %s", cmdLine));
 
-                CcspTraceInfo(("%s-%d: Successfully del addr and route from Interface %s, prefix=%s, prefixAddr=%s \n",
-       	                               __FUNCTION__, __LINE__, IfaceName, prefix, prefixAddr));
+                memset(cmdLine, 0, sizeof(cmdLine));
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 route flush match %s ", p_VirtIf->IP.Ipv6Data.address);
+
+                if (WanManager_DoSystemActionWithStatus(cmdLine, cmdLine) != 0)
+                    CcspTraceError(("failed to run cmd: %s", cmdLine));
+
+                CcspTraceInfo(("%s-%d: Successfully del addr and route from Interface %s,  Ipv6 Addr=%s \n",
+       	                               __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address));
 
                 memset(cmdLine, 0, sizeof(cmdLine));
                 snprintf(cmdLine, sizeof(cmdLine), "ip -6 route delete default");
                 if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", cmdLine) != 0)
                     CcspTraceError(("failed to run cmd: %s", cmdLine));
 
+                CcspTraceInfo(("%s-%d: Successfully deleted ipv6 default route\n", __FUNCTION__, __LINE__));
             }
             else
             {
-                CcspTraceError(("%s-%d: Failed to delete addr and route from Interface %s, prefix=%s, prefixAddr=%s \n",
-       	                                __FUNCTION__, __LINE__, IfaceName, prefix, prefixAddr));
+                CcspTraceError(("%s-%d: Failed to delete addr and route from Interface %s, IPv6 Addr=%s \n",
+       	                                __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address));
             }
             break;
         }
+
         case SET_LFT:
         {
-            if (strlen(prefixAddr) > 0)
+            if (strlen(p_VirtIf->IP.Ipv6Data.address) > 0)
             {
                 memset(cmdLine, 0, sizeof(cmdLine));
-                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr change %s dev %s valid_lft %d preferred_lft %d ", prefixAddr, IfaceName, vallft, preflft);
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr change %s dev %s valid_lft %d preferred_lft %d ", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime);
                 if (WanManager_DoSystemActionWithStatus("processDhcp6cStateChanged: ip -6 addr change L3IfName", (cmdLine)) != 0)
                     CcspTraceError(("failed to run cmd: %s", cmdLine));
 
-                CcspTraceInfo(("%s-%d: Successfully updated addr from Interface %s, prefixAddr=%s, vallft=%d, preflft=%d \n",
-                                       __FUNCTION__, __LINE__, IfaceName, prefixAddr, vallft, preflft));
+                CcspTraceInfo(("%s-%d: Successfully updated addr from Interface %s, Ipv6 Addr=%s, vallft=%d, preflft=%d \n",
+                                       __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime));
             }
 	    else
             {
-                CcspTraceError(("%s-%d: Failed to update addr from Interface %s, prefixAddr=%s, vallft=%d, preflft=%d \n",
-                                        __FUNCTION__, __LINE__, IfaceName, prefixAddr, vallft, preflft));
+                CcspTraceError(("%s-%d: Failed to update addr from Interface %s, Ipv6 Addr=%s, vallft=%d, preflft=%d \n",
+                                        __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime));
             }
             break;
         }
     }
-
     return 0;
 }
 

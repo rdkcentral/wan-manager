@@ -67,6 +67,7 @@ extern int WanMgr_TriggerPrimaryDnsConnectivityRestart(void);
 #endif
 #endif
 
+
 static int isDefaultGatewayAdded = 0; //global varibale for default route status.
 static int lan_wan_started = 0;
 static int ipv4_connection_up = 0;
@@ -75,10 +76,6 @@ static void check_lan_wan_ready();
 static int set_default_conf_entry();
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 int mapt_feature_enable_changed = FALSE;
-#endif
-
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-lanState_t lanState = LAN_STATE_RESET;
 #endif
 
 #if defined(_DT_WAN_Manager_Enable_)
@@ -618,6 +615,8 @@ static void *WanManagerSyseventHandler(void *args)
     async_id_t primary_v6ipaddress_asyncid;
 #endif
 #endif
+    sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
+    sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
 
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
@@ -1205,7 +1204,6 @@ int Force_IPv6_toggle (char* wanInterface)
     }
 
     isDefaultGatewayAdded = 1; //Reset isDefaultGatewayAdded flag;
-    
     return ret;
 }
 
