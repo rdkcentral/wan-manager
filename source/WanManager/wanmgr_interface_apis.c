@@ -58,6 +58,7 @@ int WanMgr_StartWanVISM(int interfaceIndex, WANMGR_IFACE_SELECTION selectionStat
         else
         {
             CcspTraceError(("%s %d: Invalid selection status %d for interfaceIndex=%d\n", __FUNCTION__, __LINE__, selectionStatus, interfaceIndex));
+            WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
             return -1;
         }
         /**
