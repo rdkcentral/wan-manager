@@ -1630,7 +1630,17 @@ BOOL WanVirtualIf_SetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
         }
         if (strcmp(ParamName, "Reset") == 0)
         {
+            CcspTraceInfo(("%s %d VirtualInterface %d VLAN discovery Reset triggered. \n", __FUNCTION__, __LINE__, p_VirtIf->VirIfIdx+1));
             //This DM is used for Resetting VLAN discovery.
+            if(bValue == TRUE && (p_VirtIf->VLAN.NoOfInterfaceEntries > 1))
+            {
+		CHAR param_name[BUFLEN_256] = {0};
+                CcspTraceInfo(("%s %d Resetting VLANInUse \n", __FUNCTION__, __LINE__));
+                memset(p_VirtIf->VLAN.VLANInUse, 0, sizeof(p_VirtIf->VLAN.VLANInUse));
+                snprintf(param_name, sizeof(param_name), PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (p_VirtIf->baseIfIdx + 1), (p_VirtIf->VirIfIdx + 1));
+                CcspTraceInfo(("%s %d Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name, p_VirtIf->VLAN.VLANInUse));
+                WanMgr_RdkBus_SetParamValuesToDB(param_name,p_VirtIf->VLAN.VLANInUse);
+            }
             p_VirtIf->VLAN.Reset = bValue;
             ret = TRUE;
         }

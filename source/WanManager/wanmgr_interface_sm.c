@@ -404,9 +404,9 @@ static BOOL WanMgr_RestartFindExistingLink (WanMgr_IfaceSM_Controller_t* pWanIfa
         }
     }
 
-    if(p_VirtIf->VLAN.Enable == TRUE && (strlen(p_VirtIf->VLAN.VLANInUse) > 0))
+    if(p_VirtIf->VLAN.Enable == TRUE && (strlen(p_VirtIf->VLAN.CurrentVlan) > 0))
     {
-        snprintf(dmQuery, sizeof(dmQuery)-1,"%s.Status",p_VirtIf->VLAN.VLANInUse);
+        snprintf(dmQuery, sizeof(dmQuery)-1,"%s.Status",p_VirtIf->VLAN.CurrentVlan);
 
         if ( ANSC_STATUS_FAILURE == WanMgr_RdkBus_GetParamValueFromAnyComp (dmQuery, dmValue))
         {
@@ -1871,6 +1871,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     p_VirtIf->IP.Ipv6Status = WAN_IFACE_IPV6_STATE_DOWN;
     p_VirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
+    memset(p_VirtIf->VLAN.CurrentVlan, 0, sizeof(p_VirtIf->VLAN.CurrentVlan));
 
     p_VirtIf->Status = WAN_IFACE_STATUS_INITIALISING;
 
@@ -1911,14 +1912,22 @@ static eWanState_t wan_transition_vlan_configure(WanMgr_IfaceSM_Controller_t* pW
     /*TODO: VLAN should not be set for Remote Interface, for More info, refer RDKB-42676*/
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
     {
-        if(p_VirtIf->VLAN.VLANInUse == NULL || strlen(p_VirtIf->VLAN.VLANInUse) <=0)
+        if(strlen(p_VirtIf->VLAN.VLANInUse) > 0)
         {
+            CcspTraceInfo(("%s %d - interface %s : using previously found VLAN %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->VLAN.VLANInUse));
+            strncpy(p_VirtIf->VLAN.CurrentVlan, p_VirtIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.CurrentVlan));
+            p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
+        }
+        else
+        {
+            CcspTraceInfo(("%s %d - interface %s : no previously found VLAN. Using first VLAN from the list\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
             p_VirtIf->VLAN.ActiveIndex = 0;
             DML_VLAN_IFACE_TABLE* pVlanIf = WanMgr_getVirtVlanIfById(p_VirtIf->VLAN.InterfaceList, p_VirtIf->VLAN.ActiveIndex);
-            strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.VLANInUse));
+            strncpy(p_VirtIf->VLAN.CurrentVlan, pVlanIf->Interface, sizeof(p_VirtIf->VLAN.CurrentVlan));
+            p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
         }
+
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
-        //TODO: NEW_DESIGN check for VLAN table
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
 
@@ -2199,8 +2208,9 @@ static eWanState_t wan_transition_wan_refreshed(WanMgr_IfaceSM_Controller_t* pWa
 
             }
             p_VirtIf->VLAN.ActiveIndex = pVlanIf->Index;
-            strncpy(p_VirtIf->VLAN.VLANInUse, pVlanIf->Interface, (sizeof(p_VirtIf->VLAN.VLANInUse) - 1));
-            CcspTraceInfo(("%s %d VLAN Discovery . Trying VlanIndex: %d : %s\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.ActiveIndex, p_VirtIf->VLAN.VLANInUse));
+            strncpy(p_VirtIf->VLAN.CurrentVlan, pVlanIf->Interface, (sizeof(p_VirtIf->VLAN.CurrentVlan) - 1));
+            p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
+            CcspTraceInfo(("%s %d VLAN Discovery . Trying VlanIndex: %d : %s\n", __FUNCTION__, __LINE__,p_VirtIf->VLAN.ActiveIndex, p_VirtIf->VLAN.CurrentVlan));
         }
 
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
@@ -2294,7 +2304,7 @@ static eWanState_t wan_transition_ipv4_up(WanMgr_IfaceSM_Controller_t* pWanIface
         return WAN_STATE_DUAL_STACK_ACTIVE;
     }
 
-    DmlSetVLANInUseToPSMDB(p_VirtIf);
+    UpdateAndPersistVLANInUse(p_VirtIf);
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV4 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
 
     return WAN_STATE_IPV4_LEASED;
@@ -2567,7 +2577,7 @@ static eWanState_t wan_transition_ipv6_up(WanMgr_IfaceSM_Controller_t* pWanIface
         return WAN_STATE_DUAL_STACK_ACTIVE;
     }
 
-    DmlSetVLANInUseToPSMDB(p_VirtIf);
+    UpdateAndPersistVLANInUse(p_VirtIf);
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
     return WAN_STATE_IPV6_LEASED;
 }
@@ -3012,7 +3022,7 @@ static eWanState_t wan_transition_standby(WanMgr_IfaceSM_Controller_t* pWanIface
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
 
     Update_Interface_Status();
-    DmlSetVLANInUseToPSMDB(p_VirtIf);
+    UpdateAndPersistVLANInUse(p_VirtIf);
     CcspTraceInfo(("%s %d - TRANSITION WAN_STATE_STANDBY\n", __FUNCTION__, __LINE__));
     return WAN_STATE_STANDBY;
 }
@@ -3161,7 +3171,8 @@ static eWanState_t wan_state_vlan_configuring(WanMgr_IfaceSM_Controller_t* pWanI
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
+    if ((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
     {
         struct timespec CurrentTime;
         /* get the current time */
@@ -3216,7 +3227,9 @@ static eWanState_t wan_state_ppp_configuring(WanMgr_IfaceSM_Controller_t* pWanIf
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
+
+    if ((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
     {
         struct timespec CurrentTime;
         /* get the current time */
@@ -3268,7 +3281,8 @@ static eWanState_t wan_state_validating_wan(WanMgr_IfaceSM_Controller_t* pWanIfa
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if(p_VirtIf->VLAN.NoOfInterfaceEntries > 1 )
+    if ((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0)) // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
     {
         struct timespec CurrentTime;
         /* get the current time */
@@ -3328,7 +3342,8 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
     memset(&(CurrentTime), 0, sizeof(struct timespec));
     clock_gettime(CLOCK_MONOTONIC_RAW, &(CurrentTime));
 
-    if((p_VirtIf->VLAN.NoOfInterfaceEntries > 1 &&
+    if (((p_VirtIf->VLAN.NoOfInterfaceEntries > 1) && // Multiple VLANs configured, we can do discovery
+        !(p_VirtIf->VLAN.DiscoveryMode == VLAN_DISCOVERY_MODE_ONCE && strlen(p_VirtIf->VLAN.VLANInUse) > 0) && // If discovery mode is ONCE and we have already discovered a VLAN, skip the vlan discovery check
        (p_VirtIf->VLAN.Reset == TRUE || difftime(CurrentTime.tv_sec, p_VirtIf->VLAN.TimerStart.tv_sec) > p_VirtIf->VLAN.Timeout))||
        (p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status ==  WAN_IFACE_LINKSTATUS_DOWN ) ||
        (p_VirtIf->PPP.Enable == TRUE && p_VirtIf->PPP.LinkStatus ==  WAN_IFACE_PPP_LINK_STATUS_DOWN))
