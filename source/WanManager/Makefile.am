@@ -48,3 +48,7 @@ wanmanager_SOURCES += wanmgr_dhcp_event_handler.c
 else
 wanmanager_LDADD += -ldhcp_client_utils
 endif
+
+if DSLITE_SUPPORT
+wanmanager_SOURCES += wanmgr_dslite.c
+endif

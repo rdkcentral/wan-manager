@@ -32,7 +32,9 @@
 //Minimum SelectionTimeOut Value
 #define SELECTION_TIMEOUT_DEFAULT_MIN 20
 #define MAX_WAN_INTERFACE_ENTRY       32
-
+#ifdef FEATURE_DSLITE_V2
+#define MAX_DSLITE_CONFIG_ENTRY      16
+#endif
 //WAN CONFIG
 WanMgr_Config_Data_t* WanMgr_GetConfigData_locked(void);
 void WanMgrDml_GetConfigData_release(WanMgr_Config_Data_t* pWanConfigData);
@@ -85,4 +87,16 @@ WANMGR_IFACE_GROUP* WanMgr_GetIfaceGroup_locked(UINT iface_index);
 void WanMgrDml_GetIfaceGroup_release(void);
 ANSC_STATUS WanMgr_UpdatePrevData(void);
 void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index);
+
+#ifdef FEATURE_DSLITE_V2
+/* Data access and list management functions */
+DML_VIRTUAL_IFACE* WanMgr_GetVirtIfDataByDSLiteAlias_locked(char* Alias);
+ANSC_STATUS WanMgr_DSLite_RemoveFromList(UINT inst);
+ANSC_STATUS WanMgr_DSLite_AddToList(UINT inst);
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByInstance_locked(UINT inst);
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByIdx_locked(UINT idx);
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByAlias_locked(char *Alias);
+WanMgr_DSLite_Data_t* WanMgr_GetDSLiteData_locked(void);
+void WanMgr_GetDSLiteData_release(void);
+#endif
 #endif  //_WANMGR_DATA_H_

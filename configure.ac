@@ -113,6 +113,18 @@ AC_ARG_ENABLE([dhcp_manager],
              [echo "dhcp manager is disabled"])
 AM_CONDITIONAL(DHCPMANAGER_ENABLED, test "x$DHCPMANAGER_SUPPORT_ENABLED" = xtrue)
 
+AC_ARG_ENABLE([dslite_v2],
+             AS_HELP_STRING([--enable-dslite-v2],[enable next generation DSLite support (default is no)]),
+             [
+              case "${enableval}" in
+               yes) DSLITE_SUPPORT_ENABLED=true;;
+               no)  DSLITE_SUPPORT_ENABLED=false;;
+               *) AC_MSG_ERROR([bad value ${enableval} for --enable-dslite-v2 ]);;
+              esac
+             ],
+             [echo "DSLite support is disabled"])
+AM_CONDITIONAL(DSLITE_SUPPORT, test "x$DSLITE_SUPPORT_ENABLED" = xtrue)
+
 dnl Checks for header files.
 AC_CHECK_HEADERS([limits.h memory.h stdlib.h string.h sys/socket.h unistd.h])
 

@@ -1524,7 +1524,21 @@ BOOL WanVirtualIf_GetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
         }
         if (strcmp(ParamName, "EnableDSLite") == 0)
         {
+#ifdef FEATURE_DSLITE_V2
+            /* EnableDSLite is read-only, derived from mapped DSLite entry's Enable field */
+            *pBool = FALSE;
+            if (p_VirtIf->DSLite.Path[0] != '\0')
+            {
+                DML_DSLITE_LIST *entry = WanMgr_getDSLiteEntryByAlias_locked(p_VirtIf->DSLite.Path);
+                if (entry)
+                {
+                    *pBool = entry->CurrCfg.Enable;
+                    WanMgr_GetDSLiteData_release();
+                }
+            }
+#else
             *pBool = p_VirtIf->EnableDSLite;
+#endif
             ret = TRUE;
         }
         if (strcmp(ParamName, "EnableIPoEHealthCheck") == 0)
@@ -1602,11 +1616,13 @@ BOOL WanVirtualIf_SetParamBoolValue(ANSC_HANDLE hInsContext, char* ParamName, BO
             }
             ret = TRUE;
         }
+#ifndef FEATURE_DSLITE_V2
         if (strcmp(ParamName, "EnableDSLite") == 0)
         {
             p_VirtIf->EnableDSLite = bValue;
             ret = TRUE;
         }
+#endif
         if (strcmp(ParamName, "EnableIPoEHealthCheck") == 0)
         {
             CONNECTIVITY_CHECK_TYPE type = bValue? WAN_CONNECTIVITY_TYPE_IHC:WAN_CONNECTIVITY_TYPE_NO_CHECK;
