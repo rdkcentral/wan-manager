@@ -21,6 +21,10 @@
 #include "wanmgr_data.h"
 #include "wanmgr_rdkbus_apis.h"
 
+#ifdef FEATURE_DSLITE_V2
+#include "wanmgr_dslite.h"
+#endif
+
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED) && (defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_))
 extern ANSC_STATUS WanMgr_CheckAndResetV2PSMEntries(UINT IfaceCount);
 #endif
@@ -28,6 +32,369 @@ extern ANSC_STATUS WanMgr_CheckAndResetV2PSMEntries(UINT IfaceCount);
 /******** WAN MGR DATABASE ********/
 WANMGR_DATA_ST gWanMgrDataBase;
 
+#ifdef FEATURE_DSLITE_V2
+/******** WANMGR DSLITE FUNCTIONS ********/
+ANSC_STATUS WanMgr_DSLite_UpdateVirtIfDSLiteCfg(UINT inst)
+{
+    DML_DSLITE_LIST *entry;
+    DML_VIRTUAL_IFACE *p_VirtIf;
+
+    entry = WanMgr_getDSLiteEntryByInstance_locked(inst);
+    if (!entry)
+        return ANSC_STATUS_FAILURE;
+
+    p_VirtIf = WanMgr_GetVirtIfDataByDSLiteAlias_locked(entry->CurrCfg.Alias);
+    if (!p_VirtIf)
+    {
+        WanMgr_GetDSLiteData_release();
+        return ANSC_STATUS_FAILURE;
+    }
+
+    if (p_VirtIf->EnableDSLite != entry->CurrCfg.Enable)
+    {
+        p_VirtIf->EnableDSLite = entry->CurrCfg.Enable;
+        p_VirtIf->DSLite.Changed = TRUE;
+        WanMgr_SetDSLiteEnableToPSM(p_VirtIf, p_VirtIf->EnableDSLite);
+
+    }
+    WanMgr_VirtualIfaceData_release(p_VirtIf);
+
+    WanMgr_GetDSLiteData_release();
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS WanMgr_DSLite_WriteDSLiteCfgToSyscfg(void)
+{
+    WanMgr_DSLite_Data_t *pDSLiteData;
+    ANSC_STATUS ret = ANSC_STATUS_SUCCESS;
+
+    pDSLiteData = WanMgr_GetDSLiteData_locked();
+    if (!pDSLiteData)
+        return ANSC_STATUS_FAILURE;
+
+    if (pDSLiteData->Changed)
+    {
+        CcspTraceInfo(("%s: Writing DSLite main config to sysCfg\n", __FUNCTION__));
+
+        if (WanMgr_SysCfgSetUint("dslite_next_insNum", pDSLiteData->NextInstanceNumber) != ANSC_STATUS_SUCCESS)
+        {
+            CcspTraceError(("%s: Failed to set dslite_next_instance_number in syscfg\n", __FUNCTION__));
+            ret = ANSC_STATUS_FAILURE;
+        }
+        if (WanMgr_SysCfgSetUint("dslite_count", pDSLiteData->InterfaceSettingNumberOfEntries) != ANSC_STATUS_SUCCESS)
+        {
+            CcspTraceError(("%s: Failed to set dslite_count in syscfg\n", __FUNCTION__));
+            ret = ANSC_STATUS_FAILURE;
+        }
+        if (WanMgr_SysCfgSetUint("dslite_enable", pDSLiteData->Enable ? 1 : 0) != ANSC_STATUS_SUCCESS)
+        {
+            CcspTraceError(("%s: Failed to set dslite_enable in syscfg\n", __FUNCTION__));
+            ret = ANSC_STATUS_FAILURE;
+        }
+        pDSLiteData->Changed = FALSE;
+        if (syscfg_commit() != 0)
+        {
+            CcspTraceError(("%s: syscfg_commit() failed\n", __FUNCTION__));
+            ret = ANSC_STATUS_FAILURE;
+        }
+    }
+
+    WanMgr_GetDSLiteData_release();
+    return ret;
+}
+
+ANSC_STATUS WanMgr_DSLite_WriteEntryCfgToSyscfg(UINT inst)
+{
+    ANSC_STATUS ret = ANSC_STATUS_SUCCESS;
+    DML_DSLITE_CONFIG *prev, *curr;
+    DML_DSLITE_LIST *entry;
+    char key[BUFLEN_64];
+
+    entry = WanMgr_getDSLiteEntryByInstance_locked(inst);
+    if (!entry)
+        return ANSC_STATUS_FAILURE;
+
+    prev = &entry->PrevCfg;
+    curr = &entry->CurrCfg;
+
+    if (!entry->New && memcmp(prev, curr, sizeof(*prev)) == 0)
+    {
+        /* Nothing changed.. Returning */
+        WanMgr_GetDSLiteData_release();
+        return ANSC_STATUS_SUCCESS;
+    }
+
+    CcspTraceInfo(("%s: Writing DSLite entry with InsNum=%lu to sysCfg\n", __FUNCTION__, inst));
+
+    snprintf(key, sizeof(key), "dslite_InsNum_%lu", inst);
+    if (entry->New)
+    {
+        if (WanMgr_SysCfgSetUint(key, inst) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_active_%lu", inst);
+    if (entry->New || prev->Enable != curr->Enable)
+    {
+        if (WanMgr_SysCfgSetUint(key, curr->Enable ? 1 : 0) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_alias_%lu", inst);
+    if (entry->New || strcmp(prev->Alias, curr->Alias) != 0)
+    {
+        if (WanMgr_SysCfgSetStr(key, curr->Alias) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_mode_%lu", inst);
+    if (entry->New || prev->Mode != curr->Mode)
+    {
+        if (WanMgr_SysCfgSetUint(key, curr->Mode) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_addr_type_%lu", inst);
+    if (entry->New || prev->Type != curr->Type)
+    {
+        if (WanMgr_SysCfgSetUint(key, curr->Type) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_addr_fqdn_%lu", inst);
+    if (entry->New || strcmp(prev->EndpointName, curr->EndpointName) != 0)
+    {
+        if (WanMgr_SysCfgSetStr(key, curr->EndpointName) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_addr_ipv6_%lu", inst);
+    if (entry->New || strcmp(prev->EndpointAddr, curr->EndpointAddr) != 0)
+    {
+        if (WanMgr_SysCfgSetStr(key, curr->EndpointAddr) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_mss_clamping_enable_%lu", inst);
+    if (entry->New || prev->MssClampingEnable != curr->MssClampingEnable)
+    {
+        if (WanMgr_SysCfgSetUint(key, curr->MssClampingEnable ? 1 : 0) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_tcpmss_%lu", inst);
+    if (entry->New || prev->TcpMss != curr->TcpMss)
+    {
+        if (WanMgr_SysCfgSetUint(key, curr->TcpMss) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_ipv6_frag_enable_%lu", inst);
+    if (entry->New || prev->Ipv6FragEnable != curr->Ipv6FragEnable)
+    {
+        if (WanMgr_SysCfgSetUint(key, curr->Ipv6FragEnable ? 1 : 0) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    snprintf(key, sizeof(key), "dslite_tunnel_v4addr_%lu", inst);
+    if (entry->New || strcmp(prev->TunnelV4Addr, curr->TunnelV4Addr) != 0)
+    {
+        if (WanMgr_SysCfgSetStr(key, curr->TunnelV4Addr) != ANSC_STATUS_SUCCESS)
+            ret = ANSC_STATUS_FAILURE;
+    }
+
+    if (syscfg_commit() != 0)
+    {
+        CcspTraceError(("%s: syscfg_commit() failed\n", __FUNCTION__));
+        ret = ANSC_STATUS_FAILURE;
+    }
+
+    if (ret != ANSC_STATUS_FAILURE)
+    {
+        *prev = *curr;
+        entry->New = FALSE;
+    }
+
+    WanMgr_GetDSLiteData_release();
+
+    return ret;
+}
+
+ANSC_STATUS WanMgr_DSLite_AddToList(UINT inst)
+{
+    DML_DSLITE_LIST *entry;
+    WanMgr_DSLite_Data_t *pDSLiteData;
+
+    pDSLiteData = WanMgr_GetDSLiteData_locked();
+    if (!pDSLiteData)
+        return ANSC_STATUS_FAILURE;
+
+    entry = (DML_DSLITE_LIST *)AnscAllocateMemory(sizeof(DML_DSLITE_LIST));
+    if (!entry)
+    {
+        CcspTraceError(("%s: allocation failed\n", __FUNCTION__));
+        WanMgr_GetDSLiteData_release();
+        return ANSC_STATUS_FAILURE;
+    }
+
+    DSLITE_SET_DEFAULTVALUE(&entry->PrevCfg);
+    DSLITE_SET_DEFAULTVALUE(&entry->CurrCfg);
+
+    snprintf(entry->CurrCfg.Alias,
+             sizeof(entry->CurrCfg.Alias),
+             "Dslite.Tunnel.%u", inst);
+
+    entry->InstanceNumber = inst;
+    entry->New            = TRUE;
+    entry->next           = NULL;
+
+    /* insert at list head */
+    entry->next = pDSLiteData->DSLiteList;
+    pDSLiteData->DSLiteList = entry;
+    pDSLiteData->InterfaceSettingNumberOfEntries++;
+    pDSLiteData->Changed = TRUE;
+
+    WanMgr_GetDSLiteData_release();
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS WanMgr_DSLite_DelFromList(UINT inst)
+{
+    WanMgr_DSLite_Data_t *pDSLiteData;
+    DML_DSLITE_LIST *prev = NULL, *curr = NULL;
+
+    pDSLiteData = WanMgr_GetDSLiteData_locked();
+    if (!pDSLiteData)
+        return ANSC_STATUS_FAILURE;
+
+    curr = pDSLiteData->DSLiteList;
+    while (curr)
+    {
+        if (curr->InstanceNumber == inst)
+        {
+            if (prev)
+                prev->next = curr->next;
+            else
+                pDSLiteData->DSLiteList = curr->next;
+
+            AnscFreeMemory(curr);
+
+            pDSLiteData->InterfaceSettingNumberOfEntries--;
+            pDSLiteData->Changed = TRUE;
+            WanMgr_GetDSLiteData_release();
+            return ANSC_STATUS_SUCCESS;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+
+    WanMgr_GetDSLiteData_release();
+    return ANSC_STATUS_FAILURE;
+}
+
+ANSC_STATUS WanMgr_DSLite_DelFromSyscfg(ULONG inst)
+{
+    char key[BUFLEN_64];
+    int rc = 0;
+
+    const char *fields[] = {
+        "dslite_InsNum_%lu",
+        "dslite_active_%lu",
+        "dslite_alias_%lu",
+        "dslite_mode_%lu",
+        "dslite_addr_type_%lu",
+        "dslite_addr_fqdn_%lu",
+        "dslite_addr_ipv6_%lu",
+        "dslite_mss_clamping_enable_%lu",
+        "dslite_tcpmss_%lu",
+        "dslite_ipv6_frag_enable_%lu",
+        "dslite_tunnel_v4addr_%lu"
+    };
+
+    for (size_t i = 0; i < sizeof(fields)/sizeof(fields[0]); i++)
+    {
+        snprintf(key, sizeof(key), fields[i], inst);
+        if (syscfg_unset(NULL, key) != 0)
+        {
+            CcspTraceError(("%s: syscfg_unset(%s) failed\n",
+                            __FUNCTION__, key));
+            rc = -1;
+        }
+    }
+
+    if (syscfg_commit() != 0)
+    {
+        CcspTraceError(("%s: syscfg_commit() failed\n", __FUNCTION__));
+        rc = -1;
+    }
+
+    return (rc == 0) ? ANSC_STATUS_SUCCESS : ANSC_STATUS_FAILURE;
+}
+
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByInstance_locked(UINT inst)
+{
+    if (pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        WanMgr_DSLite_Data_t *pDSLite = &gWanMgrDataBase.DSLite;
+        DML_DSLITE_LIST *entry = pDSLite->DSLiteList;
+
+        while (entry != NULL)
+        {
+            if (entry->InstanceNumber == (ULONG)inst)
+            {
+                return entry;
+            }
+            entry = entry->next;
+        }
+        WanMgr_GetDSLiteData_release();
+    }
+    return NULL;
+}
+
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByIdx_locked(UINT idx)
+{
+    if (pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        UINT i = 0;
+        WanMgr_DSLite_Data_t *pDSLite = &(gWanMgrDataBase.DSLite);
+        DML_DSLITE_LIST *entry = pDSLite->DSLiteList;
+
+        while (entry != NULL)
+        {
+            if (i++ == idx)
+            {
+                return entry;
+            }
+            entry = entry->next;
+        }
+        WanMgr_GetDSLiteData_release();
+    }
+    return NULL;
+}
+
+WanMgr_DSLite_Data_t* WanMgr_GetDSLiteData_locked(void)
+{
+    WanMgr_DSLite_Data_t* pDSLiteData = &(gWanMgrDataBase.DSLite);
+
+    //lock
+    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        return pDSLiteData;
+    }
+
+    return NULL;
+}
+
+void WanMgr_GetDSLiteData_release(void)
+{
+    WanMgr_DSLite_Data_t* pDSLiteData = &(gWanMgrDataBase.DSLite);
+    if(pDSLiteData != NULL)
+    {
+        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+    }
+}
+#endif
 
 /******** WANMGR CONFIG FUNCTIONS ********/
 WanMgr_Config_Data_t* WanMgr_GetConfigData_locked(void)
@@ -316,6 +683,19 @@ ANSC_STATUS WanMgr_WanConfigInit(void)
     WanMgr_Group_Configure();
     //Wan Interface Configuration init
     retStatus = WanMgr_WanDataInit();
+    if(retStatus != ANSC_STATUS_SUCCESS)
+    {
+        return retStatus;
+    }
+
+#ifdef FEATURE_DSLITE_V2
+    // Wan DSLite Configuration init
+    retStatus = WanMgr_DSLiteInit();
+    if (retStatus != ANSC_STATUS_SUCCESS)
+    {
+        return retStatus;
+    }
+#endif
     return retStatus;
 }
 
@@ -1114,3 +1494,42 @@ DML_VIRTUAL_IFACE* WanMgr_GetActiveVirtIfData_locked(void)
     }
     return NULL;
 }
+
+#ifdef FEATURE_DSLITE_V2
+/*
+ * This function checks virtual interfaces of all Interfaces and retuns if DSLite Alias is found.
+ */
+DML_VIRTUAL_IFACE* WanMgr_GetVirtIfDataByDSLiteAlias_locked(char* Alias)
+{
+    if (Alias == NULL)
+    {
+        CcspTraceError(("%s %d: invalid args\n", __FUNCTION__, __LINE__));
+        return NULL;
+    }
+    UINT idx;
+
+    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
+        if(pWanIfaceCtrl->pIface != NULL)
+        {
+            for(idx = 0; idx < pWanIfaceCtrl->ulTotalNumbWanInterfaces; idx++)
+            {
+                WanMgr_Iface_Data_t* pWanIfaceData = &(pWanIfaceCtrl->pIface[idx]);
+                DML_VIRTUAL_IFACE* virIface = pWanIfaceData->data.VirtIfList;
+                while(virIface != NULL)
+                {
+                    if(!strcmp(Alias,virIface->DSLite.Path))
+                    {
+                        return virIface;
+                    }
+                    virIface = virIface->next;
+                }
+            }
+        }
+        WanMgrDml_GetIfaceData_release(NULL);
+    }
+
+    return NULL;
+}
+#endif

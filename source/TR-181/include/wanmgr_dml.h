@@ -61,6 +61,16 @@ typedef enum _DEVICE_NETWORKING_MODE_
     MODEM_MODE
 } DEVICE_NETWORKING_MODE;
 
+typedef  enum
+_DML_WAN_DEVICE_MODE
+{
+    DML_WAN_DEVICE_MODE_Bridge = 1,
+    DML_WAN_DEVICE_MODE_Ipv4,
+    DML_WAN_DEVICE_MODE_Ipv6,
+    DML_WAN_DEVICE_MODE_Dualstack
+}
+DML_WAN_DEVICE_MODE;
+
 typedef enum _DML_WAN_IFACE_OPER_STATUS
 {
     WAN_OPERSTATUS_UNKNOWN = 1,
@@ -148,8 +158,23 @@ typedef enum _DML_WAN_IFACE_MAPT_STATUS
 typedef enum _DML_WAN_IFACE_DSLITE_STATUS
 {
     WAN_IFACE_DSLITE_STATE_UP = 1,
-    WAN_IFACE_DSLITE_STATE_DOWN
+    WAN_IFACE_DSLITE_STATE_DOWN,
+    WAN_IFACE_DSLITE_STATE_ERROR
 } DML_WAN_IFACE_DSLITE_STATUS;
+
+#ifdef FEATURE_DSLITE_V2
+typedef enum _DML_WAN_DSLITE_ADDR_METHOD
+{
+    DSLITE_ENDPOINT_DHCPV6 = 1,
+    DSLITE_ENDPOINT_STATIC
+} DML_WAN_DSLITE_ADDR_METHOD;
+
+typedef enum _DML_WAN_DSLITE_ADDR_PRECEDENCE
+{
+    DSLITE_ENDPOINT_FQDN = 1,
+    DSLITE_ENDPOINT_IPV6ADDRESS
+} DML_WAN_DSLITE_ADDR_PRECEDENCE;
+#endif
 
 /** enum wan status */
 typedef enum _WAN_NOTIFY_ENUM
@@ -461,6 +486,45 @@ typedef struct _DML_WANIFACE_DSLITE
     BOOL                        Changed;
 } DML_WANIFACE_DSLITE;
 
+#ifdef FEATURE_DSLITE_V2
+typedef struct _DML_DSLITE_CONFIG
+{
+    BOOL                                Enable;
+    DML_WAN_IFACE_DSLITE_STATUS         Status;
+    CHAR                                Alias[BUFLEN_64]; // map to virtual interface Path
+    DML_WAN_DSLITE_ADDR_METHOD          Mode; //EndpointAssignmentPrecedence
+    CHAR                                EndpointName[BUFLEN_256];
+    CHAR                                EndpointAddr[BUFLEN_256];
+    DML_WAN_DSLITE_ADDR_METHOD          Origin;
+    CHAR                                TunnelIface[BUFLEN_256];
+    CHAR                                TunneledIface[BUFLEN_256];
+    DML_WAN_DSLITE_ADDR_PRECEDENCE      Type;
+    CHAR                                AddrInUse[BUFLEN_256];
+    BOOL                                MssClampingEnable;
+    UINT                                TcpMss;       // X_RDKCENTRAL-COM_Tcpmss
+    BOOL                                Ipv6FragEnable; // X_RDKCENTRAL-COM_IPv6FragEnable
+    CHAR                                TunnelV4Addr[BUFLEN_64];
+} DML_DSLITE_CONFIG;
+
+typedef struct _DML_DSLITE_LIST
+{
+    struct _DML_DSLITE_LIST *next;
+    UINT InstanceNumber;
+    BOOL New;
+    DML_DSLITE_CONFIG PrevCfg;
+    DML_DSLITE_CONFIG CurrCfg;
+} DML_DSLITE_LIST;
+
+// DSLITE CONFIG
+typedef struct _WANMGR_DSLITE_CONFIG_DATA_
+{
+    DML_DSLITE_LIST *DSLiteList;
+    BOOL Enable;
+    UINT InterfaceSettingNumberOfEntries;
+    UINT NextInstanceNumber;
+    BOOL Changed;
+} WanMgr_DSLite_Data_t;
+#endif
 
 typedef struct _DML_WANIFACE_SUBSCRIBE
 {
@@ -673,5 +737,9 @@ typedef struct _WANMGR_DATA_ST_
 
     //Iface Group
     WanMgr_IfaceGroup_t         IfaceGroup;
+#ifdef FEATURE_DSLITE_V2
+    //DSLITE CONFIG
+    WanMgr_DSLite_Data_t        DSLite;
+#endif
 } WANMGR_DATA_ST;
 #endif //_WANMGR_DML_H_
