@@ -32,7 +32,7 @@ wanmanager_CFLAGS = -DFEATURE_SUPPORT_RDKLOG $(SYSTEMD_CFLAGS)
 wanmanager_CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 wanmanager_SOURCES = wanmgr_webconfig_apis.c wanmgr_webconfig.c wanmgr_main.c  wanmgr_ssp_action.c wanmgr_ssp_messagebus_interface.c wanmgr_core.c wanmgr_controller.c wanmgr_data.c wanmgr_sysevents.c wanmgr_interface_sm.c wanmgr_utils.c wanmgr_net_utils.c wanmgr_dhcpv4_apis.c wanmgr_dhcpv6_apis.c wanmgr_ipc.c wanmgr_dhcpv4_internal.c wanmgr_dhcpv6_internal.c wanmgr_policy_auto_impl.c dm_pack_datamodel.c wanmgr_wan_failover.c wanmgr_policy_parallel_scan_impl.c wanmgr_dhcp_legacy_apis.c wanmgr_interface_apis.c wanmgr_telemetry.c wanmgr_t2_telemetry.c wanmgr_network_monitor.c
-wanmanager_LDADD = $(wanmanager_DEPENDENCIES) -lccsp_common -lrdkloggers $(SYSTEMD_LDFLAGS) -lhal_platform -lapi_dhcpv4c -lnanomsg -lwebconfig_framework -lmsgpackc  -lprivilege -lrbus -lsecure_wrapper
+wanmanager_LDADD = $(wanmanager_DEPENDENCIES) -lccsp_common -lrdkloggers $(SYSTEMD_LDFLAGS) -lhal_platform -lapi_dhcpv4c -lnanomsg -lwebconfig_framework -lmsgpackc  -lprivilege -lrbus -lsecure_wrapper -levent
 
 
 if WAN_UNIFICATION_ENABLED 
