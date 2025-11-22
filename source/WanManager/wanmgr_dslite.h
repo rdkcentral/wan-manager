@@ -66,4 +66,10 @@ void WanMgr_DSLite_UpdateEndPointName(DML_VIRTUAL_IFACE* pVirtIf, const char* ne
 bool WanMgr_DSLite_isEndpointNameChanged(DML_VIRTUAL_IFACE* pVirtIf, const char* newFqdn);
 bool WanMgr_DSLite_isEndpointAssigned(DML_VIRTUAL_IFACE* pVirtIf);
 
+/* DSLite tunnel management */
+ANSC_STATUS WanMgr_DSLite_SetupTunnel(DML_VIRTUAL_IFACE *pVirtIf);
+ANSC_STATUS WanMgr_DSLite_TeardownTunnel(DML_VIRTUAL_IFACE *pVirtIf);
+void WanMgr_Dslite_AddIpRules(const char *if_name);
+void WanMgr_Dslite_DelIpRules(const char *if_name, const char *wan_ipv4);
+
 #endif /* _WANMGR_DSLITE_H_ */

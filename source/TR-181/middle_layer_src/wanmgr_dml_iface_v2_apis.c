@@ -2840,6 +2840,14 @@ BOOL WanIfDSLite_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, c
         /* check the parameter name and set the corresponding value */
         if (strcmp(ParamName, "Path") == 0)
         {
+#ifdef FEATURE_DSLITE_V2
+            /* If Path is changing, trigger reconfiguration */
+            if (strcmp(p_VirtIf->DSLite.Path, pString) != 0)
+            {
+                p_VirtIf->DSLite.Changed = TRUE;
+                CcspTraceInfo(("%s: DSLite Path changed, triggering reconfiguration\n", __FUNCTION__));
+            }
+#endif
             AnscCopyString(p_VirtIf->DSLite.Path, pString);
             ret = TRUE;
         }
