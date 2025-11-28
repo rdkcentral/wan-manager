@@ -61,4 +61,8 @@ ANSC_STATUS WanMgr_DSLite_SaveEntryConfig(UINT inst);
 ANSC_STATUS WanMgr_DSLite_DeleteEntryConfig(ULONG inst);
 ANSC_STATUS WanMgr_DSLite_HandleConfigChange(UINT inst);
 
+/* DSLite endpoint name management */
+void WanMgr_DSLite_UpdateEndPointName(DML_VIRTUAL_IFACE* pVirtIf, const char* newEndpoint);
+bool WanMgr_DSLite_isEndpointNameChanged(DML_VIRTUAL_IFACE* pVirtIf, const char* newFqdn);
+
 #endif /* _WANMGR_DSLITE_H_ */
