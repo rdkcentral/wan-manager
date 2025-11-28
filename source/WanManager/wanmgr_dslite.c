@@ -522,3 +522,34 @@ void WanMgr_DSLite_UpdateEndPointName(DML_VIRTUAL_IFACE* pVirtIf, const char* ne
     WanMgr_GetDSLiteData_release();
     return;
 }
+
+bool WanMgr_DSLite_isEndpointAssigned(DML_VIRTUAL_IFACE *pVirtIf)
+{
+    DML_DSLITE_LIST *entry;
+    bool assigned = false;
+
+    entry = WanMgr_getDSLiteEntryByAlias_locked(pVirtIf->DSLite.Path);
+    if (!entry)
+    {
+        return false;
+    }
+
+    if (entry->CurrCfg.Mode == DSLITE_ENDPOINT_DHCPV6)
+    {
+        assigned = !IS_EMPTY_STRING(entry->CurrCfg.EndpointName);
+    }
+    else if (entry->CurrCfg.Mode == DSLITE_ENDPOINT_STATIC)
+    {
+        if (entry->CurrCfg.Type == DSLITE_ENDPOINT_FQDN)
+        {
+            assigned = !IS_EMPTY_STRING(entry->CurrCfg.EndpointName);
+        }
+        else if (entry->CurrCfg.Type == DSLITE_ENDPOINT_IPV6ADDRESS)
+        {
+            assigned = !IS_EMPTY_STRING(entry->CurrCfg.EndpointAddr);
+        }
+    }
+
+    WanMgr_GetDSLiteData_release();
+    return assigned;
+}
