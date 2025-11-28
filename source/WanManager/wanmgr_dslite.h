@@ -64,5 +64,6 @@ ANSC_STATUS WanMgr_DSLite_HandleConfigChange(UINT inst);
 /* DSLite endpoint name management */
 void WanMgr_DSLite_UpdateEndPointName(DML_VIRTUAL_IFACE* pVirtIf, const char* newEndpoint);
 bool WanMgr_DSLite_isEndpointNameChanged(DML_VIRTUAL_IFACE* pVirtIf, const char* newFqdn);
+bool WanMgr_DSLite_isEndpointAssigned(DML_VIRTUAL_IFACE* pVirtIf);
 
 #endif /* _WANMGR_DSLITE_H_ */
