@@ -75,7 +75,7 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
             memset(tempStr,0,sizeof(tempStr));
             strcat(tempStr,"IPv4Source-");
 
-            if ( pVirtIntf->IP.IPv4Source >= WAN_IP_SOURCE_MAX )
+            if ( pVirtIntf->IP.IPv4Source >= DML_WAN_IP_SOURCE_MAX )
             {
                 CcspTraceError(("%s %d Invalid IPv4 Source value %d for interface %s\n", __FUNCTION__, __LINE__, pVirtIntf->IP.IPv4Source, pVirtIntf->Name));
                 return ANSC_STATUS_FAILURE;
@@ -89,7 +89,7 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
             memset(tempStr,0,sizeof(tempStr));
             strcat(tempStr,"IPv6Source-");
 
-            if( pVirtIntf->IP.IPv6Source >= WAN_IP_SOURCE_MAX )
+            if( pVirtIntf->IP.IPv6Source >= DML_WAN_IP_SOURCE_MAX )
             {
                 CcspTraceError(("%s %d Invalid IPv6 Source value %d for interface %s\n", __FUNCTION__, __LINE__, pVirtIntf->IP.IPv6Source, pVirtIntf->Name));
                 return ANSC_STATUS_FAILURE;
