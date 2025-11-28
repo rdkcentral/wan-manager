@@ -90,6 +90,7 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index);
 
 #ifdef FEATURE_DSLITE_V2
 /* Data access and list management functions */
+BOOL WanMgr_DSLite_isEnabled(DML_VIRTUAL_IFACE *p_VirtIf);
 DML_VIRTUAL_IFACE* WanMgr_GetVirtIfDataByDSLiteAlias_locked(char* Alias);
 ANSC_STATUS WanMgr_DSLite_RemoveFromList(UINT inst);
 ANSC_STATUS WanMgr_DSLite_AddToList(UINT inst);

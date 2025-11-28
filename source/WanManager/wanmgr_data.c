@@ -36,6 +36,25 @@ static WANMGR_MAP_ST gWanMgrMapDataBase;
 
 #ifdef FEATURE_DSLITE_V2
 /******** WANMGR DSLITE DATA ACCESS FUNCTIONS ********/
+BOOL WanMgr_DSLite_isEnabled(DML_VIRTUAL_IFACE *p_VirtIf)
+{
+    WanMgr_DSLite_Data_t *pDSLiteData;
+    BOOL enabled = FALSE;
+    DML_DSLITE_LIST *entry;
+
+    entry = WanMgr_getDSLiteEntryByAlias_locked(p_VirtIf->DSLite.Path);
+    if (!entry)
+    {
+        return FALSE;
+    }
+
+    pDSLiteData = &(gWanMgrDataBase.DSLite);
+    enabled = pDSLiteData->Enable && entry->CurrCfg.Enable;
+
+    WanMgr_GetDSLiteData_release();
+    return enabled;
+}
+
 ANSC_STATUS WanMgr_DSLite_AddToList(UINT inst)
 {
     DML_DSLITE_LIST *entry;
