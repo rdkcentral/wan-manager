@@ -397,6 +397,9 @@ typedef struct _WANMGR_IPV6_DATA
    bool prefixAssigned;         /**< Have we been assigned a site prefix ? */
    uint32_t prefixCmd;
    bool domainNameAssigned;     /**< Have we been assigned dns server addresses ? */
+#ifdef FEATURE_DSLITE_V2
+   char endpointName[BUFLEN_256];
+#endif
 } WANMGR_IPV6_DATA;
 
 typedef struct _WANMGR_IPV6_RA_DATA 

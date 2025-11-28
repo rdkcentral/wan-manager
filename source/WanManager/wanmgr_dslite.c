@@ -480,3 +480,45 @@ ANSC_STATUS WanMgr_DSLite_DeleteEntryConfig(ULONG inst)
     return (rc == 0) ? ANSC_STATUS_SUCCESS : ANSC_STATUS_FAILURE;
 }
 
+bool WanMgr_DSLite_isEndpointNameChanged(DML_VIRTUAL_IFACE* pVirtIf, const char* newEndpoint)
+{
+    DML_DSLITE_LIST *entry;
+    bool changed = false;
+
+    if (!newEndpoint || !pVirtIf)
+    {
+        return false;
+    }
+
+    entry = WanMgr_getDSLiteEntryByAlias_locked(pVirtIf->DSLite.Path);
+    if (!entry)
+    {
+        return false;
+    }
+    changed = (strcasecmp(entry->CurrCfg.EndpointName, newEndpoint) != 0);
+
+    WanMgr_GetDSLiteData_release();
+    return changed;
+}
+
+void WanMgr_DSLite_UpdateEndPointName(DML_VIRTUAL_IFACE* pVirtIf, const char* newEndpoint)
+{
+    DML_DSLITE_LIST *entry;
+
+    if (!newEndpoint || !pVirtIf)
+    {
+        return;
+    }
+
+    entry = WanMgr_getDSLiteEntryByAlias_locked(pVirtIf->DSLite.Path);
+    if (!entry)
+    {
+        return;
+    }
+
+    strncpy(entry->CurrCfg.EndpointName, newEndpoint, sizeof(entry->CurrCfg.EndpointName) - 1);
+    entry->CurrCfg.EndpointName[sizeof(entry->CurrCfg.EndpointName) - 1] = '\0';
+
+    WanMgr_GetDSLiteData_release();
+    return;
+}
