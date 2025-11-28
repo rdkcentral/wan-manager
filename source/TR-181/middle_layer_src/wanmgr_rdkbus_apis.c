@@ -326,7 +326,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.Mode));
+        DML_WAN_IP_MODE tmpIPMode;
+        _ansc_sscanf(param_value, "%d", &tmpIPMode);
+        if ( tmpIPMode >= DML_WAN_IP_MODE_MAX )
+        {
+            CcspTraceError(("%s %d Invalid IP Mode value %d retrieved from PSM\n", __FUNCTION__, __LINE__, tmpIPMode));
+        }
+        else
+        {
+            pVirtIf->IP.Mode = tmpIPMode;
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IP_MODE);	
     }
 
@@ -336,7 +345,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv4Source));
+        DML_WAN_IP_SOURCE  tmpIPv4Source;
+        _ansc_sscanf(param_value, "%d", &tmpIPv4Source);
+        if ( tmpIPv4Source >= DML_WAN_IP_SOURCE_MAX )
+        {
+            CcspTraceError(("%s %d Invalid IPv4 Source value %d retrieved from PSM\n", __FUNCTION__, __LINE__, tmpIPv4Source));
+        }
+        else
+        {
+            pVirtIf->IP.IPv4Source = tmpIPv4Source;
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv4_CONFIG_TYPE);	
     }
 
@@ -352,7 +370,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv6Source));
+        DML_WAN_IP_SOURCE  tmpIPv6Source;
+        _ansc_sscanf(param_value, "%d", &tmpIPv6Source);
+        if ( tmpIPv6Source >= DML_WAN_IP_SOURCE_MAX )
+        {
+            CcspTraceError(("%s %d Invalid IPv6 Source value %d retrieved from PSM\n", __FUNCTION__, __LINE__, tmpIPv6Source));
+        }
+        else
+        {
+            pVirtIf->IP.IPv6Source = tmpIPv6Source;
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv6_CONFIG_TYPE);	
     }
 
@@ -387,7 +414,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.ConnectivityCheckType));
+        CONNECTIVITY_CHECK_TYPE tmpConnectivityCheckType;
+        _ansc_sscanf(param_value, "%d", &tmpConnectivityCheckType);
+        if ( tmpConnectivityCheckType >= WAN_CONNECTIVITY_TYPE_MAX )
+        {
+            CcspTraceError(("%s %d Invalid Connectivity Check Type value %d retrieved from PSM\n", __FUNCTION__, __LINE__, tmpConnectivityCheckType));
+        }
+        else
+        {
+            pVirtIf->IP.ConnectivityCheckType = tmpConnectivityCheckType;
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);	
     }
 }

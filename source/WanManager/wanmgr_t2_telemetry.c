@@ -74,6 +74,13 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
         case WAN_INFO_IPv4_CONFIG_TYPE:
             memset(tempStr,0,sizeof(tempStr));
             strcat(tempStr,"IPv4Source-");
+
+            if ( pVirtIntf->IP.IPv4Source >= WAN_IP_SOURCE_MAX )
+            {
+                CcspTraceError(("%s %d Invalid IPv4 Source value %d for interface %s\n", __FUNCTION__, __LINE__, pVirtIntf->IP.IPv4Source, pVirtIntf->Name));
+                return ANSC_STATUS_FAILURE;
+            }
+
             strcat(tempStr,WanMgr_Telemetry_IpSourceStr[pVirtIntf->IP.IPv4Source]);
             wanmgr_telemetry_append_key_value(WANMGR_T2_WANMGR_SPLIT_VAL_STRING, tempStr);	
             break;
@@ -81,11 +88,23 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
         case WAN_INFO_IPv6_CONFIG_TYPE:
             memset(tempStr,0,sizeof(tempStr));
             strcat(tempStr,"IPv6Source-");
+
+            if( pVirtIntf->IP.IPv6Source >= WAN_IP_SOURCE_MAX )
+            {
+                CcspTraceError(("%s %d Invalid IPv6 Source value %d for interface %s\n", __FUNCTION__, __LINE__, pVirtIntf->IP.IPv6Source, pVirtIntf->Name));
+                return ANSC_STATUS_FAILURE;
+            }
+
             strcat(tempStr,WanMgr_Telemetry_IpSourceStr[pVirtIntf->IP.IPv6Source]);
             wanmgr_telemetry_append_key_value(WANMGR_T2_WANMGR_SPLIT_VAL_STRING,tempStr);
             break;
 
         case WAN_INFO_CONNECTIVITY_CHECK_TYPE:
+            if ( pVirtIntf->IP.ConnectivityCheckType >= WAN_CONNECTIVITY_TYPE_MAX )
+            {
+                CcspTraceError(("%s %d Invalid Connectivity Check Type value %d for interface %s\n", __FUNCTION__, __LINE__, pVirtIntf->IP.ConnectivityCheckType, pVirtIntf->Name));
+                return ANSC_STATUS_FAILURE;
+            }
             wanmgr_telemetry_append_key_value(WANMGR_T2_WANMGR_SPLIT_VAL_STRING,WanMgr_Telemetry_ConnectivityTypeStr[pVirtIntf->IP.ConnectivityCheckType]);
             break;
 
@@ -122,6 +141,11 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
             break;
 
         case WAN_INFO_IP_MODE:
+            if( pVirtIntf->IP.Mode >= DML_WAN_IP_MODE_MAX )
+            {
+                CcspTraceError(("%s %d Invalid IP Mode value %d for interface %s\n", __FUNCTION__, __LINE__, pVirtIntf->IP.Mode, pVirtIntf->Name));
+                return ANSC_STATUS_FAILURE;
+            }
             wanmgr_telemetry_append_key_value(WANMGR_T2_WANMGR_SPLIT_VAL_STRING,WanMgr_Telemetry_IpModeStr[pVirtIntf->IP.Mode]);
             break;
 
