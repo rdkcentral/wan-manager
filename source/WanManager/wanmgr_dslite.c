@@ -38,6 +38,52 @@
 #include "wanmgr_rdkbus_apis.h"
 #include "wanmgr_data.h"
 
+BOOL WanMgr_DSLite_isEndpointNameChanged(DML_VIRTUAL_IFACE* pVirtIf, const char* newEndpoint)
+{
+    DML_DSLITE_LIST *entry;
+    BOOL changed = FALSE;
+
+    if (!newEndpoint || !pVirtIf)
+        return FALSE;
+
+    entry = WanMgr_getDSLiteEntryByAlias_locked(pVirtIf->DSLite.Path);
+    if (!entry)
+        return FALSE;
+
+    if (entry->CurrCfg.Type != DSLITE_ENDPOINT_FQDN)
+    {
+        CcspTraceError(("%s: DSLite Endpoint Type is not FQDN, ignoring DHCP aftr (64) option\n", __FUNCTION__));
+        WanMgr_GetDSLiteData_release();
+        return FALSE;
+    }
+    changed = (strcasecmp(entry->CurrCfg.EndpointName, newEndpoint) != 0);
+
+    WanMgr_GetDSLiteData_release();
+    return changed;
+}
+
+BOOL WanMgr_DSLite_isEndpointAssigned(DML_VIRTUAL_IFACE *pVirtIf)
+{
+    DML_DSLITE_LIST *entry;
+    BOOL assigned = FALSE;
+
+    entry = WanMgr_getDSLiteEntryByAlias_locked(pVirtIf->DSLite.Path);
+    if (!entry)
+    return FALSE;
+
+    if (entry->CurrCfg.Type == DSLITE_ENDPOINT_FQDN)
+    {
+        assigned = !IS_EMPTY_STRING(entry->CurrCfg.EndpointName);
+    }
+    else if (entry->CurrCfg.Type == DSLITE_ENDPOINT_IPV6ADDRESS)
+    {
+        assigned = !IS_EMPTY_STRING(entry->CurrCfg.EndpointAddr);
+    }
+
+    WanMgr_GetDSLiteData_release();
+    return assigned;
+}
+
 /* Get whole DSLite conf from syscfg */
 ANSC_STATUS WanMgr_DSLiteInit(void)
 {

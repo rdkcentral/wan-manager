@@ -52,5 +52,7 @@
         (__pCfg)->TcpMss = 1420;                        \
     } while (0)
 
+BOOL WanMgr_DSLite_isEndpointAssigned(DML_VIRTUAL_IFACE* pVirtIf);
+BOOL WanMgr_DSLite_isEndpointNameChanged(DML_VIRTUAL_IFACE* pVirtIf, const char* newFqdn);
 ANSC_STATUS WanMgr_DSLiteInit(void);
 #endif /* _WANMGR_DSLITE_H_ */

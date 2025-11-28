@@ -34,6 +34,30 @@ WANMGR_DATA_ST gWanMgrDataBase;
 
 #ifdef FEATURE_DSLITE_V2
 /******** WANMGR DSLITE FUNCTIONS ********/
+/**
+ * @brief Checks if the DSLite feature is enabled for a given virtual interface.
+ *
+ * This function determines whether the DSLite feature is enabled globally and for the specified virtual interface.
+ *
+ * @param[in] p_VirtIf Pointer to the virtual interface structure to check.
+ *
+ * @return TRUE if DSLite is enabled for the interface, FALSE otherwise.
+ */
+BOOL WanMgr_DSLite_isEnabled(DML_VIRTUAL_IFACE *p_VirtIf)
+{
+    WanMgr_DSLite_Data_t *pDSLiteData;
+    BOOL enabled = FALSE;
+
+    pDSLiteData = WanMgr_GetDSLiteData_locked();
+    if (!pDSLiteData)
+        return FALSE;
+
+    enabled = pDSLiteData->Enable && p_VirtIf->EnableDSLite;
+
+    WanMgr_GetDSLiteData_release();
+    return enabled;
+}
+
 ANSC_STATUS WanMgr_DSLite_UpdateVirtIfDSLiteCfg(UINT inst)
 {
     DML_DSLITE_LIST *entry;
@@ -366,6 +390,30 @@ DML_DSLITE_LIST *WanMgr_getDSLiteEntryByIdx_locked(UINT idx)
             {
                 return entry;
             }
+            entry = entry->next;
+        }
+        WanMgr_GetDSLiteData_release();
+    }
+    return NULL;
+}
+
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByAlias_locked(char *Alias)
+{
+    if (Alias == NULL)
+        return NULL;
+
+    if (pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        WanMgr_DSLite_Data_t *pDSLite = &gWanMgrDataBase.DSLite;
+        DML_DSLITE_LIST *entry = pDSLite->DSLiteList;
+
+        while (entry != NULL)
+        {
+            if (!strcmp(entry->CurrCfg.Alias, Alias))
+            {
+                return entry;
+            }
+
             entry = entry->next;
         }
         WanMgr_GetDSLiteData_release();

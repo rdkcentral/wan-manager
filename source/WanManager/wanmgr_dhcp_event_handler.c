@@ -247,6 +247,13 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
                         }
                     }
 #endif // FEATURE_MAPT
+#if FEATURE_DSLITE_V2
+                    if (WanMgr_DSLite_isEndpointNameChanged(pVirtIf, leaseInfo->endpointName))
+                    {
+                        pVirtIf->DSLite.Changed = TRUE; // sm checks this flag to take action
+                        CcspTraceInfo(("DS-Lite Endpoint name has been changed\n"));
+                    }
+#endif
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Address",  pVirtIf->baseIfIdx+1, pVirtIf->VirIfIdx+1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv6Data.address,RBUS_STRING);
