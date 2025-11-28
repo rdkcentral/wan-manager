@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<?define FEATURE_DSLITE_V2=True?>
+<?define RBUS_BUILD_FLAG_ENABLE=True?>
+<?define RBUS_BUILD_FLAG_ENABLE=True?>
+<?define FEATURE_RDKB_DHCP_MANAGER=True?>
+<?define RBUS_BUILD_FLAG_ENABLE=True?>
+<?define RBUS_BUILD_FLAG_ENABLE=True?>
 <!--
  If not stated otherwise in this file or this component's LICENSE file the
  following copyright and licenses apply:
@@ -1436,6 +1442,142 @@
         </object>
         </objects>
 	</object>
+<?endif?>
+<?ifdef FEATURE_DSLITE_V2?>
+    <object>
+        <name>DSLite</name>
+        <objectType>object</objectType>
+        <functions>
+        <func_GetParamBoolValue>DSLite_GetParamBoolValue</func_GetParamBoolValue>
+        <func_SetParamBoolValue>DSLite_SetParamBoolValue</func_SetParamBoolValue>
+        <func_GetParamUlongValue>DSLite_GetParamUlongValue</func_GetParamUlongValue>
+        </functions>
+        <parameters>
+            <parameter>
+                <name>Enable</name>
+                <type>boolean</type>
+                <syntax>bool</syntax>
+                <writable>true</writable>
+            </parameter>
+            <parameter>
+                <name>InterfaceSettingNumberOfEntries</name>
+                <type>unsignedInt</type>
+                <syntax>uint32</syntax>
+                <writable>false</writable>
+            </parameter>
+        </parameters>
+        <objects>
+            <object>
+                <name>InterfaceSetting</name>
+                <objectType>writableTable</objectType>
+                <maxInstance>128</maxInstance>
+
+                <functions>
+                    <func_GetEntryCount>InterfaceSetting4_GetEntryCount</func_GetEntryCount>
+                    <func_GetEntry>InterfaceSetting4_GetEntry</func_GetEntry>
+                    <func_AddEntry>InterfaceSetting4_AddEntry</func_AddEntry>
+                    <func_DelEntry>InterfaceSetting4_DelEntry</func_DelEntry>
+                    <func_GetParamBoolValue>InterfaceSetting4_GetParamBoolValue</func_GetParamBoolValue>
+                    <func_GetParamStringValue>InterfaceSetting4_GetParamStringValue</func_GetParamStringValue>
+                    <func_GetParamUlongValue>InterfaceSetting4_GetParamUlongValue</func_GetParamUlongValue>
+                    <func_SetParamBoolValue>InterfaceSetting4_SetParamBoolValue</func_SetParamBoolValue>
+                    <func_SetParamStringValue>InterfaceSetting4_SetParamStringValue</func_SetParamStringValue>
+                    <func_SetParamUlongValue>InterfaceSetting4_SetParamUlongValue</func_SetParamUlongValue>
+                    <func_Validate>InterfaceSetting4_Validate</func_Validate>
+                    <func_Commit>InterfaceSetting4_Commit</func_Commit>
+                    <func_Rollback>InterfaceSetting4_Rollback</func_Rollback>
+                </functions>
+
+                <parameters>
+                    <parameter>
+                        <name>Enable</name>
+                        <type>boolean</type>
+                        <syntax>bool</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>Status</name>
+                        <type>string: Enabled(1), Disabled(2), Error(3)</type>
+                        <syntax>uint32/mapped</syntax>
+                    </parameter>
+                    <parameter>
+                        <name>Alias</name>
+                        <type>string(64)</type>
+                        <syntax>string</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>EndpointAssignmentPrecedence</name>
+                        <type>string: DHCPv6(1), Static(2)</type>
+                        <syntax>uint32/mapped</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>EndpointAddressTypePrecedence</name>
+                        <type>string: FQDN(1), IPv6Address(2)</type>
+                        <syntax>uint32/mapped</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>EndpointAddressInUse</name>
+                        <type>string(256)</type>
+                        <syntax>string</syntax>
+                    </parameter>
+                    <parameter>
+                        <name>EndpointName</name>
+                        <type>string(256)</type>
+                        <syntax>string</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>EndpointAddress</name>
+                        <type>string(256)</type>
+                        <syntax>string</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>Origin</name>
+                        <type>string: DHCPv6(1), Static(2)</type>
+                        <syntax>uint32/mapped</syntax>
+                    </parameter>
+                    <parameter>
+                        <name>TunnelInterface</name>
+                        <type>string(256)</type>
+                        <syntax>string</syntax>
+                    </parameter>
+                    <parameter>
+                        <name>TunneledInterface</name>
+                        <type>string(256)</type>
+                        <syntax>string</syntax>
+                    </parameter>
+                    <parameter>
+                        <name>X_RDKCENTRAL-COM_MssClampingEnable</name>
+                        <type>boolean</type>
+                        <syntax>bool</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>X_RDKCENTRAL-COM_Tcpmss</name>
+                        <type>unsignedInt</type>
+                        <syntax>uint32</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>X_RDKCENTRAL-COM_IPv6FragEnable</name>
+                        <type>boolean</type>
+                        <syntax>bool</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                    <parameter>
+                        <name>TunnelV4Addr</name>
+                        <type>string(64)</type>
+                        <syntax>string</syntax>
+                        <writable>true</writable>
+                    </parameter>
+                </parameters>
+            </object>
+        </objects>
+    </object>
 <?endif?>
     </objects>
 </dataModelInfo>

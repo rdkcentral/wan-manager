@@ -238,4 +238,18 @@ void Wanmgr_TriggerReboot();
  */
 
  BOOL WanMgr_isBridgeModeEnabled();
+#if FEATURE_DSLITE_V2
+int WanMgr_SetDSLiteEnableToPSM(DML_VIRTUAL_IFACE *pVirtIf, BOOL Enable);
+ANSC_STATUS WanMgr_SysCfgGetBool(const CHAR *key, BOOL *value);
+ANSC_STATUS WanMgr_SysCfgGetUint(const CHAR *key, UINT *value);
+ANSC_STATUS WanMgr_SysCfgGetStr(const CHAR *key, CHAR *dst, ULONG dst_len);
+ANSC_STATUS WanMgr_SysCfgSetUint(const CHAR *key, UINT value);
+ANSC_STATUS WanMgr_SysCfgSetStr(const CHAR *key, const CHAR *value);
+#define DSLITE_WRITE_IF_CHANGED(cond, call)          \
+    do                                               \
+    {                                                \
+        if ((cond) && (call) != ANSC_STATUS_SUCCESS) \
+            ret = ANSC_STATUS_FAILURE;               \
+    } while (0)
+#endif
 #endif /* _WANMGR_RDKBUS_UTILS_H_ */
