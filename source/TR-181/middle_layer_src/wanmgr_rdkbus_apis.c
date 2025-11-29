@@ -438,7 +438,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         else
         {
             CcspTraceError(("%s %d Invalid Connectivity Check Type value %d retrieved from PSM\n", __FUNCTION__, __LINE__, tmpConnectivityCheckType));
-        }        
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);	
     }
 }
