@@ -350,7 +350,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         else
         {
             CcspTraceError(("%s %d Invalid IP Mode value %d retrieved from PSM\n", __FUNCTION__, __LINE__, tmpIPMode));
-        }        
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IP_MODE);	
     }
 
