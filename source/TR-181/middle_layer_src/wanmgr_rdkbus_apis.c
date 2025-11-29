@@ -341,9 +341,9 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS)
     {
-        DML_WAN_IP_MODE tmpIPMode;
-        _ansc_sscanf(param_value, "%d", &tmpIPMode);
-        if ( tmpIPMode < DML_WAN_IP_MODE_MAX )
+        DML_WAN_IP_MODE tmpIPMode = DML_WAN_IP_MODE_DUAL_STACK;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPMode);
+        if ( sscanf_result == 1 && tmpIPMode < DML_WAN_IP_MODE_MAX )
         {
             pVirtIf->IP.Mode = tmpIPMode;
         }
@@ -360,9 +360,9 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        DML_WAN_IP_SOURCE  tmpIPv4Source;
-        _ansc_sscanf(param_value, "%d", &tmpIPv4Source);
-        if ( tmpIPv4Source < DML_WAN_IP_SOURCE_MAX )
+        DML_WAN_IP_SOURCE  tmpIPv4Source = DML_WAN_IP_SOURCE_DHCP;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPv4Source);
+        if ( sscanf_result == 1 && tmpIPv4Source < DML_WAN_IP_SOURCE_MAX )
         {
             pVirtIf->IP.IPv4Source = tmpIPv4Source;
         }
@@ -385,9 +385,9 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        DML_WAN_IP_SOURCE  tmpIPv6Source;
-        _ansc_sscanf(param_value, "%d", &tmpIPv6Source);
-        if ( tmpIPv6Source < DML_WAN_IP_SOURCE_MAX )
+        DML_WAN_IP_SOURCE  tmpIPv6Source = DML_WAN_IP_SOURCE_DHCP;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPv6Source);
+        if ( sscanf_result == 1 && tmpIPv6Source < DML_WAN_IP_SOURCE_MAX )
         {
             pVirtIf->IP.IPv6Source = tmpIPv6Source;
         }
@@ -429,9 +429,9 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        CONNECTIVITY_CHECK_TYPE tmpConnectivityCheckType;
-        _ansc_sscanf(param_value, "%d", &tmpConnectivityCheckType);
-        if ( tmpConnectivityCheckType < WAN_CONNECTIVITY_TYPE_MAX )
+        CONNECTIVITY_CHECK_TYPE tmpConnectivityCheckType = WAN_CONNECTIVITY_TYPE_NO_CHECK;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpConnectivityCheckType);
+        if ( sscanf_result == 1 && tmpConnectivityCheckType < WAN_CONNECTIVITY_TYPE_MAX )
         {
             pVirtIf->IP.ConnectivityCheckType = tmpConnectivityCheckType;
         }
