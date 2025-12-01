@@ -2101,9 +2101,9 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
      * DHCPManager use case to start client we should be having valid DHCPv4Iface info. So if
      * not present fetch it from PSM again
     */
-    if(pInterface->IfaceType == REMOTE_IFACE)
+    if (pInterface->IfaceType == REMOTE_IFACE)
     {
-       if(('\0' == p_VirtIf->IP.DHCPv4Iface[0]) || (strlen(p_VirtIf->IP.DHCPv4Iface) == 0))
+       if (('\0' == p_VirtIf->IP.DHCPv4Iface[0]) || (strlen(p_VirtIf->IP.DHCPv4Iface) == 0))
        {
             CcspTraceInfo(("%s %d DHCPv4Iface info is empty so trying to fetch once again for '%s'\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
             WanMgr_getRemoteWanParamsFromPSM(p_VirtIf);
