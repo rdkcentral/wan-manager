@@ -1908,6 +1908,8 @@ static eWanState_t wan_transition_vlan_configure(WanMgr_IfaceSM_Controller_t* pW
 
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+    int  uptime = 0;
+    char buffer[64] = {0};
 
     /*TODO: VLAN should not be set for Remote Interface, for More info, refer RDKB-42676*/
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
@@ -1930,6 +1932,14 @@ static eWanState_t wan_transition_vlan_configure(WanMgr_IfaceSM_Controller_t* pW
         p_VirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_CONFIGURING;
         WanMgr_RdkBus_ConfigureVlan(p_VirtIf, TRUE);
     }
+
+    /* Update available status */
+    Update_Interface_Status();
+
+    /* Update WAN Init Start BootTime Information */
+    WanManager_GetDateAndUptime( buffer, &uptime );
+    LOG_CONSOLE("%s [tid=%ld] Wan_init_start:%d\n", buffer, syscall(SYS_gettid), uptime);
+    WanManager_PrintBootEvents (WAN_INIT_START);
 
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION VLAN CONFIGURE\n", __FUNCTION__, __LINE__, pInterface->Name));
 
@@ -3139,13 +3149,6 @@ static eWanState_t wan_state_phy_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl
 
     if ( pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP )
     {
-        int  uptime = 0;
-        char buffer[64] = {0};
-
-        WanManager_GetDateAndUptime( buffer, &uptime );
-        LOG_CONSOLE("%s [tid=%ld] Wan_init_start:%d\n", buffer, syscall(SYS_gettid), uptime);
-        WanManager_PrintBootEvents (WAN_INIT_START);
-
         return wan_transition_vlan_configure(pWanIfaceCtrl);
     }
 
