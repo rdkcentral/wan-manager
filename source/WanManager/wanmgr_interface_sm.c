@@ -3010,6 +3010,7 @@ static eWanState_t wan_transition_phy_deconfiguring(WanMgr_IfaceSM_Controller_t*
 static eWanState_t wan_transition_wan_deconfigured(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     CcspTraceInfo(("%s %d \n", __FUNCTION__, __LINE__));
+
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
         return ANSC_STATUS_FAILURE;
@@ -3049,7 +3050,6 @@ static eWanState_t wan_transition_exit(WanMgr_IfaceSM_Controller_t* pWanIfaceCtr
     }
 
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
-
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
     p_VirtIf->Status = WAN_IFACE_STATUS_DISABLED;
@@ -4212,8 +4212,6 @@ static eWanState_t wan_state_exit(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
     WanManager_ClearDHCPData(p_VirtIf);
 
     CcspTraceInfo(("%s %d - Interface '%s' - EXITING STATE MACHINE\n", __FUNCTION__, __LINE__, pInterface->Name));
-
-    p_VirtIf->Interface_SM_Running = FALSE;
 
     return WAN_STATE_EXIT;
 }
