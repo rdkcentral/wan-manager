@@ -2941,10 +2941,6 @@ static eWanState_t wan_transition_configuring_interface(WanMgr_IfaceSM_Controlle
     /*Should Update available status */
     Update_Interface_Status();
 
-    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION START\n", __FUNCTION__, __LINE__, pInterface->Name));
-
-    p_VirtIf->Interface_SM_Running = TRUE;
-
     WanMgr_GetSelectedIPMode(p_VirtIf); //Get SelectedIPMode
 
     // Check the interface type is cold standby then needs to be activate/decativate at runtime
