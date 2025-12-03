@@ -12,8 +12,9 @@
 
 ANSC_STATUS WanMgr_ProcessTelemetryMarker( DML_VIRTUAL_IFACE *pVirtIf , WanMgr_TelemetryEvent_t telemetry_marker)
 {
-    if(pVirtIf == NULL)
+    if(pVirtIf == NULL || telemetry_marker <= 0 || telemetry_marker >= WAN_TELEMETRY_EVENT_MAX)
     {
+        CcspTraceError(("%s %d: ERROR processing telemetry event for '%d'\n",__FUNCTION__, __LINE__, telemetry_marker));
         return ANSC_STATUS_FAILURE;
     }
     WanMgr_Iface_Data_t* pWanDmlIfaceData = WanMgr_GetIfaceData_locked(pVirtIf->baseIfIdx);
