@@ -2955,7 +2955,7 @@ static eWanState_t wan_transition_configuring_interface(WanMgr_IfaceSM_Controlle
     //Initialize Interface Info
     WanManager_InitializeInterfaceInfo(pWanIfaceCtrl);
 
-    // Check the interface type is cold standby then needs to be activate/decativate at runtime
+    // Check the interface type is cold standby then needs to be activate/deactivate at runtime
     if( WAN_IFACE_CONN_TYPE_COLD_STANDBY == pInterface->IfaceConnectionType )
     {
         // Configure Interface
