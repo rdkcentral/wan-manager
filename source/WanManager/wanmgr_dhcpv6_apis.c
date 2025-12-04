@@ -1774,7 +1774,12 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
                 if (strcmp(pDhcp6cInfoCur->sitePrefix, pNewIpcMsg->sitePrefix) != 0)
                 {
                     CcspTraceInfo(("%s %d new prefix = %s, current prefix = %s \n", __FUNCTION__, __LINE__, pNewIpcMsg->sitePrefix, pDhcp6cInfoCur->sitePrefix));
-                    strncat(prefix, "/64",sizeof(prefix)-1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+                    /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+                    strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
+#else
+                    strncat(prefix, "/64", sizeof(prefix) - 1);
+#endif
                     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
                 }
             }
@@ -1972,7 +1977,12 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
             char previousPrefix[BUFLEN_48] = {0};
             char previousPrefix_vldtime[BUFLEN_48] = {0};
             char previousPrefix_prdtime[BUFLEN_48] = {0};
-            strncat(lanPrefix, "/64",sizeof(lanPrefix)-1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+            /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+            strncpy(lanPrefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(lanPrefix) - 1);
+#else
+            strncat(lanPrefix, "/64", sizeof(lanPrefix) - strlen(lanPrefix) - 1);
+#endif
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, previousPrefix, sizeof(previousPrefix));
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIXVLTIME, previousPrefix_vldtime, sizeof(previousPrefix_vldtime));
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIXPLTIME, previousPrefix_prdtime, sizeof(previousPrefix_prdtime));
@@ -2076,7 +2086,12 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
                 syscfg_set_string(SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, pVirtIf->IP.Ipv6Data.pdIfAddress);
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_TR_BRLAN0_DHCPV6_SERVER_ADDRESS, set_value, 0);
                 CcspTraceInfo(("%s %d new prefix = %s\n", __FUNCTION__, __LINE__, pVirtIf->IP.Ipv6Data.sitePrefix));
-                strncat(prefix, "/64",sizeof(prefix)-1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+                /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+                strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
+#else
+                strncat(prefix, "/64", sizeof(prefix) - 1);
+#endif
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
                 sysevent_set(sysevent_fd, sysevent_token, "lan_prefix", prefix, 0);
             }
