@@ -822,6 +822,7 @@ static void WanMgr_Rbus_EventReceiveHandler(rbusHandle_t handle, rbusEvent_t con
                     }
                     else if (strncmp(pValue,"Up",strlen(pValue)) == 0)
                     {
+                        WanMgr_getRemoteWanParamsFromPSM(pWanIfaceData->VirtIfList);
                         WanMgr_ProcessTelemetryMarker(WanMgr_getVirtualIfaceById( pWanIfaceData->VirtIfList,0),WAN_INFO_PHY_UP);
                     }					
                     WanMgr_StringToEnum(&pWanIfaceData->BaseInterfaceStatus, ENUM_PHY, pValue);
@@ -1757,6 +1758,7 @@ static void CPEInterface_AsyncMethodHandler(
                     }
                     else if(strncmp(pValue,"Up",strlen(pValue)) == 0)
                     {
+                        WanMgr_getRemoteWanParamsFromPSM(pWanIfaceData->VirtIfList);
                         WanMgr_ProcessTelemetryMarker(WanMgr_getVirtualIfaceById( pWanIfaceData->VirtIfList,0),WAN_INFO_PHY_UP);
                     }				
                     WanMgr_StringToEnum(&pWanIfaceData->BaseInterfaceStatus, ENUM_PHY, pValue);
