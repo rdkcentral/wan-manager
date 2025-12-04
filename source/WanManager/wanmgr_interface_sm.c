@@ -2989,6 +2989,10 @@ static eWanState_t wan_transition_wan_deconfigured(WanMgr_IfaceSM_Controller_t* 
     {
         WanMgr_Publish_WanStatus(pWanIfaceCtrl->interfaceIdx, pWanIfaceCtrl->VirIfIdx);
     }
+    else
+    {
+        CcspTraceError(("%s %d - WAN Control InterfaceIdx(%d) is invalid for %s\n", __FUNCTION__, __LINE__, pWanIfaceCtrl->interfaceIdx, pInterface->Name));
+    }
 
     /* Clear DHCP data */
     WanManager_ClearDHCPData(p_VirtIf);
