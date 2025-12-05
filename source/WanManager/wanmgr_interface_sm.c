@@ -1838,6 +1838,8 @@ static ANSC_STATUS WanManager_ClearDHCPData(DML_VIRTUAL_IFACE * pVirtIf)
 
     /* DHCPv6 client */
     pVirtIf->IP.Ipv6Status = WAN_IFACE_IPV6_STATE_DOWN;
+    pVirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;
+    pVirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
     pVirtIf->IP.Ipv6Changed = FALSE;
     pVirtIf->IP.Ipv6Renewed = FALSE;
     memset(&(pVirtIf->IP.Ipv6Data), 0, sizeof(WANMGR_IPV6_DATA));
@@ -1867,19 +1869,21 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+    p_VirtIf->Interface_SM_Running = TRUE;
+
     p_VirtIf->IP.Ipv4Status = WAN_IFACE_IPV4_STATE_DOWN;
     p_VirtIf->IP.Ipv6Status = WAN_IFACE_IPV6_STATE_DOWN;
     p_VirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
     memset(p_VirtIf->VLAN.CurrentVlan, 0, sizeof(p_VirtIf->VLAN.CurrentVlan));
 
-    p_VirtIf->Status = WAN_IFACE_STATUS_INITIALISING;
+    p_VirtIf->Status = WAN_IFACE_STATUS_DISABLED;
 
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
         WanMgr_Publish_WanStatus(pWanIfaceCtrl->interfaceIdx, pWanIfaceCtrl->VirIfIdx);
     }
- 
+
     /*If WanManger restarted, get the status of existing VLAN, PPP inetrfaces.*/
     if(WanMgr_RestartFindExistingLink(pWanIfaceCtrl) == TRUE)
     {
@@ -1889,11 +1893,9 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     /*Should Update available status */
     Update_Interface_Status();
 
-    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION START\n", __FUNCTION__, __LINE__, pInterface->Name));
-
-    p_VirtIf->Interface_SM_Running = TRUE;
-
     WanMgr_GetSelectedIPMode(p_VirtIf); //Get SelectedIPMode
+
+    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION START\n", __FUNCTION__, __LINE__, pInterface->Name));
 
     return WAN_STATE_PHY_CONFIGURING;
 }
@@ -1910,6 +1912,8 @@ static eWanState_t wan_transition_vlan_configure(WanMgr_IfaceSM_Controller_t* pW
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
     int  uptime = 0;
     char buffer[64] = {0};
+
+    p_VirtIf->Status = WAN_IFACE_STATUS_INITIALISING;
 
     /*TODO: VLAN should not be set for Remote Interface, for More info, refer RDKB-42676*/
     if(  p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN && pInterface->IfaceType != REMOTE_IFACE)
@@ -2928,7 +2932,7 @@ static eWanState_t wan_transition_configuring_interface(WanMgr_IfaceSM_Controlle
 
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
 
-    // Check the interface type is cold standby then needs to be activate/decativate at runtime
+    // Check the interface type is cold standby then needs to be activate/deactivate at runtime
     if( WAN_IFACE_CONN_TYPE_COLD_STANDBY == pInterface->IfaceConnectionType )
     {
         // Configure Interface
@@ -2976,6 +2980,26 @@ static eWanState_t wan_transition_wan_deconfigured(WanMgr_IfaceSM_Controller_t* 
     }
 
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
+    DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+
+    p_VirtIf->Status = WAN_IFACE_STATUS_DISABLED;
+    p_VirtIf->Reset = FALSE;
+
+    if (pWanIfaceCtrl->interfaceIdx != -1)
+    {
+        WanMgr_Publish_WanStatus(pWanIfaceCtrl->interfaceIdx, pWanIfaceCtrl->VirIfIdx);
+    }
+    else
+    {
+        CcspTraceError(("%s %d - WAN Control InterfaceIdx(%d) is invalid for %s\n", __FUNCTION__, __LINE__, pWanIfaceCtrl->interfaceIdx, pInterface->Name));
+    }
+
+    /* Clear DHCP data */
+    WanManager_ClearDHCPData(p_VirtIf);
+
+    Update_Interface_Status();
+
+    WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_ERROR_WAN_DOWN);
 
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION STATE PHY DOWN\n", __FUNCTION__, __LINE__, pInterface->Name));
     return WAN_STATE_PHY_DOWN;
@@ -4146,8 +4170,11 @@ static eWanState_t wan_state_exit(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
     }
 
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceCtrl->pIfaceData->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+    DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     /* Clear DHCP data */
     WanManager_ClearDHCPData(p_VirtIf);
+
+    CcspTraceInfo(("%s %d - Interface '%s' - EXITING STATE MACHINE\n", __FUNCTION__, __LINE__, pInterface->Name));
 
     return WAN_STATE_EXIT;
 }
