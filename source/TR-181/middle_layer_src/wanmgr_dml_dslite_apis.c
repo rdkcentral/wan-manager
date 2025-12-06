@@ -82,6 +82,7 @@ BOOL DSLite_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamName, BOOL bVa
     {
         if (pDSLiteData->Enable != bValue)
         {
+#ifndef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
             UINT deviceMode = 0;
 
             WanMgr_SysCfgGetUint("last_erouter_mode", &deviceMode);
@@ -91,6 +92,7 @@ BOOL DSLite_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamName, BOOL bVa
                 ret = FALSE;
             }
             else
+#endif
             {
                 if (WanMgr_SysCfgSetUint("dslite_enable", bValue ? 1 : 0) != ANSC_STATUS_SUCCESS)
                 {
@@ -288,7 +290,6 @@ BOOL InterfaceSetting4_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamNam
     UINT inst = (UINT)(uintptr_t)hInsContext;
     DML_DSLITE_LIST *entry;
     DML_DSLITE_CONFIG *cfg;
-    UINT deviceMode = 0;
     BOOL ret = FALSE;
 
     entry = WanMgr_getDSLiteEntryByInstance_locked(inst);
@@ -297,6 +298,9 @@ BOOL InterfaceSetting4_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamNam
         return ret;
     }
 
+#ifndef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
+    UINT deviceMode = 0;
+
     WanMgr_SysCfgGetUint("last_erouter_mode", &deviceMode);
     if ((DML_WAN_DEVICE_MODE)(deviceMode + 1) != DML_WAN_DEVICE_MODE_Ipv6) // last_erouter_mode is zero based
     {
@@ -304,7 +308,7 @@ BOOL InterfaceSetting4_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamNam
         WanMgr_GetDSLiteData_release();
         return FALSE;
     }
-
+#endif
     cfg = &entry->CurrCfg;
 
     if (strcmp(ParamName, "Enable") == 0)
