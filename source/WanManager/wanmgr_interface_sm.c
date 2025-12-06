@@ -3080,6 +3080,14 @@ static eWanState_t wan_transition_dslite_up(WanMgr_IfaceSM_Controller_t *pWanIfa
 
     p_VirtIf->DSLite.Changed = FALSE; // Reset flag even if tunnel setup attempts fails
 
+#ifdef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
+    /* if V4 data already recieved, let it configure */
+    if((p_VirtIf->IP.Ipv4Changed == TRUE) && (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
+    {
+        wan_transition_ipv4_up(pWanIfaceCtrl);
+    }
+#endif
+
     if (wan_setUpDSLite(pWanIfaceCtrl) != RETURN_OK)
     {
         clock_gettime(CLOCK_MONOTONIC_RAW, &(p_VirtIf->DSLite.LastRetryTime));
@@ -3089,6 +3097,18 @@ static eWanState_t wan_transition_dslite_up(WanMgr_IfaceSM_Controller_t *pWanIfa
         return p_VirtIf->eCurrentState;
     }
 
+#ifdef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
+    if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+    {
+        // DS-Lite is configured, stop DHCPv4 client with RELEASE if v4 configured
+        CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
+        WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
+    }
+    if((p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
+    {
+        wan_transition_ipv4_down(pWanIfaceCtrl);
+    }
+#endif
     memset(&(p_VirtIf->DSLite.LastRetryTime), 0, sizeof(p_VirtIf->DSLite.LastRetryTime));
 
     wanmgr_firewall_restart();
@@ -3113,6 +3133,38 @@ static eWanState_t wan_transition_dslite_down(WanMgr_IfaceSM_Controller_t *pWanI
         CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION to State=%d \n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->eCurrentState));
         return p_VirtIf->eCurrentState;
     }
+
+#if defined (FEATURE_DSLITE_V2) && defined (FEATURE_DSLITE_V2_DUALSTACK_SUPPORT)
+
+    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
+    memset(&(p_VirtIf->IP.Ipv4Data), 0, sizeof(WANMGR_IPV4_DATA));
+
+    if(p_VirtIf->IP.pIpcIpv4Data != NULL)
+    {
+        free(p_VirtIf->IP.pIpcIpv4Data);
+        p_VirtIf->IP.pIpcIpv4Data = NULL;
+    }
+
+    if (pWanIfaceCtrl->WanEnable == TRUE &&
+        pInterface->Selection.Enable == TRUE &&
+        pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
+        p_VirtIf->Enable == TRUE &&
+        p_VirtIf->Reset == FALSE &&
+        p_VirtIf->VLAN.Reset == FALSE &&
+        pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP &&
+        p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK)
+    {
+        if (p_VirtIf->PPP.Enable == FALSE)
+        {
+            WanManager_StartDhcpv4Client(p_VirtIf, pInterface->Name, pInterface->IfaceType);
+            CcspTraceInfo(("%s %d - Started dhcpc on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        }
+        else
+        {
+            WanManager_ConfigurePPPSession(p_VirtIf, TRUE);
+        }
+    }
+#endif
 
     wanmgr_firewall_restart();
 
@@ -4171,8 +4223,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
         }
     }
 #endif //FEATURE_MAPT
-//#if 0 // Enable when DSLITE_V2_DUAL_MODE is supported
-#ifdef FEATURE_DSLITE_V2
+#if defined (FEATURE_DSLITE_V2) && defined (FEATURE_DSLITE_V2_DUALSTACK_SUPPORT)
     else if (WanMgr_DSLite_isEnabled(p_VirtIf) == TRUE &&
              WanMgr_DSLite_isEndpointAssigned(p_VirtIf) == TRUE &&
              pInterface->Selection.Status == WAN_IFACE_ACTIVE)
@@ -4203,7 +4254,6 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
         }
     }
 #endif // FEATURE_DSLITE_V2
-//#endif
     else if (p_VirtIf->IP.Ipv4Renewed == TRUE)
     {
         WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV4 , TRUE);
