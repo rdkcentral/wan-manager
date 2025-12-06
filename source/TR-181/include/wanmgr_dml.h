@@ -490,6 +490,7 @@ typedef struct _DML_WANIFACE_DSLITE
     CHAR                        Path[BUFLEN_64];
     DML_WAN_IFACE_DSLITE_STATUS Status;
     BOOL                        Changed;
+    struct timespec             LastRetryTime;
 } DML_WANIFACE_DSLITE;
 
 #ifdef FEATURE_DSLITE_V2
@@ -510,6 +511,8 @@ typedef struct _DML_DSLITE_CONFIG
     UINT                                TcpMss;                        // X_RDKCENTRAL-COM_Tcpmss
     BOOL                                Ipv6FragEnable;                // X_RDKCENTRAL-COM_IPv6FragEnable
     CHAR                                TunnelV4Addr[BUFLEN_64];
+    struct timespec                     DnsResolveTime;                // Timestamp when DNS resolution occurred
+    UINT                                DnsTtl;                        // DNS TTL value in seconds
 } DML_DSLITE_CONFIG;
 
 typedef struct _DML_DSLITE_LIST
