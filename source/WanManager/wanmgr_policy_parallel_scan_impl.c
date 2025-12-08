@@ -792,6 +792,7 @@ static WcPsPolicyState_t State_ScanningInterface (WanMgr_Policy_Controller_t * p
             if(pWanController->GroupInst == pWanIfaceData->Selection.Group && 
                     pWanIfaceData->Selection.Enable == TRUE &&
                     pWanIfaceData->VirtIfList->Status == WAN_IFACE_STATUS_DISABLED &&
+                    pWanIfaceData->VirtIfList->Interface_SM_Running == FALSE &&
                     /* If GroupPersistSelectedIface is TRUE and we have a last selected interface, don't start VISM for other interfaces */
                     (!(pWanController->GroupPersistSelectedIface == TRUE && lastSelectedIfaceFound == TRUE && pWanIfaceData->Selection.ActiveLink == FALSE)))
             {

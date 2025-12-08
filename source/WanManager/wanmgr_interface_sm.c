@@ -2994,10 +2994,10 @@ static eWanState_t wan_transition_wan_deconfigured(WanMgr_IfaceSM_Controller_t* 
         CcspTraceError(("%s %d - WAN Control InterfaceIdx(%d) is invalid for %s\n", __FUNCTION__, __LINE__, pWanIfaceCtrl->interfaceIdx, pInterface->Name));
     }
 
+    Update_Interface_Status();
+
     /* Clear DHCP data */
     WanManager_ClearDHCPData(p_VirtIf);
-
-    Update_Interface_Status();
 
     WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_ERROR_WAN_DOWN);
 
