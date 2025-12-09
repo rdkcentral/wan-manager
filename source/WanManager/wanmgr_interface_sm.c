@@ -1744,8 +1744,7 @@ static int wan_tearDownDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
     {
         CcspTraceError(("%s %d - DSLite tunnel teardown failed for interface %s.\n",__FUNCTION__, __LINE__, p_VirtIf->Name));
         WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_ERROR_DSLITE_STATUS_FAILED);
-        p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_ERROR;
-        return ANSC_STATUS_FAILURE;
+        return RETURN_ERR;
     }
 
     if (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY)
@@ -1796,7 +1795,9 @@ static int wan_setUpDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
 
         WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_ERROR_DSLITE_STATUS_FAILED);
         p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_ERROR;
-        return ANSC_STATUS_FAILURE;
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &(p_VirtIf->DSLite.LastRetryTime));
+        return RETURN_ERR;
     }
 
     wanmgr_restart_zebra();
@@ -1825,6 +1826,8 @@ static int wan_setUpDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
 
     WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_INFO_DSLITE_STATUS_UP);
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_UP;
+
+    memset(&(p_VirtIf->DSLite.LastRetryTime), 0, sizeof(p_VirtIf->DSLite.LastRetryTime));
 
     return RETURN_OK;
 }
@@ -3233,21 +3236,12 @@ static eWanState_t wan_transition_dslite_up(WanMgr_IfaceSM_Controller_t *pWanIfa
 
     p_VirtIf->DSLite.Changed = FALSE; // Reset flag even if tunnel setup attempts fails
 
-#ifdef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
-    /* if V4 data already recieved, let it configure */
-    if((p_VirtIf->IP.Ipv4Changed == TRUE) && (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
-    {
-        wan_transition_ipv4_up(pWanIfaceCtrl);
-    }
-#endif
-
     if (wan_setUpDSLite(pWanIfaceCtrl) != RETURN_OK)
     {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &(p_VirtIf->DSLite.LastRetryTime));
         CcspTraceError(("%s %d - Failed to setup DS-Lite for %s, will retry after %d seconds\n",
                        __FUNCTION__, __LINE__, p_VirtIf->Name, DSLITE_RETRY_INTERVAL_SEC));
-        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION to State=%d \n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->eCurrentState));
-        return p_VirtIf->eCurrentState;
+        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED \n", __FUNCTION__, __LINE__, pInterface->Name));
+        return WAN_STATE_IPV6_LEASED;
     }
 
 #ifdef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
@@ -3262,7 +3256,6 @@ static eWanState_t wan_transition_dslite_up(WanMgr_IfaceSM_Controller_t *pWanIfa
         wan_transition_ipv4_down(pWanIfaceCtrl);
     }
 #endif
-    memset(&(p_VirtIf->DSLite.LastRetryTime), 0, sizeof(p_VirtIf->DSLite.LastRetryTime));
 
     wanmgr_firewall_restart();
 
@@ -3283,8 +3276,8 @@ static eWanState_t wan_transition_dslite_down(WanMgr_IfaceSM_Controller_t *pWanI
     if (wan_tearDownDSLite(pWanIfaceCtrl) != RETURN_OK)
     {
         CcspTraceError(("%s %d - Failed to tear down DS-Lite for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION to State=%d \n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->eCurrentState));
-        return p_VirtIf->eCurrentState;
+        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED \n", __FUNCTION__, __LINE__, pInterface->Name));
+        return WAN_STATE_IPV6_LEASED;
     }
 
 #if defined (FEATURE_DSLITE_V2) && defined (FEATURE_DSLITE_V2_DUALSTACK_SUPPORT)
@@ -4236,14 +4229,12 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             time_t elapsed = (CurrentTime.tv_sec - p_VirtIf->DSLite.LastRetryTime.tv_sec);
 
             // Immediate retry only if there was a change in DSLite params
-            if (p_VirtIf->DSLite.Changed != TRUE && elapsed < DSLITE_RETRY_INTERVAL_SEC)
+            if (p_VirtIf->DSLite.Changed == TRUE || elapsed >= DSLITE_RETRY_INTERVAL_SEC)
             {
-                return p_VirtIf->eCurrentState;
+                CcspTraceInfo(("%s - Retrying DSLite setup for %s after %ld seconds [DS-Lite Cfg changed=%s]\n",
+                               __FUNCTION__, p_VirtIf->Name, elapsed, p_VirtIf->DSLite.Changed ? "true" : "false"));
+                p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN; // let the next iteration handle it
             }
-
-            CcspTraceInfo(("%s - Retrying DSLite setup for %s after %ld seconds\n",
-                           __FUNCTION__, p_VirtIf->Name, elapsed));
-            p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN; // let the next iteration handle it
         }
     }
 #endif
@@ -4405,14 +4396,12 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
             time_t elapsed = (CurrentTime.tv_sec - p_VirtIf->DSLite.LastRetryTime.tv_sec);
 
             // Immediate retry only if there was a change in DSLite params
-            if (p_VirtIf->DSLite.Changed != TRUE && elapsed < DSLITE_RETRY_INTERVAL_SEC)
+            if (p_VirtIf->DSLite.Changed == TRUE || elapsed >= DSLITE_RETRY_INTERVAL_SEC)
             {
-                return p_VirtIf->eCurrentState;
+                CcspTraceInfo(("%s - Retrying DSLite setup for %s after %ld seconds [DS-Lite Cfg changed=%s]\n",
+                               __FUNCTION__, p_VirtIf->Name, elapsed, p_VirtIf->DSLite.Changed ? "true" : "false"));
+                p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN; // let the next iteration handle it
             }
-
-            CcspTraceInfo(("%s - Retrying DSLite setup for %s after %ld seconds\n",
-                           __FUNCTION__, p_VirtIf->Name, elapsed));
-            p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN; // let the next iteration handle it
         }
     }
 #endif // FEATURE_DSLITE_V2
@@ -4651,7 +4640,6 @@ static eWanState_t wan_state_dslite_active(WanMgr_IfaceSM_Controller_t *pWanIfac
     // Check if DNS TTL has expired, re-resolve endpoint, and restart tunnel only if address changed
     if (WanMgr_DSLite_CheckAndHandleTtlExpiration(p_VirtIf) == TRUE)
     {
-        CcspTraceInfo(("%s: Endpoint address changed after TTL expiration, restarting DSLite tunnel\n", __FUNCTION__));
         return wan_transition_dslite_down(pWanIfaceCtrl);
     }
 
