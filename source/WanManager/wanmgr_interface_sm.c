@@ -2653,7 +2653,6 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Prefix",  p_VirtIf->baseIfIdx+1, p_VirtIf->VirIfIdx+1);
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
-    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
 
     //Disable accept_ra
     WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
@@ -2674,7 +2673,7 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
 	}
 #endif
     WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-
+    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
     Update_Interface_Status();
     sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_IPV4_CONNECTION_STATE, buf, sizeof(buf));
 
