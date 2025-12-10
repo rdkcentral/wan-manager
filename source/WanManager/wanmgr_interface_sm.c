@@ -1993,10 +1993,16 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
         wan_transition_ipv4_down(pWanIfaceCtrl);
     }
 
+    CcspTraceInfo(("%s %d B4 IPv6Status:%d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Status));
+    CcspTraceInfo(("%s %d B4 virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
+
     if(p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
     {
+        CcspTraceInfo(("%s %d Inside\n", __FUNCTION__, __LINE__));
         wan_transition_ipv6_down(pWanIfaceCtrl);
     }
+    CcspTraceInfo(("%s %d After IPv6Status:%d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Status));
+    CcspTraceInfo(("%s %d After virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
     /* Stops DHCPv4 client */
     if(p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
@@ -2612,6 +2618,8 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+    CcspTraceInfo(("%s %d virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
+
     if (pWanIfaceCtrl->WanEnable == FALSE ||
         pInterface->Selection.Enable == FALSE ||
         p_VirtIf->Enable == FALSE ||
@@ -2648,15 +2656,19 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
         }
     }
 
+    CcspTraceInfo(("%s %d virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
+
     char param_name[256] = {0};
     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Address",  p_VirtIf->baseIfIdx+1, p_VirtIf->VirIfIdx+1);
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Prefix",  p_VirtIf->baseIfIdx+1, p_VirtIf->VirIfIdx+1);
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
+    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
 
     //Disable accept_ra
     WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
 
+    CcspTraceInfo(("%s %d virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
     if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
     {
         if (wan_tearDownIPv6(pWanIfaceCtrl) != RETURN_OK)
@@ -2673,7 +2685,7 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
 	}
 #endif
     WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
+
     Update_Interface_Status();
     sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_IPV4_CONNECTION_STATE, buf, sizeof(buf));
 
