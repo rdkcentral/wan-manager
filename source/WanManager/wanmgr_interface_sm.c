@@ -1992,8 +1992,8 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
     {
         wan_transition_ipv4_down(pWanIfaceCtrl);
     }
-#errrr
-    CcspTraceInfo(("%s %d B4 IPv6Status:%d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Status))
+
+    CcspTraceInfo(("%s %d B4 IPv6Status:%d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Status));
     CcspTraceInfo(("%s %d B4 virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
     if(p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
