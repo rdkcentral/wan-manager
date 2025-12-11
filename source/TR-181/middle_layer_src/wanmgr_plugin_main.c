@@ -67,6 +67,9 @@
 #endif /** WAN_MANAGER_UNIFICATION_ENABLED */
 #include "wanmgr_dml_dhcpv4.h"
 #include "wanmgr_dml_dhcpv6.h"
+#ifdef FEATURE_DSLITE_V2
+#include "wanmgr_dml_dslite_apis.h"
+#endif
 
 void *                  g_pDslhDmlAgent;
 extern ANSC_HANDLE      g_MessageBusHandle_Irep;
@@ -581,7 +584,24 @@ int ANSC_EXPORT_API WanManagerDmlInit(ULONG uMaxVersionSupported, void* hCosaPlu
 
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SentOption_GetEntryCount", SentOption_GetEntryCount);
 
-
+#ifdef FEATURE_DSLITE_V2
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DSLite_GetParamBoolValue", DSLite_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DSLite_SetParamBoolValue", DSLite_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DSLite_GetParamUlongValue", DSLite_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetEntryCount", InterfaceSetting4_GetEntryCount);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetEntry", InterfaceSetting4_GetEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_AddEntry", InterfaceSetting4_AddEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_DelEntry", InterfaceSetting4_DelEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetParamBoolValue", InterfaceSetting4_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetParamStringValue", InterfaceSetting4_GetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetParamUlongValue", InterfaceSetting4_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_SetParamBoolValue", InterfaceSetting4_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_SetParamStringValue", InterfaceSetting4_SetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_SetParamUlongValue", InterfaceSetting4_SetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_Validate", InterfaceSetting4_Validate);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_Commit", InterfaceSetting4_Commit);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_Rollback", InterfaceSetting4_Rollback);
+#endif
 
     /* Create backend framework */
     g_pWanMgrBE = (WANMGR_BACKEND_OBJ*)BackEndManagerCreate();

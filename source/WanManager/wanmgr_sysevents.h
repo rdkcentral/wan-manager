@@ -327,4 +327,6 @@ void wanmgr_get_wan_interface(char *wanInterface);
 
 void  wanmgr_setWanLedState(eWanState_t state);
 
+void  wanmgr_restart_zebra (void);
+
 #endif //_WANMGR_SYSEVENTS_H_

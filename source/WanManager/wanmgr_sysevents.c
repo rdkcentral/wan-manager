@@ -1512,3 +1512,43 @@ void wanmgr_get_wan_interface(char *wanInterface)
     }
 }
 #endif
+
+void  wanmgr_restart_zebra (void)
+{
+    FILE *zebra_pid_fd;
+    FILE *zebra_cmdline_fd;
+    char pid_str[10];
+    char cmdline_buf[255];
+    int pid = -1;
+    int restart_needed = 1;
+
+    if ((zebra_pid_fd = fopen("/var/zebra.pid", "rb")) != NULL)
+    {
+        if (fgets(pid_str, sizeof(pid_str), zebra_pid_fd) != NULL && atoi(pid_str) > 0)
+        {
+            pid = atoi(pid_str);
+        }
+        fclose(zebra_pid_fd);
+    }
+
+    if (pid > 0)
+    {
+        sprintf(cmdline_buf, "/proc/%d/cmdline", pid);
+        if ((zebra_cmdline_fd = fopen(cmdline_buf, "rb")) != NULL)
+        {
+            if (fgets(cmdline_buf, sizeof(cmdline_buf), zebra_cmdline_fd) != NULL)
+            {
+                if (strstr(cmdline_buf, "zebra"))
+                {
+                    restart_needed = 0;
+                }
+            }
+            fclose(zebra_cmdline_fd);
+        }
+    }
+
+    if (restart_needed)
+    {
+        sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+    }
+}
