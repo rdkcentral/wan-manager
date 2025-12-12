@@ -1980,6 +1980,7 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
 
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     if(p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
@@ -1987,6 +1988,7 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
         wan_transition_mapt_down(pWanIfaceCtrl);
     }
 #endif
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
     if(p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
     {
@@ -2154,7 +2156,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION OBTAINING IP ADDRESSES\n", __FUNCTION__, __LINE__, pInterface->Name));
     CcspTraceInfo(("%s %d - Interface '%s' - Started in %s IP Mode\n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK ?"Dual Stack":
         p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY?"IPv6 Only": p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV4_ONLY?"IPv4 Only":"No IP"));
-
+CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
     // wan interface is now validated, lets fetch lease information for this interface if available
     if(p_VirtIf->PPP.Enable == TRUE && (strlen(p_VirtIf->PPP.Interface) > 0))
     {
@@ -2188,7 +2190,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
         if (backslashPosition != NULL) 
             *backslashPosition = '\0';  // Replace the backslash with a null character
     }
-
+CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
     return WAN_STATE_OBTAINING_IP_ADDRESSES;
 }
 
@@ -2271,6 +2273,7 @@ static eWanState_t wan_transition_ipv4_up(WanMgr_IfaceSM_Controller_t* pWanIface
 
     /* successfully got the v4 lease from the interface, so lets mark it validated */
     p_VirtIf->Status = WAN_IFACE_STATUS_UP;
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
 #if defined(_DT_WAN_Manager_Enable_)
     if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
@@ -2287,11 +2290,13 @@ static eWanState_t wan_transition_ipv4_up(WanMgr_IfaceSM_Controller_t* pWanIface
     v_secure_system("echo 0 > /proc/sys/net/ipv6/conf/erouter0/accept_ra_mtu");
 
 #endif
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
         WanMgr_Publish_WanStatus(pWanIfaceCtrl->interfaceIdx, pWanIfaceCtrl->VirIfIdx);
     }
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
     /* Configure IPv4. */
     ret = wan_setUpIPv4(pWanIfaceCtrl);
@@ -3059,16 +3064,22 @@ static eWanState_t wan_transition_standby(WanMgr_IfaceSM_Controller_t* pWanIface
     WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_INFO_WAN_STANDBY);
     p_VirtIf->Status = WAN_IFACE_STATUS_STANDBY;
 
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
         WanMgr_Publish_WanStatus(pWanIfaceCtrl->interfaceIdx, pWanIfaceCtrl->VirIfIdx);
     }
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
 
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
 
     Update_Interface_Status();
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
+
     UpdateAndPersistVLANInUse(p_VirtIf);
     CcspTraceInfo(("%s %d - TRANSITION WAN_STATE_STANDBY\n", __FUNCTION__, __LINE__));
+    CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
+
     return WAN_STATE_STANDBY;
 }
 
@@ -3471,17 +3482,22 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
 
     if (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
     {
+        CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
+
         if (pInterface->Selection.Status == WAN_IFACE_ACTIVE)
         {
             return wan_transition_ipv4_up(pWanIfaceCtrl);
         }
         else
         {
+            CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
             return wan_transition_standby(pWanIfaceCtrl);
         }
     }
     else if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
     {
+        CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
+
         if (pInterface->Selection.Status == WAN_IFACE_ACTIVE)
         {
             if(p_VirtIf->IP.Ipv6Changed == TRUE)
@@ -3502,6 +3518,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
         }
         else
         {
+            CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
             return wan_transition_standby(pWanIfaceCtrl);
         }
     }
@@ -3540,6 +3557,7 @@ static eWanState_t wan_state_standby(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
         pInterface->Selection.Status == WAN_IFACE_NOT_SELECTED ||
         pInterface->BaseInterfaceStatus !=  WAN_IFACE_PHY_STATUS_UP)
     {
+        CcspTraceInfo(("%s %d - <Trace> virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
