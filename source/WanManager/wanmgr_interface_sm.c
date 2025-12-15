@@ -2674,7 +2674,7 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
 
     CcspTraceInfo(("%s %d virtual interface %s status %d\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->Status));
-    if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
+    //if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
     {
         if (wan_tearDownIPv6(pWanIfaceCtrl) != RETURN_OK)
         {
