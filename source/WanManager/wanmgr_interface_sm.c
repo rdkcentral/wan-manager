@@ -2032,7 +2032,6 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
         wan_transition_ipv4_down(pWanIfaceCtrl);
     }
 
-
     if(p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
     {
         wan_transition_ipv6_down(pWanIfaceCtrl);
@@ -3104,10 +3103,8 @@ static eWanState_t wan_transition_standby(WanMgr_IfaceSM_Controller_t* pWanIface
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
 
     Update_Interface_Status();
-
     UpdateAndPersistVLANInUse(p_VirtIf);
     CcspTraceInfo(("%s %d - TRANSITION WAN_STATE_STANDBY\n", __FUNCTION__, __LINE__));
-
     return WAN_STATE_STANDBY;
 }
 
