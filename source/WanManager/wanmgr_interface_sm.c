@@ -2187,6 +2187,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION OBTAINING IP ADDRESSES\n", __FUNCTION__, __LINE__, pInterface->Name));
     CcspTraceInfo(("%s %d - Interface '%s' - Started in %s IP Mode\n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK ?"Dual Stack":
         p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY?"IPv6 Only": p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV4_ONLY?"IPv4 Only":"No IP"));
+
     // wan interface is now validated, lets fetch lease information for this interface if available
     if(p_VirtIf->PPP.Enable == TRUE && (strlen(p_VirtIf->PPP.Interface) > 0))
     {
@@ -2220,6 +2221,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
         if (backslashPosition != NULL) 
             *backslashPosition = '\0';  // Replace the backslash with a null character
     }
+
     return WAN_STATE_OBTAINING_IP_ADDRESSES;
 }
 
