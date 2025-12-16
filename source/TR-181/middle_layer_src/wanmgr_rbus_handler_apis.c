@@ -88,6 +88,8 @@ rbusDataElement_t wanMgrRbusDataElements[] = {
     {WANMGR_CONFIG_WAN_INTERFACEAVAILABLESTATUS,RBUS_ELEMENT_TYPE_PROPERTY, {WanMgr_Rbus_getHandler, NULL, NULL, NULL, WanMgr_Rbus_SubscribeHandler, NULL}},
     {WANMGR_CONFIG_WAN_INTERFACEACTIVESTATUS,    RBUS_ELEMENT_TYPE_PROPERTY, {WanMgr_Rbus_getHandler, NULL, NULL, NULL, WanMgr_Rbus_SubscribeHandler, NULL}},
     {WANMGR_CONFIG_WAN_CURRENTACTIVEDNS,    RBUS_ELEMENT_TYPE_PROPERTY, {WanMgr_Rbus_getHandler, NULL, NULL, NULL, WanMgr_Rbus_SubscribeHandler, NULL}},
+    {WANMGR_CONFIG_WAN_CURRENT_IPV4_DEFAULT_GW, RBUS_ELEMENT_TYPE_PROPERTY, {WanMgr_Rbus_getHandler, NULL, NULL, NULL, WanMgr_Rbus_SubscribeHandler, NULL}},
+    {WANMGR_CONFIG_WAN_CURRENT_IPV6_DEFAULT_GW, RBUS_ELEMENT_TYPE_PROPERTY, {WanMgr_Rbus_getHandler, NULL, NULL, NULL, WanMgr_Rbus_SubscribeHandler, NULL}},
     {WANMGR_EVENT_INITIAL_SCAN_COMPLETED,    RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, WanMgr_Rbus_SubscribeHandler, NULL}},
     {WANMGR_EVENT_WAN_INTERFACEIPSTATUS,    RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, WanMgr_Rbus_SubscribeHandler, NULL}},
 };
@@ -586,6 +588,104 @@ rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop
     return ret;
 }
 
+/*******************************************************************************
+  Helper function to get IPv4 default gateway from ip route command
+ ********************************************************************************/
+static ANSC_STATUS WanMgr_GetIPv4DefaultGateway(char *gateway, int size)
+{
+    FILE *fp = NULL;
+    char buffer[256] = {0};
+    char *token = NULL;
+    
+    if (gateway == NULL || size <= 0)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+    
+    gateway[0] = '\0';
+    
+    // Execute command to get IPv4 default route
+    fp = popen("ip -4 route show default 2>/dev/null", "r");
+    if (fp == NULL)
+    {
+        CcspTraceError(("%s: Failed to execute ip route command\n", __FUNCTION__));
+        return ANSC_STATUS_FAILURE;
+    }
+    
+    // Read the output: "default via <gateway> dev <interface> ..."
+    if (fgets(buffer, sizeof(buffer), fp) != NULL)
+    {
+        // Parse the line to extract gateway
+        token = strstr(buffer, "via");
+        if (token != NULL)
+        {
+            token += 4; // Skip "via "
+            // Extract the gateway IP
+            sscanf(token, "%s", gateway);
+        }
+    }
+    
+    pclose(fp);
+    
+    if (gateway[0] == '\0')
+    {
+        CcspTraceInfo(("%s: No IPv4 default gateway configured\n", __FUNCTION__));
+        return ANSC_STATUS_SUCCESS; // Not an error, just no gateway
+    }
+    
+    CcspTraceInfo(("%s: IPv4 Default Gateway: %s\n", __FUNCTION__, gateway));
+    return ANSC_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+  Helper function to get IPv6 default gateway from ip route command
+ ********************************************************************************/
+static ANSC_STATUS WanMgr_GetIPv6DefaultGateway(char *gateway, int size)
+{
+    FILE *fp = NULL;
+    char buffer[512] = {0};
+    char *token = NULL;
+    
+    if (gateway == NULL || size <= 0)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+    
+    gateway[0] = '\0';
+    
+    // Execute command to get IPv6 default route
+    fp = popen("ip -6 route show default 2>/dev/null", "r");
+    if (fp == NULL)
+    {
+        CcspTraceError(("%s: Failed to execute ip route command\n", __FUNCTION__));
+        return ANSC_STATUS_FAILURE;
+    }
+    
+    // Read the output: "default via <gateway> dev <interface> ..."
+    if (fgets(buffer, sizeof(buffer), fp) != NULL)
+    {
+        // Parse the line to extract gateway
+        token = strstr(buffer, "via");
+        if (token != NULL)
+        {
+            token += 4; // Skip "via "
+            // Extract the gateway IP (IPv6 can be long)
+            sscanf(token, "%s", gateway);
+        }
+    }
+    
+    pclose(fp);
+    
+    if (gateway[0] == '\0')
+    {
+        CcspTraceInfo(("%s: No IPv6 default gateway configured\n", __FUNCTION__));
+        return ANSC_STATUS_SUCCESS; // Not an error, just no gateway
+    }
+    
+    CcspTraceInfo(("%s: IPv6 Default Gateway: %s\n", __FUNCTION__, gateway));
+    return ANSC_STATUS_SUCCESS;
+}
+
 rbusError_t WanMgr_Rbus_getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t *opts)
 {
     (void)handle;
@@ -623,6 +723,42 @@ rbusError_t WanMgr_Rbus_getHandler(rbusHandle_t handle, rbusProperty_t property,
         {
             rbusValue_SetString(value, pWanDmlData->CurrentActiveDNS);
         }	
+        else if (strcmp(name, WANMGR_CONFIG_WAN_CURRENT_IPV4_DEFAULT_GW) == 0)
+        {
+            char ipv4_gateway[64] = {0};
+            WanMgrDml_GetConfigData_release(pWanConfigData);
+            
+            if (WanMgr_GetIPv4DefaultGateway(ipv4_gateway, sizeof(ipv4_gateway)) == ANSC_STATUS_SUCCESS)
+            {
+                rbusValue_SetString(value, ipv4_gateway);
+            }
+            else
+            {
+                rbusValue_SetString(value, "");
+            }
+            
+            rbusProperty_SetValue(property, value);
+            rbusValue_Release(value);
+            return RBUS_ERROR_SUCCESS;
+        }
+        else if (strcmp(name, WANMGR_CONFIG_WAN_CURRENT_IPV6_DEFAULT_GW) == 0)
+        {
+            char ipv6_gateway[256] = {0};
+            WanMgrDml_GetConfigData_release(pWanConfigData);
+            
+            if (WanMgr_GetIPv6DefaultGateway(ipv6_gateway, sizeof(ipv6_gateway)) == ANSC_STATUS_SUCCESS)
+            {
+                rbusValue_SetString(value, ipv6_gateway);
+            }
+            else
+            {
+                rbusValue_SetString(value, "");
+            }
+            
+            rbusProperty_SetValue(property, value);
+            rbusValue_Release(value);
+            return RBUS_ERROR_SUCCESS;
+        }
         else
         {
             WanMgrDml_GetConfigData_release(pWanConfigData);
