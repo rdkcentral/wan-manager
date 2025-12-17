@@ -1250,8 +1250,8 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
 
     snprintf(cmdInterfaceDefaultRoDel , sizeof(cmdInterfaceDefaultRoDel), "ip route del default");
     snprintf(cmdConfigureMTUSize, sizeof(cmdConfigureMTUSize), "ip link set dev %s mtu %d ", MAP_INTERFACE, mtu_size_mapt);
-    snprintf(cmdInterfaceMTU1, sizeof(cmdInterfaceMTU1), "echo %d > /proc/sys/net/ipv6/conf/%s/mtu", MTU_DEFAULT_SIZE, vlanIf);
-    snprintf(cmdInterfaceMTU2, sizeof(cmdInterfaceMTU2), "ip -6 ro change default via %s dev %s mtu %d", defaultGatewayV6, vlanIf, MTU_DEFAULT_SIZE) ;
+    /* Remove old route, set interface MTU, then add default route - route inherits MTU from interface */
+    snprintf(cmdInterfaceMTU1, sizeof(cmdInterfaceMTU1), "ip -6 route del default dev %s 2>/dev/null; ip link set dev %s mtu %d; ip -6 route add default via %s dev %s", vlanIf, vlanIf, MTU_DEFAULT_SIZE, defaultGatewayV6, vlanIf);
 #if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
         snprintf(cmdEnableIpv4Traffic, sizeof(cmdEnableIpv4Traffic), "ip ro rep default dev %s mtu %d", MAP_INTERFACE, MTU_DEFAULT_SIZE) ;
     #else // XB6 and CBR use 1500 -28 MTU size for route
@@ -1287,11 +1287,6 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
     if ((ret = WanManager_DoSystemActionWithStatus("map_nat46", cmdInterfaceMTU1)) < RETURN_OK)
     {
         CcspTraceError(("Failed to run: %s:%d", cmdInterfaceMTU1, ret));
-        return ret;
-    }
-    if ((ret = WanManager_DoSystemActionWithStatus("map_nat46", cmdInterfaceMTU2)) < RETURN_OK)
-    {
-        CcspTraceError(("Failed to run: %s:%d", cmdInterfaceMTU2, ret));
         return ret;
     }
     if ((ret = WanManager_DoSystemActionWithStatus("map_nat46", cmdEnableIpv4Traffic)) < RETURN_OK)
