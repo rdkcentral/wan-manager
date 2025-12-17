@@ -1198,7 +1198,6 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
     char cmdInterfaceDefaultRoDel[BUFLEN_512];
     char defaultGatewayV6[BUFLEN_128];
     char cmdInterfaceMTU1[BUFLEN_512];
-    char cmdInterfaceMTU2[BUFLEN_512];
     char cmdInterfaceMTU3[BUFLEN_512];
 
     snprintf(cmdinterfaceCreate , sizeof(cmdinterfaceCreate), "echo add %s > /proc/net/nat46/control", MAP_INTERFACE);
@@ -1250,8 +1249,8 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
 
     snprintf(cmdInterfaceDefaultRoDel , sizeof(cmdInterfaceDefaultRoDel), "ip route del default");
     snprintf(cmdConfigureMTUSize, sizeof(cmdConfigureMTUSize), "ip link set dev %s mtu %d ", MAP_INTERFACE, mtu_size_mapt);
-    /* Remove old route, set interface MTU, then add default route - route inherits MTU from interface */
-    snprintf(cmdInterfaceMTU1, sizeof(cmdInterfaceMTU1), "ip -6 route del default dev %s 2>/dev/null; ip link set dev %s mtu %d; ip -6 route add default via %s dev %s", vlanIf, vlanIf, MTU_DEFAULT_SIZE, defaultGatewayV6, vlanIf);
+    /* Set interface MTU only - let kernel RA manage the default route to avoid "ndisc_router_discovery failed" errors */
+    snprintf(cmdInterfaceMTU1, sizeof(cmdInterfaceMTU1), "ip link set dev %s mtu %d", vlanIf, MTU_DEFAULT_SIZE);
 #if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
         snprintf(cmdEnableIpv4Traffic, sizeof(cmdEnableIpv4Traffic), "ip ro rep default dev %s mtu %d", MAP_INTERFACE, MTU_DEFAULT_SIZE) ;
     #else // XB6 and CBR use 1500 -28 MTU size for route
@@ -1267,7 +1266,6 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
     MaptInfo("map_nat46: %s", cmdInterfaceDefaultRoDel);
     MaptInfo("map_nat46: %s", cmdConfigureMTUSize);
     MaptInfo("map_nat46: %s", cmdInterfaceMTU1);
-    MaptInfo("map_nat46: %s", cmdInterfaceMTU2);
     MaptInfo("map_nat46: %s", cmdEnableIpv4Traffic);
     MaptInfo("map_nat46: %s", cmdInterfaceMTU3);
     MaptInfo("map_nat46: %s", cmdInterfaceDefaultRouteDefault);
