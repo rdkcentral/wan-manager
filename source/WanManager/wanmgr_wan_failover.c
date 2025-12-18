@@ -322,37 +322,50 @@ ANSC_STATUS UpdateLedStatus (WanMgr_FailOver_Controller_t* pFailOverController)
                 if (pWanDmlIfaceData != NULL)
                 {
                     DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
-                    /* Active Interface State Machine is running, Update the Wan/IP connection status of the interface to LED*/
-                    // Group selected and State machine is running, so update v4/v6/map_t status accordingly
-                    if(pWanIfaceData->VirtIfList->eCurrentState != WAN_STATE_EXIT && pWanIfaceData->VirtIfList->eCurrentState != pFailOverController->ActiveIfaceState)
+                    
+                    /* Check Physical Status first - ISM now starts before PHY UP and waits for WAN sources */
+                    if(pWanIfaceData->BaseInterfaceStatus != pFailOverController->PhyState || 
+                       (pWanIfaceData->BaseInterfaceStatus != WAN_IFACE_PHY_STATUS_UP && pWanIfaceData->VirtIfList->eCurrentState != pFailOverController->ActiveIfaceState))
                     {
-                        /* Update Only when state changed */
-                        CcspTraceInfo(("%s %d Updating LED status of Selected Interface (%s) BaseInterface (%s) \n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
-                        wanmgr_setWanLedState(pWanIfaceData->VirtIfList->eCurrentState);
-
-                        pFailOverController->ActiveIfaceState = pWanIfaceData->VirtIfList->eCurrentState;
-                        pFailOverController->PhyState = WAN_IFACE_PHY_STATUS_UP; //If ISM running, set Phystate to UP
-                    }
-                    /* Active Interface State Machine is not running, Update the PHY connection status of the interface to LED */
-                    else if(pWanIfaceData->VirtIfList->eCurrentState == WAN_STATE_EXIT && (pWanIfaceData->VirtIfList->eCurrentState != pFailOverController->ActiveIfaceState || pWanIfaceData->BaseInterfaceStatus != pFailOverController->PhyState))
-                    {
-                        CcspTraceInfo(("%s %d Updating LED status of Selected Interface (%s) BaseInterface (%s)\n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
-                        wanmgr_setWanLedState(pWanIfaceData->VirtIfList->eCurrentState);
+                        /* Physical link status changed or link is DOWN - prioritize PHY status */
                         if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP)
                         {
-                            wanmgr_sysevents_setWanState(WAN_LINK_UP_STATE);
-                        }else if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_INITIALIZING && 
+                            /* PHY is UP - show state machine status if ISM running, otherwise show link up */
+                            if(pWanIfaceData->VirtIfList->eCurrentState != WAN_STATE_EXIT)
+                            {
+                                CcspTraceInfo(("%s %d Updating LED with SM state of Interface (%s) BaseInterface (%s) \n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
+                                wanmgr_setWanLedState(pWanIfaceData->VirtIfList->eCurrentState);
+                            }
+                            else
+                            {
+                                CcspTraceInfo(("%s %d Updating LED with PHY UP for Interface (%s) BaseInterface (%s)\n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
+                                wanmgr_sysevents_setWanState(WAN_LINK_UP_STATE);
+                            }
+                        }
+                        else if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_INITIALIZING && 
                                 ((strstr(pWanIfaceData->BaseInterface,"PTM")) || (strstr(pWanIfaceData->BaseInterface,"ATM"))) != NULL)
                         {
-                            /* Update DSL_Training only for DSL connection */
+                            /* DSL Training state - only for DSL interfaces */
+                            CcspTraceInfo(("%s %d Updating LED with DSL Training for Interface (%s) BaseInterface (%s)\n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
                             wanmgr_sysevents_setWanState(DSL_TRAINING);
-
-                        }else
+                        }
+                        else
                         {
+                            /* PHY is DOWN - show link down regardless of ISM state */
+                            CcspTraceInfo(("%s %d Updating LED with PHY DOWN for Interface (%s) BaseInterface (%s)\n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
                             wanmgr_sysevents_setWanState(WAN_LINK_DOWN_STATE);
                         }
-                        pFailOverController->ActiveIfaceState = pWanIfaceData->VirtIfList->eCurrentState;
                         pFailOverController->PhyState = pWanIfaceData->BaseInterfaceStatus;
+                        pFailOverController->ActiveIfaceState = pWanIfaceData->VirtIfList->eCurrentState;
+                    }
+                    /* PHY is UP and stable - update LED if state machine state changed */
+                    else if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP && 
+                            pWanIfaceData->VirtIfList->eCurrentState != WAN_STATE_EXIT && 
+                            pWanIfaceData->VirtIfList->eCurrentState != pFailOverController->ActiveIfaceState)
+                    {
+                        CcspTraceInfo(("%s %d Updating LED with SM state change for Interface (%s) BaseInterface (%s) \n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
+                        wanmgr_setWanLedState(pWanIfaceData->VirtIfList->eCurrentState);
+                        pFailOverController->ActiveIfaceState = pWanIfaceData->VirtIfList->eCurrentState;
                     }
                     WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
                 }
