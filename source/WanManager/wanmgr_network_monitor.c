@@ -166,17 +166,13 @@ static int WanManager_MaptRouteSetting()
         return ANSC_STATUS_FAILURE;
     }
 
-    /* Set interface MTU - the existing default route will automatically use this MTU.
-     * Don't delete/add default route here as it would trigger another RTM_NEWROUTE event causing a loop */
-    ret = v_secure_system("ip link set dev %s mtu %d", vlanIf, MTU_DEFAULT_SIZE);
+    ret = v_secure_system("ip -6 route change default via %s dev %s mtu %d", defaultGatewayV6, vlanIf, MTU_DEFAULT_SIZE);
     if(ret != 0) {
-         CcspTraceError(("%s %d: Failed to set interface MTU. ret:[%d] \n", __FUNCTION__,__LINE__,ret));
+         CcspTraceError(("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n", __FUNCTION__,__LINE__,ret));
     }
-
-    /* Add MAP-T specific prefix route - inherits MTU from interface */
-    ret = v_secure_system("ip -6 route replace %s via %s dev %s", brIPv6Prefix, defaultGatewayV6, vlanIf);
+    ret = v_secure_system("ip -6 route replace %s via %s dev %s mtu %d", brIPv6Prefix, defaultGatewayV6, vlanIf, mtu_size_mapt);
     if(ret != 0) {
-          CcspTraceError(("%s %d: Failed to configure MAP-T prefix route. ret:[%d] \n",__FUNCTION__,__LINE__,ret));
+          CcspTraceError(("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n",__FUNCTION__,__LINE__,ret));
     }
 }
 #endif // FEATURE_MAPT && NAT46_KERNEL_SUPPORT
