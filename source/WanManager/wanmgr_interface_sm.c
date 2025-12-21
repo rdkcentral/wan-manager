@@ -1146,6 +1146,51 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
     }
 }
 
+/**
+ * @brief Removes IPv6 default route and global addresses from interface
+ * 
+ * @param ifaceName Interface name (e.g., "eth0", "erouter0")
+ * @return RETURN_OK on success, RETURN_ERR on failure
+ * 
+ * @note This API performs the following operations:
+ *       1. Deletes IPv6 default route for the interface
+ *       2. Flushes all global scope IPv6 addresses from the interface
+ */
+static int WanMgr_RemoveIPv6RouteAndAddress(const char* ifaceName)
+{
+    if (ifaceName == NULL || strlen(ifaceName) == 0)
+    {
+        CcspTraceError(("%s %d - Invalid interface name\n", __FUNCTION__, __LINE__));
+        return RETURN_ERR;
+    }
+
+    int ret = RETURN_OK;
+    char acCmdLine[BUFLEN_128] = {0};
+
+    /* Remove IPv6 default route */
+    CcspTraceInfo(("%s %d - Deleting IPv6 default route for '%s' interface\n", 
+                   __FUNCTION__, __LINE__, ifaceName));
+    snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 route del default dev %s", ifaceName);
+    if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", acCmdLine) != 0)
+    {
+        CcspTraceError(("%s %d - Failed to run cmd: %s\n", __FUNCTION__, __LINE__, acCmdLine));
+        ret = RETURN_ERR;
+    }
+
+    /* Remove IPv6 global addresses */
+    CcspTraceInfo(("%s %d - Deleting IPv6 global address route for '%s' interface\n", 
+                   __FUNCTION__, __LINE__, ifaceName));
+    memset(acCmdLine, 0, sizeof(acCmdLine));
+    snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 addr flush scope global dev %s", ifaceName);
+    if (WanManager_DoSystemActionWithStatus("ip -6 addr flush scope global dev", acCmdLine) != 0)
+    {
+        CcspTraceError(("%s %d - Failed to run cmd: %s\n", __FUNCTION__, __LINE__, acCmdLine));
+        ret = RETURN_ERR;
+    }
+
+    return ret;
+}
+
 static int wan_deconfigIPv4onInterface(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 {
     if ((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
@@ -1528,18 +1573,12 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         AnscTraceError(("%s %d -  Failed to remove inactive address \n", __FUNCTION__,__LINE__));
     }
 
-    //Remove the default route and IPv6 address explicitly
-    char acCmdLine[BUFLEN_128] = {0};
-    CcspTraceInfo(("%s %d -  Deleting IPv6 default route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-    snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 route del default dev %s", p_VirtIf->Name);
-    if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", acCmdLine) != 0)
-        CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, acCmdLine));
-
-    CcspTraceInfo(("%s %d -  Deleting IPv6 global address route for '%s' interface\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-    memset(acCmdLine, 0, sizeof(acCmdLine));
-    snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 addr flush scope global dev %s", p_VirtIf->Name);
-    if (WanManager_DoSystemActionWithStatus("ip -6 addr flush scope global dev", acCmdLine) != 0)
-        CcspTraceError(("%s-%d Failed to run cmd: %s", __FUNCTION__, __LINE__, acCmdLine));
+    /* Remove IPv6 default route and global addresses */
+    if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name) != RETURN_OK)
+    {
+        CcspTraceError(("%s %d - Failed to remove IPv6 route and address for '%s'\n", 
+                       __FUNCTION__, __LINE__, p_VirtIf->Name));
+    }
 
     // Reset sysvevents.
     char previousPrefix[BUFLEN_48] = {0};
@@ -2665,6 +2704,16 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
             CcspTraceError(("%s %d - Failed to tear down IPv6 for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
     }
+    else
+    {
+        /* Remove IPv6 default route and global addresses */
+        if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name) != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Failed to remove IPv6 route and address for '%s'\n", 
+                           __FUNCTION__, __LINE__, p_VirtIf->Name));
+        }
+    }
+
 #if defined(FEATURE_464XLAT)
 	xlat_status = xlat_state_get();
 	if(xlat_status == XLAT_ON)
