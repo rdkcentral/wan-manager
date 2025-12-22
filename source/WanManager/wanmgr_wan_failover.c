@@ -326,7 +326,7 @@ ANSC_STATUS UpdateLedStatus (WanMgr_FailOver_Controller_t* pFailOverController)
                     // Group selected and State machine is running, so update v4/v6/map_t status accordingly
                     if(pWanIfaceData->VirtIfList->eCurrentState != pFailOverController->ActiveIfaceState ||  //Wan State changed
                         pWanIfaceData->BaseInterfaceStatus != pFailOverController->PhyState) //Phy status changed
-                    {   
+                    {
                         CcspTraceInfo(("%s %d Updating LED status of Selected Interface (%s) BaseInterface (%s) \n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
                         wanmgr_setWanLedState(pWanIfaceData->VirtIfList->eCurrentState);
 
