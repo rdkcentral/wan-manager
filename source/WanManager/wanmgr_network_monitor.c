@@ -168,7 +168,7 @@ static int WanManager_MaptRouteSetting()
 
     /*
      * Configure IPv6 default route with MTU for specific partner "sky-italia"
-     * Todo: Cleanup should be done to configure MTU based on deligated leases from DHCPv6 server or partners configurations
+     * Todo: Cleanup should be done to configure MTU based on delegated leases from DHCPv6 server or partners configurations
      */
     if ( 0 == strcmp(partnerID, "sky-italia") )
     {
