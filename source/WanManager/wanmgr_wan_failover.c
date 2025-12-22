@@ -352,7 +352,6 @@ ANSC_STATUS UpdateLedStatus (WanMgr_FailOver_Controller_t* pFailOverController)
                         pFailOverController->ActiveIfaceState = pWanIfaceData->VirtIfList->eCurrentState;
                         pFailOverController->PhyState = pWanIfaceData->BaseInterfaceStatus;
                     }
-                        
                     WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
                 }
             }
