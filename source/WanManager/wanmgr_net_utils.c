@@ -973,12 +973,12 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
     char partnerID[BUFLEN_32]    = {0};
     syscfg_get(NULL, "PartnerID", partnerID, sizeof(partnerID));
     int mtu_size_mapt = MTU_DEFAULT_SIZE; /* 1500 */
-#if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) // XB6 and CBR use 1500 MTU size for MAPT.
+
     if (strcmp("sky-italia", partnerID) == 0)
     {
         mtu_size_mapt = MTU_SIZE; /* 1520. */
     }
-#endif
+
     MaptInfo("mapt: PartnerID: %s MTU Size = %d \n", partnerID[0] != '\0' ? partnerID : "Unknown", mtu_size_mapt);
 
     /* Stopping UPnP, if mapt ratio is not 1:1 */
