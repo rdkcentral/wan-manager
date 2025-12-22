@@ -1254,7 +1254,7 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
     
     /*
      * Configure IPv6 default route with MTU for specific partner "sky-italia"
-     * Todo: Cleanup should be done to configure MTU based on deligated leases from DHCPv6 server or partners configurations
+     * Todo: Cleanup should be done to configure MTU based on delegated leases from DHCPv6 server or partners configurations
      */
     cmdInterfaceMTU2[0] = '\0';
     if ( 0 == strcmp(partnerID, "sky-italia") )
