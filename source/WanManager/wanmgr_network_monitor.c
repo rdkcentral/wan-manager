@@ -166,7 +166,10 @@ static int WanManager_MaptRouteSetting()
         return ANSC_STATUS_FAILURE;
     }
 
-    // Configure IPv6 default route with MTU for specific partner "sky-italia"
+    /*
+     * Configure IPv6 default route with MTU for specific partner "sky-italia"
+     * Todo: Cleanup should be done to configure MTU based on deligated leases from DHCPv6 server or partners configurations
+     */
     if ( 0 == strcmp(partnerID, "sky-italia") )
     {
         ret = v_secure_system("ip -6 route change default via %s dev %s mtu %d", defaultGatewayV6, vlanIf, MTU_DEFAULT_SIZE);

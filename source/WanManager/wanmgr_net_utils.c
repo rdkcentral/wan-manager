@@ -1252,7 +1252,10 @@ int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANM
     snprintf(cmdConfigureMTUSize, sizeof(cmdConfigureMTUSize), "ip link set dev %s mtu %d ", MAP_INTERFACE, mtu_size_mapt);
     snprintf(cmdInterfaceMTU1, sizeof(cmdInterfaceMTU1), "echo %d > /proc/sys/net/ipv6/conf/%s/mtu", MTU_DEFAULT_SIZE, vlanIf);
     
-    // Configure IPv6 default route with MTU for specific partner "sky-italia"
+    /*
+     * Configure IPv6 default route with MTU for specific partner "sky-italia"
+     * Todo: Cleanup should be done to configure MTU based on deligated leases from DHCPv6 server or partners configurations
+     */
     cmdInterfaceMTU2[0] = '\0';
     if ( 0 == strcmp(partnerID, "sky-italia") )
     {
