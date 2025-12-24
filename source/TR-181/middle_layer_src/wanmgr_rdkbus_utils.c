@@ -1225,3 +1225,104 @@ ANSC_STATUS WanManager_RdkBus_EnableInterface(DML_WAN_IFACE* pInterface, BOOL En
     CcspTraceInfo(("%s %d DM %s(value:%s) and %s is for %s param Successful\n", __FUNCTION__,__LINE__, ((Enable) ? "Set" : "Unset"), acSetParamValue, ((Enable) ? "Subscribe" : "Unsubscribe"), acSetParamName));
     return ANSC_STATUS_SUCCESS;
 }
+
+#ifdef FEATURE_DSLITE_V2
+ANSC_STATUS WanMgr_SysCfgGetBool(const CHAR *key, BOOL *value)
+{
+    if (!key || !value)
+    {
+        return ANSC_STATUS_BAD_PARAMETER;
+    }
+
+    char buf[8] = {0};
+
+    if (syscfg_get(NULL, key, buf, sizeof(buf)) != 0)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    if (strcasecmp(buf, "true") == 0 || buf[0] == '1')
+    {
+        *value = TRUE;
+    }
+    else
+    {
+        *value = FALSE;
+    }
+
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS WanMgr_SysCfgGetUint(const CHAR *key, UINT *value)
+{
+    if (!key || !value)
+    {
+        return ANSC_STATUS_BAD_PARAMETER;
+    }
+
+    char buf[64] = {0};
+
+    if (syscfg_get(NULL, key, buf, sizeof(buf)) != 0)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    *value = atoi(buf);
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS WanMgr_SysCfgGetStr(const CHAR *key, CHAR *dst, ULONG dst_len)
+{
+    if (!key || !dst || dst_len == 0)
+    {
+        return ANSC_STATUS_BAD_PARAMETER;
+    }
+
+    dst[0] = '\0';
+
+    char buf[512] = {0};
+
+    if (syscfg_get(NULL, key, buf, sizeof(buf)) != 0)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    buf[sizeof(buf) - 1] = '\0';
+    snprintf(dst, dst_len, "%s", buf);
+
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS WanMgr_SysCfgSetUint(const CHAR *key, UINT value)
+{
+    if (!key)
+    {
+        return ANSC_STATUS_BAD_PARAMETER;
+    }
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%u", value);
+
+    if (syscfg_set(NULL, key, buf) != 0)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS WanMgr_SysCfgSetStr(const CHAR *key, const CHAR *value)
+{
+    if (!key || !value)
+    {
+        return ANSC_STATUS_BAD_PARAMETER;
+    }
+
+    if (syscfg_set(NULL, key, value) != 0)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    return ANSC_STATUS_SUCCESS;
+}
+#endif
