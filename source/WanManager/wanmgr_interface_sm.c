@@ -1661,17 +1661,9 @@ static int wan_tearDownDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
         /* Dual-stack mode: update routing */
         WanMgr_Dslite_AddIpRules(p_VirtIf->Name);
 
-        // TODO: Check if LAN-side DHCP/DNS/IGMP service restarts are actually required
-#if defined(_LG_OFW_)
-        v_secure_system("/etc/utopia/service.d/service_dhcp_server.sh dhcp_server-stop" "; "
-                        "/etc/utopia/service.d/service_dhcp_server.sh dhcp_server-start" "; "
-                        "/etc/utopia/service.d/service_mcastproxy.sh mcastproxy-restart");
-#else
-        v_secure_system("systemctl stop dnsmasq.service" "; "
-                        "systemctl start dnsmasq.service" "; "
-                        "/etc/utopia/service.d/service_mcastproxy.sh mcastproxy-restart");
-#endif
     }
+
+    WanMgr_Dslite_RestartServices(p_VirtIf->IP.Mode);
 
     WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_ERROR_DSLITE_STATUS_DOWN);
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
@@ -1701,8 +1693,6 @@ static int wan_setUpDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
         return RETURN_ERR;
     }
 
-    wanmgr_restart_zebra();
-
     // IPv6 only mode, we need to start the LAN to WAN IPv4 function
     if (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY)
     {
@@ -1711,19 +1701,8 @@ static int wan_setUpDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
             CcspTraceError(("%s %d - Failure writing to /proc file\n", __FUNCTION__, __LINE__));
         }
     }
-    else
-    {
-       // TODO: Check if LAN-side DHCP/DNS/IGMP service restarts are actually required
-#if defined(_LG_OFW_)
-        v_secure_system ("/etc/utopia/service.d/service_dhcp_server.sh dhcp_server-stop" "; "
-                "/etc/utopia/service.d/service_dhcp_server.sh dhcp_server-start" "; "
-                "/etc/utopia/service.d/service_mcastproxy.sh mcastproxy-restart");
-#else
-        v_secure_system ("systemctl stop dnsmasq.service" "; "
-                "systemctl start dnsmasq.service" "; "
-                "/etc/utopia/service.d/service_mcastproxy.sh mcastproxy-restart");
-#endif
-    }
+
+    WanMgr_Dslite_RestartServices(p_VirtIf->IP.Mode);
 
     WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_INFO_DSLITE_STATUS_UP);
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_UP;
