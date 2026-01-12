@@ -79,6 +79,7 @@
 #ifdef FEATURE_DSLITE_V2
 #define PSM_WANMANAGER_IF_VIRIF_DSLITE_PATH                 "dmsb.wanmanager.if.%d.VirtualInterface.%d.DSLite.Path"
 #endif
+
 #define PSM_WANMANAGER_GROUP_POLICY                         "dmsb.wanmanager.group.%d.policy"
 #define PSM_WANMANAGER_WANIFCOUNT                           "dmsb.wanmanager.wan.interfacecount"
 

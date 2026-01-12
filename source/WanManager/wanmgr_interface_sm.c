@@ -46,6 +46,7 @@
 #ifdef FEATURE_DSLITE_V2
 #include "wanmgr_dslite.h"
 #endif
+
 #define IF_SIZE      32
 #define LOOP_TIMEOUT 50000 // timeout in microseconds. This is the state machine loop interval
 #define RESOLV_CONF_FILE "/etc/resolv.conf"
@@ -2353,7 +2354,8 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
         /* Start DHCPv6 Client */
         WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
         CcspTraceInfo(("%s %d - %s_MODE preferred \n", __FUNCTION__, __LINE__,
-                       p_VirtIf->IP.SelectedMode == MAPT_MODE ? "MAPT" : "DSLITE"));
+                       (p_VirtIf->IP.SelectedMode == MAPT_MODE) ? "MAPT" : 
+                       ((p_VirtIf->IP.SelectedMode == MAPE_MODE) ? "MAPE" : "DSLITE")));
         // clock start
         p_VirtIf->IP.SelectedModeTimerStatus = RUNNING;
         memset(&(p_VirtIf->IP.SelectedModeTimerStart), 0, sizeof(struct timespec));
