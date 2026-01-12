@@ -71,6 +71,7 @@ ANSC_STATUS WanMgr_DSLite_SetupTunnel(DML_VIRTUAL_IFACE *pVirtIf);
 ANSC_STATUS WanMgr_DSLite_TeardownTunnel(DML_VIRTUAL_IFACE *pVirtIf);
 void WanMgr_Dslite_AddIpRules(const char *if_name);
 void WanMgr_Dslite_DelIpRules(const char *if_name, const char *wan_ipv4);
+void WanMgr_Dslite_RestartServices(DML_WAN_IP_MODE ipMode);
 
 /* DSLite DNS TTL management */
 BOOL WanMgr_DSLite_CheckAndHandleTtlExpiration(DML_VIRTUAL_IFACE *pVirtIf);
