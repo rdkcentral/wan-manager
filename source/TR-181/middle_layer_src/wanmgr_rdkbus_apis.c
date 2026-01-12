@@ -264,11 +264,12 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 #endif
 
 #ifdef FEATURE_DSLITE_V2
-    _ansc_memset(param_name, 0, sizeof(param_name));
-    _ansc_memset(param_value, 0, sizeof(param_value));
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_DSLITE_PATH, instancenum, (virtInsNum + 1));
+    memset(param_name, 0, sizeof(param_name));
+    memset(param_value, 0, sizeof(param_value));
+    sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_DSLITE_PATH, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    AnscCopyString(pVirtIf->DSLite.Path, param_value);
+    strncpy(pVirtIf->DSLite.Path, param_value, sizeof(pVirtIf->DSLite.Path) - 1);
+    pVirtIf->DSLite.Path[sizeof(pVirtIf->DSLite.Path) - 1] = '\0';
 #endif
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));

@@ -393,7 +393,7 @@ typedef struct _WANMGR_IPV6_DATA
    bool domainNameAssigned;     /**< Have we been assigned dns server addresses ? */
    #endif
 #ifdef FEATURE_DSLITE_V2
-   char endpointName[BUFLEN_256];
+   char aftr[BUFLEN_256];
 #endif
 } WANMGR_IPV6_DATA;
 
@@ -510,7 +510,7 @@ typedef struct _DML_DSLITE_CONFIG
     BOOL                                MssClampingEnable;
     UINT                                TcpMss;                        // X_RDKCENTRAL-COM_Tcpmss
     BOOL                                Ipv6FragEnable;                // X_RDKCENTRAL-COM_IPv6FragEnable
-    CHAR                                TunnelV4Addr[BUFLEN_64];
+    CHAR                                TunnelV4Addr[BUFLEN_64];       // X_RDKCENTRAL-COM_TunnelV4Addr
     struct timespec                     DnsResolveTime;                // Timestamp when DNS resolution occurred
     UINT                                DnsTtl;                        // DNS TTL value in seconds
 } DML_DSLITE_CONFIG;

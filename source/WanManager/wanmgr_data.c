@@ -64,7 +64,7 @@ ANSC_STATUS WanMgr_DSLite_AddToList(UINT inst)
         return ANSC_STATUS_FAILURE;
     }
 
-    entry = (DML_DSLITE_LIST *)AnscAllocateMemory(sizeof(DML_DSLITE_LIST));
+    entry = (DML_DSLITE_LIST *)calloc(1, sizeof(DML_DSLITE_LIST));
     if (!entry)
     {
         CcspTraceError(("%s: allocation failed\n", __FUNCTION__));
@@ -118,7 +118,7 @@ ANSC_STATUS WanMgr_DSLite_RemoveFromList(UINT inst)
                 pDSLiteData->DSLiteList = curr->next;
             }
 
-            AnscFreeMemory(curr);
+            free(curr);
 
             pDSLiteData->InterfaceSettingNumberOfEntries--;
             pDSLiteData->Changed = TRUE;
@@ -1354,7 +1354,7 @@ DML_VIRTUAL_IFACE* WanMgr_GetVirtIfDataByDSLiteAlias_locked(char* Alias)
                 }
             }
         }
-        WanMgrDml_GetIfaceData_release(NULL);
+        pthread_mutex_unlock(&gWanMgrDataBase.gDataMutex);
     }
 
     return NULL;
