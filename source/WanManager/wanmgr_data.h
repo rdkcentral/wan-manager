@@ -35,6 +35,7 @@
 #ifdef FEATURE_DSLITE_V2
 #define MAX_DSLITE_CONFIG_ENTRY      16
 #endif
+
 //WAN CONFIG
 WanMgr_Config_Data_t* WanMgr_GetConfigData_locked(void);
 void WanMgrDml_GetConfigData_release(WanMgr_Config_Data_t* pWanConfigData);

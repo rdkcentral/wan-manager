@@ -213,7 +213,7 @@ ULONG InterfaceSetting4_GetParamStringValue(ANSC_HANDLE hInsContext, char *Param
     {
         src = cfg->TunneledIface;
     }
-    else if (strcmp(ParamName, "TunnelV4Addr") == 0)
+    else if (strcmp(ParamName, "X_RDKCENTRAL-COM_TunnelV4Addr") == 0)
     {
         src = cfg->TunnelV4Addr;
     }
@@ -223,7 +223,7 @@ ULONG InterfaceSetting4_GetParamStringValue(ANSC_HANDLE hInsContext, char *Param
         return ret;
     }
 
-    ULONG len = AnscSizeOfString(src);
+    ULONG len = strlen(src);
     if (len >= *pUlSize)
     {
         *pUlSize = len + 1;
@@ -371,7 +371,7 @@ BOOL InterfaceSetting4_SetParamStringValue(ANSC_HANDLE hInsContext, char *ParamN
         dst = cfg->EndpointAddr;
         dst_size = sizeof(cfg->EndpointAddr);
     }
-    else if (strcmp(ParamName, "TunnelV4Addr") == 0)
+    else if (strcmp(ParamName, "X_RDKCENTRAL-COM_TunnelV4Addr") == 0)
     {
         dst = cfg->TunnelV4Addr;
         dst_size = sizeof(cfg->TunnelV4Addr);
@@ -635,7 +635,7 @@ ULONG InterfaceSetting4_Rollback(ANSC_HANDLE hInsContext)
                     pDSLiteData->DSLiteList = curr->next;
                 }
 
-                AnscFreeMemory(curr);
+                free(curr);
                 if (pDSLiteData->InterfaceSettingNumberOfEntries > 0)
                 {
                     pDSLiteData->InterfaceSettingNumberOfEntries--;

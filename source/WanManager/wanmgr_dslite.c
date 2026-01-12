@@ -383,7 +383,7 @@ ANSC_STATUS WanMgr_DSLiteInit(void)
             continue;
         }
 
-        entry = (DML_DSLITE_LIST *)AnscAllocateMemory(sizeof(DML_DSLITE_LIST));
+        entry = (DML_DSLITE_LIST *)calloc(1, sizeof(DML_DSLITE_LIST));
         if (!entry)
         {
             CcspTraceError(("%s: Allocation failed for DML_DSLITE_LIST (insNum=%d)\n", __FUNCTION__, insNum));
