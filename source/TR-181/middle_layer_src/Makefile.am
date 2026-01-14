@@ -36,3 +36,7 @@ libCcspWanManager_middle_layer_src_la_LDFLAGS += -lrbus
 if DHCPMANAGER_ENABLED
 libCcspWanManager_middle_layer_src_la_SOURCES += wanmgr_rbus_dhcp_client_events.c
 endif
+
+if DSLITE_SUPPORT
+libCcspWanManager_middle_layer_src_la_SOURCES += wanmgr_dml_dslite_apis.c
+endif
