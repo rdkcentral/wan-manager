@@ -9,13 +9,18 @@ static void wanmgr_telemetry_append_key_value(char* key, const char* value)
 {
     if(value != NULL && strlen(MarkerArguments) < BUFFER_LENGTH_256 )
     {
-	if(strlen(MarkerArguments)>0)
+        size_t remaining;
+        if(strlen(MarkerArguments)>0)
         {
-            strncat(MarkerArguments,WANMGR_T2_TELEMETRY_MARKER_ARG_DELIMITER,sizeof(MarkerArguments));
+            remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+            strncat(MarkerArguments, WANMGR_T2_TELEMETRY_MARKER_ARG_DELIMITER, remaining);
         }
-        strncat(MarkerArguments,key,sizeof(MarkerArguments));
-        strncat(MarkerArguments,WANMGR_T2_TELEMETRY_MARKER_KEY_VALUE_DELIMITER,sizeof(MarkerArguments));
-        strncat(MarkerArguments,value,sizeof(MarkerArguments));
+        remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+        strncat(MarkerArguments, key, remaining);
+        remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+        strncat(MarkerArguments, WANMGR_T2_TELEMETRY_MARKER_KEY_VALUE_DELIMITER, remaining);
+        remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+        strncat(MarkerArguments, value, remaining);
     }
 }
 
