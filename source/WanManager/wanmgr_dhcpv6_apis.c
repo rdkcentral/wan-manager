@@ -2143,8 +2143,12 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
             int index = strcspn(pVirtIf->IP.Ipv6Data.sitePrefix, "/");
             if (index < strlen(pVirtIf->IP.Ipv6Data.sitePrefix) && index < sizeof(prefix))
             {
-                strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, index);                                            // only copy prefix without the prefix length
-                syscfg_set_string(SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, pVirtIf->IP.Ipv6Data.address);
+                strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, index);                                            // only copy prefix without the prefix length 
+                // Create and set IPv6 address with /128 prefix length  //TODO: SYSCFG_FIELD_IPV6_PREFIX_ADDRESS may not be used anymore. Check and remove if not used in the NTP script
+                char ipv6_addr_with_prefix[BUFLEN_64] = {0};
+                snprintf(ipv6_addr_with_prefix, sizeof(ipv6_addr_with_prefix), "%s/128", pVirtIf->IP.Ipv6Data.address);
+                syscfg_set_string(SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, ipv6_addr_with_prefix);
+                CcspTraceInfo(("%s %d IPv6 address syscfg %s set to  %s\n", __FUNCTION__, __LINE__, SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, ipv6_addr_with_prefix));
                 CcspTraceInfo(("%s %d new prefix = %s\n", __FUNCTION__, __LINE__, pVirtIf->IP.Ipv6Data.sitePrefix));
                 strncat(prefix, "/64",sizeof(prefix)-1);
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
