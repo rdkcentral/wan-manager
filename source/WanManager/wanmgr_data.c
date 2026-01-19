@@ -59,6 +59,7 @@ void WanMgr_SetConfigData_Default(DML_WANMGR_CONFIG* pWanDmlConfig)
         pWanDmlConfig->Enable = TRUE;
         pWanDmlConfig->ResetFailOverScan = FALSE;
         pWanDmlConfig->AllowRemoteInterfaces = FALSE;
+        pWanDmlConfig->DisableAutoRouting = FALSE;
         memset(pWanDmlConfig->InterfaceAvailableStatus, 0, BUFLEN_64);
         memset(pWanDmlConfig->InterfaceActiveStatus, 0, BUFLEN_64);
         memset(pWanDmlConfig->CurrentStatus, 0, sizeof(pWanDmlConfig->CurrentStatus));
@@ -809,6 +810,7 @@ void WanMgr_IfaceData_Init(WanMgr_Iface_Data_t* pIfaceData, UINT iface_index)
 
         pWanDmlIface->NoOfVirtIfs = 1; 
         pWanDmlIface->Type = WAN_IFACE_TYPE_UNCONFIGURED;
+        pWanDmlIface->IfaceConnectionType = WAN_IFACE_CONN_TYPE_PRIMARY;
         pWanDmlIface->bSendSelectionTimerExpired = TRUE;	
     }
 }
@@ -831,12 +833,15 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->Status = WAN_IFACE_STATUS_DISABLED;
     pVirtIf->RemoteStatus = WAN_IFACE_STATUS_DISABLED;
     pVirtIf->VLAN.Status = WAN_IFACE_LINKSTATUS_DOWN;
+
     pVirtIf->VLAN.Enable = FALSE;
     pVirtIf->VLAN.NoOfMarkingEntries = 0;
     pVirtIf->VLAN.Timeout = 0;
     pVirtIf->VLAN.ActiveIndex = -1;
     pVirtIf->VLAN.NoOfInterfaceEntries = 0;
     memset(pVirtIf->VLAN.VLANInUse,0, sizeof(pVirtIf->VLAN.VLANInUse));
+    memset(pVirtIf->VLAN.CurrentVlan,0, sizeof(pVirtIf->VLAN.CurrentVlan));
+    pVirtIf->VLAN.DiscoveryMode = VLAN_DISCOVERY_MODE_ALWAYS;
     pVirtIf->Reset = FALSE;
     memset(pVirtIf->IP.Interface, 0, 64);
     memset(pVirtIf->IP.DHCPv4Iface, 0, 128);

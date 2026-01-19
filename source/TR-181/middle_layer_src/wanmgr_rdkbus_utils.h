@@ -174,6 +174,7 @@ ANSC_STATUS WaitForInterfaceComponentReady(char *pPhyPath);
 ANSC_STATUS WanMgr_RdkBus_setRestorationDelay(UINT delay);
 ANSC_STATUS WanManager_ConfigurePPPSession(DML_VIRTUAL_IFACE* pVirtIf, BOOL PPPEnable);
 ANSC_STATUS WanMgr_RdkBus_ConfigureVlan(DML_VIRTUAL_IFACE* pVirtIf, BOOL VlanEnable);
+ANSC_STATUS WanManager_RdkBus_EnableInterface(DML_WAN_IFACE* pInterface, BOOL Enable);
 
 /* WanMgr_GetBaseInterfaceStatus()
  * Updates current BaseInterfaceStatus of WanInterfaces using a DM get of BaseInterface Dml.

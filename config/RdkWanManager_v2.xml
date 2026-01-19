@@ -477,7 +477,7 @@
                                         </parameter>
                                         <parameter>
                                             <name>IPv6Source</name>
-                                            <type>string: Static(1),DHCP(2),PPP(3)</type>
+                                            <type>string: Static(1),DHCP(2),PPP(3),SLAAC(4)</type>
                                             <syntax>uint32/mapped</syntax>
                                             <writable>true</writable>
                                         </parameter>
