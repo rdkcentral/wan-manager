@@ -26,7 +26,7 @@ libCcspWanManager_middle_layer_src_la_CPPFLAGS = -I$(top_srcdir)/source/TR-181/m
                                                  -I$(top_srcdir)/source/TR-181/include \
                                                  -I$(top_srcdir)/source/WanManager
 
-libCcspWanManager_middle_layer_src_la_SOURCES = wanmgr_plugin_main.c wanmgr_plugin_main_apis.c wanmgr_dml_apis.c wanmgr_dml_iface_v2_apis.c wanmgr_dml_iface_apis.c wanmgr_rdkbus_utils.c wanmgr_rdkbus_apis.c wanmgr_dml_dhcpv4.c wanmgr_dml_dhcpv6.c
+libCcspWanManager_middle_layer_src_la_SOURCES = wanmgr_plugin_main.c wanmgr_plugin_main_apis.c wanmgr_dml_apis.c wanmgr_dml_iface_v2_apis.c wanmgr_dml_iface_apis.c wanmgr_rdkbus_utils.c wanmgr_rdkbus_apis.c wanmgr_dml_dhcpv4.c wanmgr_dml_dhcpv6.c wanmgr_dml_map.c wanmgr_map_internal.c wanmgr_map_apis.c
 libCcspWanManager_middle_layer_src_la_LDFLAGS = -lccsp_common -lsyscfg -lsysevent -lpthread
 
 libCcspWanManager_middle_layer_src_la_CPPFLAGS += -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus

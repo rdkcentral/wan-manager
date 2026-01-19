@@ -129,6 +129,7 @@ typedef  struct _WANMGR_BACKEND_OBJ_
     PCOSA_PLUGIN_INFO hCosaPluginInfo;
     ANSC_HANDLE hDhcpv6;
     ANSC_HANDLE hDhcpv4;
+    ANSC_HANDLE hMap;
 #ifdef _COSA_SIM_
     ULONG has_wifi_slap;
     ULONG has_moca_slap;

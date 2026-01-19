@@ -114,6 +114,7 @@ extern int stop_dhcpv4_client (dhcp_params * params);
 #define WAN_BRIDGE       "brWAN"
 
 #define SET_MAX_RETRY_COUNT 10 // max. retry count for set requests
+
 /***************************************************************************
  * @brief API used to check the incoming ipv4 address is a valid ipv4 address
  * @param input string contains ipv4 address
@@ -772,7 +773,7 @@ void WanManager_PrintBootEvents (WanBootEventState state)
 const char *nat44PostRoutingTable = "OUTBOUND_POSTROUTING";
 char ipv6AddressString[BUFLEN_256] = {0};
 #ifdef FEATURE_MAPT_DEBUG
-void WanManager_UpdateMaptLogFile(ipc_mapt_data_t *dhcp6cMAPTMsgBody);
+void WanManager_UpdateMaptLogFile(ipc_map_data_t *dhcp6cMAPTMsgBody);
 #endif // FEATURE_MAPT_DEBUG
 static int WanManager_ConfigureIpv6Sysevents(char *pdIPv6Prefix, char *ipAddressString, int psidValue);
 #ifdef NAT46_KERNEL_SUPPORT
@@ -853,7 +854,7 @@ int WanMgr_RdkBus_ConfigureUPnPIGDService (BOOL configure_UPnPIGD)
     return 0;
 }
 
-ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig)
+ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig)
 {
     int ret = RETURN_OK;
     int ipv4IndexValue = 0;
@@ -951,7 +952,7 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBod
     return ANSC_STATUS_SUCCESS;
 }
 
-int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data)
+int WanManager_ProcessMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data)
 {
     /* IVI_KERNEL_SUPPORT : To Enable IVI sopprted MAPT work flow
      * NAT46_KERNEL_SUPPORT : To Enable NAT46 sopprted MAPT work flow
@@ -1698,7 +1699,7 @@ int WanManager_ResetMAPTConfiguration(const char *baseIf, const char *vlanIf)
 }
 
 #ifdef FEATURE_MAPT_DEBUG
-void WanManager_UpdateMaptLogFile(ipc_mapt_data_t *dhcp6cMAPTMsgBody)
+void WanManager_UpdateMaptLogFile(ipc_map_data_t *dhcp6cMAPTMsgBody)
 {
 
     MaptInfo("--- MAP-T Options Received from DHCPv6 - START ---");

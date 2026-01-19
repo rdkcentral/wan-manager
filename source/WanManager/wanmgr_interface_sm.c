@@ -34,6 +34,10 @@
 #include "wanmgr_net_utils.h"
 #include "wanmgr_dhcpv4_apis.h"
 #include "wanmgr_dhcpv6_apis.h"
+#ifdef FEATURE_MAPE
+#include "wanmgr_map_apis.h"
+#include "wanmgr_mape.h"
+#endif
 #include "secure_wrapper.h"
 #include "wanmgr_telemetry.h"
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
@@ -78,9 +82,9 @@ static eWanState_t wan_state_standby(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 static eWanState_t wan_state_ipv4_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-#endif //FEATURE_MAPT
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+static eWanState_t wan_state_map_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+#endif
 static eWanState_t wan_state_refreshing_wan(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_deconfiguring_wan(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_exit(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
@@ -105,10 +109,12 @@ static eWanState_t wan_transition_vlan_configure(WanMgr_IfaceSM_Controller_t* pW
 
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 static eWanState_t wan_transition_mapt_feature_refresh(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-static eWanState_t wan_transition_mapt_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 extern int mapt_feature_enable_changed;
 #endif //FEATURE_MAPT
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+static eWanState_t wan_transition_map_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+#endif
 static eWanState_t wan_transition_configuring_interface(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_transition_phy_deconfiguring(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_transition_wan_deconfigured(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
@@ -193,6 +199,15 @@ static ANSC_STATUS WanManager_ClearDHCPData(DML_VIRTUAL_IFACE * pVirtIf);
  * @return RETURN_OK on success else RETURN_ERR
  *************************************************************************************/
 static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
+
+#ifdef FEATURE_MAPE
+/*************************************************************************************
+ * @brief Disable mape configuration on the interface.
+ * This API deletes the mape interface to disable mape.
+ * @return RETURN_OK upon success else ERROR code returned
+ **************************************************************************************/
+static int WanMgr_tearDownMape(DML_VIRTUAL_IFACE* p_VirtIf);
+#endif
 
 #ifdef FEATURE_MAPT
 
@@ -319,6 +334,26 @@ static int wan_tearDownMapt()
     {
         CcspTraceWarning(("Mapt packet acceleration is not supported!\n"));
     }
+
+    return ret;
+}
+#endif
+
+#ifdef FEATURE_MAPE
+static int WanMgr_tearDownMape(DML_VIRTUAL_IFACE* p_VirtIf)
+{
+    int ret = RETURN_OK;
+    char cmd[BUFLEN_64] = {0};
+    char wan_interface[BUFLEN_64]={0};
+
+    CcspTraceInfo(("%s %d - stop MAP-E\n", __FUNCTION__, __LINE__));
+
+    snprintf(cmd, sizeof(cmd), "iproute del default dev %s", p_VirtIf->Name);
+    v_secure_system("%s", cmd);
+
+    v_secure_system("ip link set dev ip6tnl down");
+    v_secure_system("ip -6 tunnel del ip6tnl");
+    syscfg_set(NULL, "mape_config_flag", "false");
 
     return ret;
 }
@@ -697,6 +732,7 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
             pVirtIf->IP.Ipv6Renewed = FALSE;
             pVirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;     // reset MAPT flag
             pVirtIf->MAP.MaptChanged = FALSE;                        // reset MAPT flag
+            pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
             strncpy(pVirtIf->IP.Ipv6Data.address, "", sizeof(pVirtIf->IP.Ipv6Data.address));
             strncpy(pVirtIf->IP.Ipv6Data.pdIfAddress, "", sizeof(pVirtIf->IP.Ipv6Data.pdIfAddress));
             strncpy(pVirtIf->IP.Ipv6Data.sitePrefix, "", sizeof(pVirtIf->IP.Ipv6Data.sitePrefix));
@@ -726,7 +762,25 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
             break;
         }
 #endif
-        default:
+#ifdef FEATURE_MAPE
+        case WANMGR_IFACE_MAPE_START:
+        {
+            pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_UP;
+            CcspTraceInfo(("mape: %s \n",
+                   ((iface_status == WANMGR_IFACE_MAPE_START) ? "UP" : (iface_status == WANMGR_IFACE_MAPE_STOP) ? "DOWN" : "N/A")));
+
+            break;
+        }
+        case WANMGR_IFACE_MAPE_STOP:
+        {
+            pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
+            CcspTraceInfo(("mape: %s \n",
+                   ((iface_status == WANMGR_IFACE_MAPE_START) ? "UP" : (iface_status == WANMGR_IFACE_MAPE_STOP) ? "DOWN" : "N/A")));
+
+            break;
+        }
+#endif
+	default:
             /* do nothing */
             break;
     }
@@ -1915,6 +1969,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     p_VirtIf->IP.Ipv4Status = WAN_IFACE_IPV4_STATE_DOWN;
     p_VirtIf->IP.Ipv6Status = WAN_IFACE_IPV6_STATE_DOWN;
     p_VirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;
+    p_VirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
     memset(p_VirtIf->VLAN.CurrentVlan, 0, sizeof(p_VirtIf->VLAN.CurrentVlan));
 
@@ -2022,10 +2077,10 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-    if(p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+    if((p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP) || (p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP))
     {
-        wan_transition_mapt_down(pWanIfaceCtrl);
+        wan_transition_map_down(pWanIfaceCtrl);
     }
 #endif
 
@@ -2145,7 +2200,7 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
     p_VirtIf->IP.Ipv4ConnectivityStatus = WAN_CONNECTIVITY_UP;
     p_VirtIf->IP.Ipv6ConnectivityStatus = WAN_CONNECTIVITY_UP;
 
-    if(p_VirtIf->IP.SelectedMode == MAPT_MODE && p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED)
+    if((p_VirtIf->IP.SelectedMode == MAPT_MODE || p_VirtIf->IP.SelectedMode == MAPE_MODE) && p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED)
     {
         /* Start all interface with accept ra disbaled */
         WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
@@ -2812,13 +2867,17 @@ static eWanState_t wan_transition_mapt_feature_refresh(WanMgr_IfaceSM_Controller
 
     return WAN_STATE_OBTAINING_IP_ADDRESSES; //TODO NEW_DESIGN check for new return status
 }
+#endif
 
-static eWanState_t wan_transition_mapt_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
+static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     CcspTraceInfo(("%s %d \n", __FUNCTION__, __LINE__));
     ANSC_STATUS ret;
     char buf[BUFLEN_128] = {0};
     char cmdEnableIpv4Traffic[BUFLEN_256] = {'\0'};
+    char curr_router_mtu[64] = {0};
+    char acSetParamName[256] = {0};
+    char acSetParamValue[256] = {0};
 
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
@@ -2828,90 +2887,109 @@ static eWanState_t wan_transition_mapt_up(WanMgr_IfaceSM_Controller_t* pWanIface
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    // verify mapt configuration
-    memset(&(p_VirtIf->MAP.MaptConfig), 0, sizeof(WANMGR_MAPT_CONFIG_DATA));
-    if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_FAILURE)
+    if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPT)
     {
-        CcspTraceError(("%s %d - Error verifying MAP-T Parameters \n", __FUNCTION__, __LINE__));
-        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION to State=%d \n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->eCurrentState));
-        return(p_VirtIf->eCurrentState);
+#ifdef FEATURE_MAPT
+        // MAP-T Processing
+        memset(&(p_VirtIf->MAP.MaptConfig), 0, sizeof(WANMGR_MAPT_CONFIG_DATA));
+        if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_FAILURE)
+        {
+            CcspTraceError(("%s %d - Error verifying MAP-T Parameters \n", __FUNCTION__, __LINE__));
+            return p_VirtIf->eCurrentState;
+        }
+
+        CcspTraceInfo(("%s %d - MAPT Configuration verification success \n", __FUNCTION__, __LINE__));
+        p_VirtIf->MAP.MaptChanged = FALSE;
+
+        if((p_VirtIf->IP.Ipv4Changed == TRUE) && (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
+        {
+            wan_transition_ipv4_up(pWanIfaceCtrl);
+        }
+
+        // configure mapt module
+        ret = wan_setUpMapt();
+        if (ret != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Failed to configure MAP-T \n", __FUNCTION__, __LINE__));
+            WanMgr_ProcessTelemetryMarker(WanMgr_getVirtualIfaceById( pInterface->VirtIfList,0),WAN_ERROR_MAPT_STATUS_FAILED);	
+        }
+
+        if(p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
+        {
+            wan_transition_ipv4_down(pWanIfaceCtrl);
+
+#if defined(IVI_KERNEL_SUPPORT)
+            snprintf(cmdEnableIpv4Traffic,sizeof(cmdEnableIpv4Traffic),"ip ro rep default dev %s", p_VirtIf->Name);
+#elif defined(NAT46_KERNEL_SUPPORT)
+            snprintf(cmdEnableIpv4Traffic, sizeof(cmdEnableIpv4Traffic), "ip ro rep default dev %s mtu %d", MAP_INTERFACE, MTU_DEFAULT_SIZE);
+#endif
+#ifdef FEATURE_MAPT_DEBUG
+            MaptInfo("mapt: default route after v4 teardown:%s",cmdEnableIpv4Traffic);
+#endif
+            if (WanManager_DoSystemActionWithStatus("mapt:", cmdEnableIpv4Traffic) < RETURN_OK)
+            {
+                CcspTraceError(("%s %d - Failed to run: %s \n", __FUNCTION__, __LINE__, cmdEnableIpv4Traffic));
+            }
+        }
+
+        if( p_VirtIf->PPP.Enable == TRUE )
+        {
+            WanManager_ConfigurePPPSession(p_VirtIf, FALSE);
+        }
+
+        CcspTraceInfo(("%s %d - net.ipv4.ip_forward set to 1 \n", __FUNCTION__, __LINE__));
+        v_secure_system("sysctl -w net.ipv4.ip_forward=1");
+
+        if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, p_VirtIf->IP.Ipv6Data.ifname) != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Error processing MAP-T Parameters \n", __FUNCTION__, __LINE__));
+            return p_VirtIf->eCurrentState;
+        }
+
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
+        wanmgr_services_restart();
+#endif
+    }
+    else if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE)
+    {
+#ifdef FEATURE_MAPE
+        // MAP-E Processing
+        ret = WanManager_MAPEConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->IP.Ipv6Data));
+        if (ret == ANSC_STATUS_SUCCESS)
+        {
+            syscfg_get(NULL, "router_mtu", curr_router_mtu, sizeof(curr_router_mtu));
+            if(strcmp(curr_router_mtu, "1500") != 0)
+            {
+		syscfg_set(NULL, "router_mtu", "1500");
+		syscfg_commit();
+            }
+        }
+        else
+        {
+            CcspTraceWarning(("%s %d : Failed to configure MAP-E!", __FUNCTION__, __LINE__));
+            return WAN_STATE_OBTAINING_IP_ADDRESSES;
+        }
+#endif
     }
     else
     {
-        CcspTraceInfo(("%s %d - MAPT Configuration verification success \n", __FUNCTION__, __LINE__));
-    }
-
-
-    p_VirtIf->MAP.MaptChanged = FALSE;
-
-    /* if V4 data already recieved, let it configure */
-    if((p_VirtIf->IP.Ipv4Changed == TRUE) && (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
-    {
-        wan_transition_ipv4_up(pWanIfaceCtrl);
-    }
-
-    // configure mapt module
-    ret = wan_setUpMapt();
-    if (ret != RETURN_OK)
-    {
-        CcspTraceError(("%s %d - Failed to configure MAP-T \n", __FUNCTION__, __LINE__));
-        WanMgr_ProcessTelemetryMarker(WanMgr_getVirtualIfaceById( pInterface->VirtIfList,0),WAN_ERROR_MAPT_STATUS_FAILED);	
+        CcspTraceError(("%s %d - Invalid MAP Type\n", __FUNCTION__, __LINE__));
+        return ANSC_STATUS_FAILURE;
     }
 
     if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
     {
-        // MAPT is configured, stop DHCPv4 client with RELEASE if v4 configured
         CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
         WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
     }
 
-    /* if V4 already configured, let it teardown */
-    if((p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
-    {
-        wan_transition_ipv4_down(pWanIfaceCtrl);
-
-#if defined(IVI_KERNEL_SUPPORT)
-        snprintf(cmdEnableIpv4Traffic,sizeof(cmdEnableIpv4Traffic),"ip ro rep default dev %s", p_VirtIf->Name);
-#elif defined(NAT46_KERNEL_SUPPORT)
-        snprintf(cmdEnableIpv4Traffic, sizeof(cmdEnableIpv4Traffic), "ip ro rep default dev %s mtu %d", MAP_INTERFACE, MTU_DEFAULT_SIZE);
-#endif
-#ifdef FEATURE_MAPT_DEBUG
-        MaptInfo("mapt: default route after v4 teardown:%s",cmdEnableIpv4Traffic);
-#endif
-        if (WanManager_DoSystemActionWithStatus("mapt:", cmdEnableIpv4Traffic) < RETURN_OK)
-        {
-            CcspTraceError(("%s %d - Failed to run: %s \n", __FUNCTION__, __LINE__, cmdEnableIpv4Traffic));
-        }
-    }
-
-    if( p_VirtIf->PPP.Enable == TRUE )
-    {
-        WanManager_ConfigurePPPSession(p_VirtIf, FALSE);
-    }
-
-    //Enabling IP forwarding 
-    CcspTraceInfo(("%s %d - net.ipv4.ip_forward set to 1 \n", __FUNCTION__, __LINE__));
-    v_secure_system("sysctl -w net.ipv4.ip_forward=1");
-
-    /* Configure MAPT. */
-    if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, &(p_VirtIf->IP.Ipv6Data)) != RETURN_OK)
-    {
-        CcspTraceError(("%s %d - Error processing MAP-T Parameters \n", __FUNCTION__, __LINE__));
-        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION to State=%d \n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->eCurrentState));
-        return(p_VirtIf->eCurrentState);
-    }
-
-    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
-    wanmgr_services_restart();
-
-    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION WAN_STATE_MAPT_ACTIVE\n", __FUNCTION__, __LINE__, pInterface->Name));
-    return WAN_STATE_MAPT_ACTIVE;
+    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION WAN_STATE_MAP_ACTIVE\n", __FUNCTION__, __LINE__, pInterface->Name));
+    return WAN_STATE_MAP_ACTIVE;
 }
 
-static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
+static eWanState_t wan_transition_map_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     CcspTraceInfo(("%s %d \n", __FUNCTION__, __LINE__));
-    char buf[BUFLEN_128] = {0};
 
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
@@ -2921,47 +2999,69 @@ static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_MAPT_STOP);
-
-    if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
+    // Common: Set appropriate IFACE status
+    if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE)
     {
-        if (wan_tearDownMapt() != RETURN_OK)
+        WanManager_UpdateInterfaceStatus(p_VirtIf, WANMGR_IFACE_MAPE_STOP);
+    }
+    else if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPT)
+    {
+        WanManager_UpdateInterfaceStatus(p_VirtIf, WANMGR_IFACE_MAPT_STOP);
+    }
+
+    if (p_VirtIf->Status == WAN_IFACE_STATUS_UP)
+    {
+        if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE)
         {
-            CcspTraceError(("%s %d - Failed to tear down MAP-T for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+#ifdef FEATURE_MAPE
+            if (WanMgr_tearDownMape(p_VirtIf) != RETURN_OK)
+            {
+                CcspTraceError(("%s %d - Failed to tear down MAP-E for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+            }
+#endif
         }
-    }
-
-    if (WanManager_ResetMAPTConfiguration(pInterface->Name, p_VirtIf->Name) != RETURN_OK)
-    {
-        CcspTraceError(("%s %d Error resetting MAP-T configuration", __FUNCTION__, __LINE__));
-    }
-
-    /* Clear DHCPv4 client */
-    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
-    memset(&(p_VirtIf->IP.Ipv4Data), 0, sizeof(WANMGR_IPV4_DATA));
-
-    if(p_VirtIf->IP.pIpcIpv4Data != NULL)
-    {
-        free(p_VirtIf->IP.pIpcIpv4Data);
-        p_VirtIf->IP.pIpcIpv4Data = NULL;
-    }
-
-    if (pWanIfaceCtrl->WanEnable == TRUE &&
-        pInterface->Selection.Enable == TRUE &&
-        pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
-        p_VirtIf->Enable == TRUE &&
-        p_VirtIf->Reset == FALSE &&
-        p_VirtIf->VLAN.Reset == FALSE &&
-        pInterface->BaseInterfaceStatus ==  WAN_IFACE_PHY_STATUS_UP)
-    {
-        if( p_VirtIf->PPP.Enable == FALSE )
+        else if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPT)
         {
-            WanManager_StartDhcpv4Client(p_VirtIf, pInterface->Name, pInterface->IfaceType);
-            CcspTraceInfo(("%s %d - Started dhcpc on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+#ifdef FEATURE_MAPT
+            if (wan_tearDownMapt() != RETURN_OK)
+            {
+                CcspTraceError(("%s %d - Failed to tear down MAP-T for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+            }
+
+            if (WanManager_ResetMAPTConfiguration(pInterface->Name, p_VirtIf->Name) != RETURN_OK)
+            {
+                CcspTraceError(("%s %d Error resetting MAP-T configuration", __FUNCTION__, __LINE__));
+            }
+#endif
+	}
+
+        /* Clear DHCPv4 client */
+        WanManager_UpdateInterfaceStatus(p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
+        memset(&(p_VirtIf->IP.Ipv4Data), 0, sizeof(WANMGR_IPV4_DATA));
+
+        if (p_VirtIf->IP.pIpcIpv4Data != NULL)
+        {
+            free(p_VirtIf->IP.pIpcIpv4Data);
+            p_VirtIf->IP.pIpcIpv4Data = NULL;
         }
-        else
+
+        if (pWanIfaceCtrl->WanEnable == TRUE &&
+            pInterface->Selection.Enable == TRUE &&
+            pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
+            p_VirtIf->Enable == TRUE &&
+            p_VirtIf->Reset == FALSE &&
+            p_VirtIf->VLAN.Reset == FALSE &&
+            pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP)
         {
-            WanManager_ConfigurePPPSession(p_VirtIf, TRUE);
+            if (p_VirtIf->PPP.Enable == FALSE)
+            {
+                WanManager_StartDhcpv4Client(p_VirtIf, pInterface->Name, pInterface->IfaceType);
+                CcspTraceInfo(("%s %d - Started dhcpc on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+            }
+            else
+            {
+                WanManager_ConfigurePPPSession(p_VirtIf, TRUE);
+            }
         }
     }
 
@@ -2970,7 +3070,6 @@ static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
     return WAN_STATE_IPV6_LEASED;
 }
-#endif //FEATURE_MAPT
 
 static eWanState_t wan_transition_configuring_interface(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
@@ -3135,6 +3234,17 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
         if (WanManager_ResetMAPTConfiguration(pInterface->Name, p_VirtIf->Name) != RETURN_OK)
         {
             CcspTraceError(("%s %d Error resetting MAP-T configuration", __FUNCTION__, __LINE__));
+        }
+    }
+#endif
+
+#ifdef FEATURE_MAPE
+    if(p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)
+    {
+        CcspTraceInfo(("%s %d - Deconfiguring MAP-E for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        if (WanMgr_tearDownMape(p_VirtIf) != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Failed to tear down MAP-T for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
     }
 #endif
@@ -3438,9 +3548,9 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if(p_VirtIf->IP.SelectedMode == MAPT_MODE)
+    if(p_VirtIf->IP.SelectedMode == MAPT_MODE || p_VirtIf->IP.SelectedMode == MAPE_MODE)
     {
-        if(p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+        if(p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP || p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)
         {
             p_VirtIf->IP.SelectedModeTimerStatus = COMPLETE;
             CcspTraceInfo(("%s %d MAPT option recieved in MAPT Preferred Mode - Timer complete \n", __FUNCTION__, __LINE__));
@@ -3815,16 +3925,16 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     {
         return wan_transition_ipv4_up(pWanIfaceCtrl);
     }
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-    else if (p_VirtIf->EnableMAPT == TRUE &&
-            pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
-            p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+    else if (pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
+             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6LanAddressIsReadyToUse(p_VirtIf) ==RETURN_OK)
+              || (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE && p_VirtIf->Status == WAN_IFACE_STATUS_UP && p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)))
     {
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
-        {
-            return wan_transition_mapt_up(pWanIfaceCtrl);
-        } 
+        CcspTraceInfo(("%s %d - calling wan_transition_map_up \n", __FUNCTION__, __LINE__));
+        return wan_transition_map_up(pWanIfaceCtrl);
     }
+#endif
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     else if (p_VirtIf->EnableMAPT == TRUE &&
              pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
              mapt_feature_enable_changed == TRUE &&
@@ -3837,6 +3947,7 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
         }
     }
 #endif //FEATURE_MAPT
+
     else if (p_VirtIf->IP.Ipv6Renewed == TRUE)
     {
         WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
@@ -3953,16 +4064,16 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
             CcspTraceError(("%s %d - Failed to tear down IPv6 for %s Interface \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
     }
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-    else if (p_VirtIf->EnableMAPT == TRUE &&
-            pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
-            p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+    else if (pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
+             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6LanAddressIsReadyToUse(p_VirtIf) ==RETURN_OK)
+              || (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE && p_VirtIf->Status == WAN_IFACE_STATUS_UP && p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)))
     {
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
-        {
-            return wan_transition_mapt_up(pWanIfaceCtrl);
-        }
+        CcspTraceInfo(("%s %d - calling wan_transition_map_up \n", __FUNCTION__, __LINE__));
+        return wan_transition_map_up(pWanIfaceCtrl);
     }
+#endif
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     else if (p_VirtIf->EnableMAPT == TRUE &&
             pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
             mapt_feature_enable_changed == TRUE &&
@@ -3975,6 +4086,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
         }
     }
 #endif //FEATURE_MAPT
+
     else if (p_VirtIf->IP.Ipv4Renewed == TRUE)
     {
         WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV4 , TRUE);
@@ -4005,8 +4117,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
     return WAN_STATE_DUAL_STACK_ACTIVE;
 }
 
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
+static eWanState_t wan_state_map_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
@@ -4030,24 +4141,36 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     {
         return wan_transition_standby_deconfig_ips(pWanIfaceCtrl);
     }
+#ifdef FEATURE_MAPE
+    else if(p_VirtIf->MAP.dhcp6cMAPparameters.mapType != MAP_TYPE_MAPE ||
+            p_VirtIf->Status == WAN_IFACE_STATUS_DISABLED ||
+	    p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
+	    p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_DOWN)
+    {
+           return wan_transition_map_down(pWanIfaceCtrl);
+    }
+#endif
+#if defined(FEATURE_MAPT)
     else if (p_VirtIf->EnableMAPT == FALSE ||
-            p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
+             p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
             p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_DOWN ||
             (p_VirtIf->IP.RefreshDHCP == TRUE && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_IPV6_ONLY && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_DUAL_STACK)||
             (p_VirtIf->VLAN.Enable == TRUE &&  p_VirtIf->VLAN.Status ==  WAN_IFACE_LINKSTATUS_DOWN ))
     {
         CcspTraceInfo(("%s %d - LinkStatus=[%d] \n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.Status));
-        return wan_transition_mapt_down(pWanIfaceCtrl);
+        return wan_transition_map_down(pWanIfaceCtrl);
     }
+
     else if (mapt_feature_enable_changed == TRUE)
     {
         if (FALSE == wanmanager_mapt_feature())
         {
             mapt_feature_enable_changed = FALSE;
-            wan_transition_mapt_down(pWanIfaceCtrl);
+            wan_transition_map_down(pWanIfaceCtrl);
             return wan_transition_mapt_feature_refresh(pWanIfaceCtrl);
         }
     }
+#endif
     else if (p_VirtIf->IP.Ipv6Changed == TRUE)
     {
         if (wan_tearDownIPv6(pWanIfaceCtrl) == RETURN_OK)
@@ -4061,7 +4184,7 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
                     CcspTraceInfo(("%s %d - Successfully updated IPv6 configure Changes for %s Interface \n",
                                 __FUNCTION__, __LINE__, p_VirtIf->Name));
 
-                    if (p_VirtIf->EnableMAPT == TRUE &&
+		    if (p_VirtIf->EnableMAPT == TRUE &&
                             pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
                             p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
                     {
@@ -4096,10 +4219,10 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             if (wan_setUpMapt() == RETURN_OK)
             {
                 memset(&(p_VirtIf->MAP.MaptConfig), 0, sizeof(WANMGR_MAPT_CONFIG_DATA));
-                if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_SUCCESS)
+                if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_SUCCESS)
                 {
                     CcspTraceInfo(("%s %d - MAPT Configuration verification success \n", __FUNCTION__, __LINE__));
-                    if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, &(p_VirtIf->IP.Ipv6Data)) == RETURN_OK)
+                    if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, p_VirtIf->IP.Ipv6Data.ifname) == RETURN_OK)
                     {
                         p_VirtIf->MAP.MaptChanged = FALSE;
                         CcspTraceInfo(("%s %d - Successfully updated MAP-T configure Changes for %s Interface \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -4147,9 +4270,8 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
         lanState = LAN_STATE_RESET;
     }
 #endif
-    return WAN_STATE_MAPT_ACTIVE;
+    return WAN_STATE_MAP_ACTIVE;
 }
-#endif //FEATURE_MAPT
 
 static eWanState_t wan_state_refreshing_wan(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
@@ -4426,14 +4548,14 @@ static void* WanMgr_InterfaceSMThread( void *arg )
                     iface_sm_state = wan_state_dual_stack_active(pWanIfaceCtrl);
                     break;
                 }
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-            case WAN_STATE_MAPT_ACTIVE:
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+	    case WAN_STATE_MAP_ACTIVE:
                 {
-                    iface_sm_state = wan_state_mapt_active(pWanIfaceCtrl);
+                    iface_sm_state = wan_state_map_active(pWanIfaceCtrl);
                     break;
                 }
-#endif //FEATURE_MAPT
-            case WAN_STATE_REFRESHING_WAN:
+#endif
+	    case WAN_STATE_REFRESHING_WAN:
                 {
                     iface_sm_state = wan_state_refreshing_wan(pWanIfaceCtrl);
                     break;

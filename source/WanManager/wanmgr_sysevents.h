@@ -140,6 +140,11 @@
 #define SYSEVENT_FIREWALL_RESTART "firewall-restart"
 #define SYSEVENT_FIREWALL_STATUS "firewall-status"
 
+#ifdef FEATURE_MAPE
+#define SYSCFG_WAN_INTERFACE          "wan_ifname"
+#define SYSEVENT_IGD_RESTART          "igd-restart"
+#endif
+
 #define SYSEVENT_IPV4_LEASE_TIME  "ipv4_%s_lease_time"
 #define SYSEVENT_IPV4_DHCP_SERVER "ipv4_%s_dhcp_server"
 #define SYSEVENT_IPV4_DHCP_STATE  "ipv4_%s_dhcp_state"
