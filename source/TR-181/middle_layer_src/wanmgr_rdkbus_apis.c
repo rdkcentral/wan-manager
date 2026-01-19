@@ -213,6 +213,15 @@ int get_Wan_Interface_ParametersFromPSM(ULONG instancenum, DML_WAN_IFACE* p_Inte
         _ansc_sscanf(param_value, "%d", &(p_Interface->NoOfVirtIfs));
     }
 
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_CONNECTION_TYPE, instancenum);
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    if (retPsmGet == CCSP_SUCCESS)
+    {
+        _ansc_sscanf(param_value, "%d", &(p_Interface->IfaceConnectionType));
+    }
+
     return ANSC_STATUS_SUCCESS;
 }
 
@@ -310,6 +319,12 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_DISCOVERY_MODE, instancenum, (virtInsNum + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.DiscoveryMode));
+
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_MARKING_COUNT, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     _ansc_sscanf(param_value, "%d", &(pVirtIf->VLAN.NoOfMarkingEntries));
@@ -326,7 +341,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.Mode));
+        DML_WAN_IP_MODE tmpIPMode = DML_WAN_IP_MODE_DUAL_STACK;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPMode);
+        if ( (sscanf_result == 1) && (tmpIPMode < DML_WAN_IP_MODE_MAX) )
+        {
+            pVirtIf->IP.Mode = tmpIPMode;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid IP Mode value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpIPMode, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IP_MODE);	
     }
 
@@ -336,7 +360,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv4Source));
+        DML_WAN_IP_SOURCE  tmpIPv4Source = DML_WAN_IP_SOURCE_DHCP;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPv4Source);
+        if ( (sscanf_result == 1) && (tmpIPv4Source < DML_WAN_IP_SOURCE_MAX) )
+        {
+            pVirtIf->IP.IPv4Source = tmpIPv4Source;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid IPv4 Source value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpIPv4Source, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv4_CONFIG_TYPE);	
     }
 
@@ -352,7 +385,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv6Source));
+        DML_WAN_IP_SOURCE  tmpIPv6Source = DML_WAN_IP_SOURCE_DHCP;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPv6Source);
+        if ( (sscanf_result == 1) && (tmpIPv6Source < DML_WAN_IP_SOURCE_MAX) )
+        {
+            pVirtIf->IP.IPv6Source = tmpIPv6Source;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid IPv6 Source value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpIPv6Source, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv6_CONFIG_TYPE);	
     }
 
@@ -387,7 +429,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.ConnectivityCheckType));
+        CONNECTIVITY_CHECK_TYPE tmpConnectivityCheckType = WAN_CONNECTIVITY_TYPE_NO_CHECK;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpConnectivityCheckType);
+        if ( (sscanf_result == 1) && (tmpConnectivityCheckType < WAN_CONNECTIVITY_TYPE_MAX) )
+        {
+            pVirtIf->IP.ConnectivityCheckType = tmpConnectivityCheckType;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid Connectivity Check Type value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpConnectivityCheckType, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);	
     }
 }
@@ -1530,6 +1581,16 @@ ANSC_STATUS WanMgr_Read_GroupConf_FromPSM(WANMGR_IFACE_GROUP *pGroup, UINT group
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_GROUP_EXTERNAL_CONTROL, (groupId + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    if (retPsmGet == CCSP_SUCCESS && strcmp(param_value, PSM_ENABLE_STRING_TRUE) == 0)
+    {
+        CcspTraceWarning(("%s %d: External control enabled for group %d. WFO policy will not control this Group and its interfaces. \n", __FUNCTION__, __LINE__, (groupId + 1)));
+        pGroup->State = STATE_GROUP_DEACTIVATED;
+    }
+
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_GROUP_PERSIST_SELECTED_IFACE, (groupId + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS && strcmp(param_value, PSM_ENABLE_STRING_TRUE) == 0)
@@ -1734,18 +1795,34 @@ PCONTEXT_LINK_OBJECT SListGetEntryByInsNum( PSLIST_HEADER pListHead, ULONG Insta
 
     return NULL;
 }
-
-ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf)
+/**
+ * @brief Updates the VLAN in use parameter and stores it to persisted memory.
+ *
+ * This function compares the VLANInUse field with the CurrentVlan field of the provided
+ * DML_VIRTUAL_IFACE structure. If they differ, it updates VLANInUse ,
+ * and persists the new value to the database using WanMgr_RdkBus_SetParamValuesToDB.
+ *
+ * @param[in,out] pVirtIf Pointer to the DML_VIRTUAL_IFACE structure whose VLAN information is to be updated.
+ *
+ * @return ANSC_STATUS_SUCCESS Always returns success status.
+ */
+ANSC_STATUS UpdateAndPersistVLANInUse(DML_VIRTUAL_IFACE * pVirtIf)
 {
     char param_value[256] = {0};
     char param_name[512] = {0};
 
-
-    AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
-    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
-    CcspTraceInfo(("%s %d Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
-    WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+    // Compare VLANInUse with CurrentVlan and update if different
+    if (strcmp(pVirtIf->VLAN.VLANInUse, pVirtIf->VLAN.CurrentVlan) != 0)
+    {
+        CcspTraceInfo(("%s %d VLANInUse changed, updating: %s => %s\n", 
+                       __FUNCTION__, __LINE__, pVirtIf->VLAN.VLANInUse, pVirtIf->VLAN.CurrentVlan));
+        AnscCopyString(pVirtIf->VLAN.VLANInUse, pVirtIf->VLAN.CurrentVlan);
     
+        AnscCopyString(param_value, pVirtIf->VLAN.VLANInUse);
+        _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INUSE, (pVirtIf->baseIfIdx +1), (pVirtIf->VirIfIdx + 1));
+        CcspTraceInfo(("%s %d Update VLANInUse to PSM %s => %s\n", __FUNCTION__, __LINE__,param_name,param_value));
+        WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+    }
      return ANSC_STATUS_SUCCESS;
 }
 
@@ -1872,6 +1949,7 @@ ANSC_STATUS Update_Interface_Status()
     struct IFACE_INFO *head = NULL;
     DEVICE_NETWORKING_MODE devMode = GATEWAY_MODE;
     CHAR    InterfaceAvailableStatus[BUFLEN_64]  = {0};
+    CHAR    InterfaceIpStatus[BUFLEN_64]  = {0};
     CHAR    InterfaceActiveStatus[BUFLEN_64]     = {0};
     CHAR    CurrentActiveInterface[BUFLEN_64] = {0};
     CHAR    CurrentStandbyInterface[BUFLEN_64] = {0};
@@ -1936,6 +2014,15 @@ ANSC_STATUS Update_Interface_Status()
                 }else
                     snprintf(newIface->ActiveStatus, sizeof(newIface->ActiveStatus), "%s,0", pWanIfaceData->DisplayName);
 
+                if((p_VirtIf->Status == WAN_IFACE_STATUS_UP || 
+                    p_VirtIf->Status == WAN_IFACE_STATUS_STANDBY || 
+                    p_VirtIf->Status == WAN_IFACE_STATUS_VALID) &&
+                    (pWanIfaceData->IfaceType != REMOTE_IFACE || p_VirtIf->RemoteStatus == WAN_IFACE_STATUS_UP)) //If its a remote interface, check remote status
+                {
+                    snprintf(newIface->InterfaceIpStatus, sizeof(newIface->InterfaceIpStatus), "%s,1", pWanIfaceData->DisplayName);
+                }else
+                    snprintf(newIface->InterfaceIpStatus, sizeof(newIface->InterfaceIpStatus), "%s,0", pWanIfaceData->DisplayName);
+
                 /*
                  * In Gateway Mode, CurrentActiveInterface should be an actual virtual Interface Name
                  * In Modem/Extender Mode, CurrentActiveInterface should be always Mesh Interface Name
@@ -1995,7 +2082,11 @@ ANSC_STATUS Update_Interface_Status()
             strcat(InterfaceActiveStatus,"|");
         }
         strcat(InterfaceActiveStatus,pHead->ActiveStatus);
-
+        if(strlen(InterfaceIpStatus)>0 && strlen(pHead->InterfaceIpStatus)>0)
+        {
+            strcat(InterfaceIpStatus,"|");
+        }
+        strcat(InterfaceIpStatus,pHead->InterfaceIpStatus);
         tmp = pHead->next;
         free(pHead);
         pHead = tmp;
@@ -2023,6 +2114,15 @@ ANSC_STATUS Update_Interface_Status()
             publishActiveStatus = TRUE;
 #endif
         }
+
+        if(strcmp(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus) != 0)
+        {
+#ifdef RBUS_BUILD_FLAG_ENABLE
+            WanMgr_Rbus_String_EventPublish_OnValueChange(WANMGR_EVENT_WAN_INTERFACEIPSTATUS, pWanDmlData->InterfaceIpStatus, InterfaceIpStatus);
+#endif
+            strncpy(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus, sizeof(pWanDmlData->InterfaceIpStatus)-1);
+        }
+
     	if(RETURN_OK == Update_Current_ActiveDNS(CurrentActiveDNS))
     	{
             if(strcmp(pWanDmlData->CurrentActiveDNS,CurrentActiveDNS) != 0)
@@ -2070,12 +2170,6 @@ ANSC_STATUS Update_Interface_Status()
                 strncpy(prevCurrentActiveInterface,pWanDmlData->CurrentActiveInterface, sizeof(prevCurrentActiveInterface) - 1);
                 memset(pWanDmlData->CurrentActiveInterface, 0, sizeof(pWanDmlData->CurrentActiveInterface));
                 strncpy(pWanDmlData->CurrentActiveInterface,CurrentActiveInterface, sizeof(pWanDmlData->CurrentActiveInterface) - 1);
-                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked((devMode == GATEWAY_MODE) ? CurrentActiveInterface : CELLULARMGR_WAN_NAME);
-                if(pVirtIf != NULL)
-                {
-                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_WAN_UP);
-                    WanMgr_VirtualIfaceData_release(pVirtIf);
-                }			
 #ifdef RBUS_BUILD_FLAG_ENABLE
                 publishCurrentActiveInf = TRUE;
 #endif //RBUS_BUILD_FLAG_ENABLE
@@ -2093,6 +2187,16 @@ ANSC_STATUS Update_Interface_Status()
             WanMgr_Rbus_String_EventPublish_OnValueChange(WANMGR_CONFIG_WAN_CURRENT_STATUS, pWanDmlData->CurrentStatus, CurrentWanStatus);
             memset(pWanDmlData->CurrentStatus, 0, sizeof(pWanDmlData->CurrentStatus));
             strncpy(pWanDmlData->CurrentStatus, CurrentWanStatus, sizeof(pWanDmlData->CurrentStatus) - 1);
+            if(strlen(CurrentActiveInterface) > 0 && strncmp(CurrentWanStatus,"Up",sizeof(CurrentWanStatus)) == 0)
+            {
+                DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked((devMode == GATEWAY_MODE) ? CurrentActiveInterface : CELLULARMGR_WAN_NAME);
+                if(pVirtIf != NULL)
+                {
+                    WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_WAN_UP);
+                    WanMgr_VirtualIfaceData_release(pVirtIf);
+                }
+           }
+	    
         }
 #endif
 

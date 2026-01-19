@@ -71,6 +71,15 @@
 #define COSA_DML_DHCPV6S_ADDR_SYSEVENT_NAME      "tr_"COSA_DML_DHCPV6_SERVER_IFNAME"_dhcpv6_server_v6addr"
 #endif
 
+typedef struct {
+    char event[BUFLEN_16];                  // e.g. "NEWADDR" or "DELADDR"
+    char ifname[BUFLEN_32];                 // interface name, e.g. wlan0
+    char addr[INET6_ADDRSTRLEN];            // IPv6 full address
+    unsigned int prefix_len;                // prefix length
+    unsigned int preferred_lft;             // preferred lifetime
+    unsigned int valid_lft;                 // valid lifetime
+} IPv6NetLinkAddrEvent;
+
 /*
  *  DHCP Client
  */
@@ -368,4 +377,7 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf);
  * - WAN IPv6 Address: "2a06:5906:13:d001::1/128"
  */
 int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew);
+
+ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pstAddrEvent);
+
 #endif //_WANMGR_DHCPV6_APIS_H_

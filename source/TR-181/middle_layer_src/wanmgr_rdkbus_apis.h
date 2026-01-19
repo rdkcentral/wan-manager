@@ -62,6 +62,7 @@ struct IFACE_INFO
 {
     INT     Priority;
     CHAR    AvailableStatus[BUFLEN_64];
+    CHAR    InterfaceIpStatus[BUFLEN_64];
     CHAR    ActiveStatus[BUFLEN_64];
     CHAR    CurrentActive[BUFLEN_64];
     CHAR    CurrentStandby[BUFLEN_64];
@@ -90,7 +91,20 @@ ANSC_STATUS WanMgr_WanConfInit (DML_WANMGR_CONFIG* pWanConfig);
 ANSC_STATUS DmlGetTotalNoOfGroups(int *wan_if_count);
 ANSC_STATUS WanMgr_RdkBus_setWanPolicy(DML_WAN_POLICY wan_policy, UINT groupId);
 ANSC_STATUS WanMgr_Read_GroupConf_FromPSM(WANMGR_IFACE_GROUP *pGroup, UINT groupId);
-ANSC_STATUS DmlSetVLANInUseToPSMDB(DML_VIRTUAL_IFACE * pVirtIf);
+
+/**
+ * @brief Updates the VLAN in use parameter and stores it to persisted memory.
+ *
+ * This function compares the VLANInUse field with the CurrentVlan field of the provided
+ * DML_VIRTUAL_IFACE structure. If they differ, it updates VLANInUse ,
+ * and persists the new value to the database using WanMgr_RdkBus_SetParamValuesToDB.
+ *
+ * @param[in,out] pVirtIf Pointer to the DML_VIRTUAL_IFACE structure whose VLAN information is to be updated.
+ *
+ * @return ANSC_STATUS_SUCCESS Always returns success status.
+ */
+ANSC_STATUS UpdateAndPersistVLANInUse(DML_VIRTUAL_IFACE * pVirtIf);
+
 ANSC_STATUS DmlGetTotalNoOfWanInterfaces(int *wan_if_count);
 int get_Remote_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTUAL_IFACE * pVirtIf);
 #endif /* _WANMGR_RDKBUS_APIS_H_ */
