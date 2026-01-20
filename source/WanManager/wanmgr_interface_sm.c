@@ -55,9 +55,6 @@
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
 
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-extern lanState_t lanState;
-#endif
 
 #if defined(FEATURE_464XLAT)
 typedef enum
@@ -192,7 +189,7 @@ static ANSC_STATUS WanManager_ClearDHCPData(DML_VIRTUAL_IFACE * pVirtIf);
  * lan ipv6 address ready to use.
  * @return RETURN_OK on success else RETURN_ERR
  *************************************************************************************/
-static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
+static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
 
 #ifdef FEATURE_MAPT
 
@@ -977,57 +974,37 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
     return ret;
 }
 
-/* Check Duplicate Address Detection (DAD) status. The way it works is that
-   after an address is added to an interface, the operating system uses the
-   Neighbor Discovery Protocol to check if any other host on the network
-   has the same address. The whole process will take around 3 to 4 seconds
-   to complete. Also we need to check and ensure that the gateway has
-   a valid default route entry.
+
+/**
+ * @brief Checks if the IPv6 address is ready to use.
+ *
+ * This function checks the tentative address, detects Duplicate Address Detection (DAD) failure, and verifies the default route. 
+ * If DAD fails, it also triggers a Router Solicitation.
+ *
+ * @param p_VirtIf Pointer to the virtual interface structure.
+ * @return int 0 on success, negative value on failure.
  */
-static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
+static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
 {
     char buffer[BUFLEN_256] = {0};
-    FILE *fp_dad   = NULL;
-    FILE *fp_route = NULL;
+    FILE *fp_dad       = NULL;
+    FILE *fp_route     = NULL;
     int dad_flag       = 0;
     int route_flag     = 0;
-    int i;
-    char IfaceName[BUFLEN_16] = {0};
-    int BridgeMode = 0;
 
-    { //TODO : temporary debug code to identify the bridgemode sysevent failure issue.
-        char Output[BUFLEN_16] = {0};
-        if (sysevent_get(sysevent_fd, sysevent_token, "bridge_mode", Output, sizeof(Output)) !=0)
-        {
-            CcspTraceError(("%s-%d: bridge_mode sysevent get failed. \n", __FUNCTION__, __LINE__));
-        }
-        BridgeMode = atoi(Output);
-        CcspTraceInfo(("%s-%d: <<DEBUG>> bridge_mode sysevent value set to =%d \n", __FUNCTION__, __LINE__,  BridgeMode));
-    }
-     /*TODO:
-     *Below Code should be removed once V6 Prefix/IP is assigned on erouter0 Instead of brlan0 for sky Devices.
-     */
-    strncpy(IfaceName, ETH_BRIDGE_NAME, sizeof(IfaceName)-1);
-    if (WanMgr_isBridgeModeEnabled() == TRUE)
-    {
-        CcspTraceInfo(("%s-%d: Device is in bridge mode. Assigning IPv6 address on WAN interface.\n", __FUNCTION__, __LINE__));
-        memset(IfaceName, 0, sizeof(IfaceName));
-        strncpy(IfaceName, p_VirtIf->Name, sizeof(IfaceName)-1);
-    }
-    CcspTraceInfo(("%s-%d: IfaceName=%s, BridgeMode=%d \n", __FUNCTION__, __LINE__, IfaceName, BridgeMode));
+    /* Check Duplicate Address Detection (DAD) status. The way it works is that after an address is added to an interface, the operating system uses the
+    Neighbor Discovery Protocol to check if any other host on the network has the same address. The whole process will take around 3 to 4 seconds
+    to complete. Also we need to check and ensure that the gateway has a valid default route entry.
+    */
+    // Note: This check is not strictly necessary and this check could delay the WAN up by 15 seconds in worst case. If the IPv6 address (IANA) is obtained via DHCPv6, and the DHCP client already performs the DAD check.
+    // However, it is beneficial to verify that the WAN IPv6 address is auto-calculated from the delegated prefix or via SLAAC.
 
-    /* TODO: the below code assumes if the LAN ipv6 address is tentaive for 15 seconds DAD has failed. Do we need additional check?
-     * IANA dad is handled in the DHCPv6 client for the Wan Interface.
-     * Should we remove the IP from LAN bridge and request a different Delegated prefix?
-     * Should we use EUI-64 based Interface identifiers for all platforms?
-     */
-
-    for(i=0; i<15; i++) 
+    for(int i=0; i<15; i++) 
     {
         buffer[0] = '\0';
         if(dad_flag == 0) 
         {
-            if ((fp_dad = v_secure_popen("r","ip address show dev %s tentative", IfaceName))) 
+            if ((fp_dad = v_secure_popen("r","ip address show dev %s tentative", p_VirtIf->Name))) 
             {
                 if(fp_dad != NULL) 
                 {
@@ -1040,7 +1017,6 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
                 }
             }
         }
-
         if(dad_flag == 0) 
         {
             sleep(1);
@@ -1064,10 +1040,10 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
         }
     }
 
-    //if DAD failed on LAN bridge, log an ERROR message and continue with the WAN process.
+    //if DAD failed on WAN interface, log an ERROR message and continue with the WAN process.
     if(dad_flag == 0 || route_flag == 0) 
     {
-        CcspTraceError(("%s %d dad_flag[%d] route_flag[%d] Failed \n", __FUNCTION__, __LINE__,dad_flag,route_flag));
+        CcspTraceError(("%s %d dad_flag[%s] route_flag[%s] Failed \n", __FUNCTION__, __LINE__,dad_flag ?"SUCCESS":"FAILED",route_flag?"SUCCESS":"FAILED"));
     }
 
     if(route_flag == 0)
@@ -1569,8 +1545,9 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         }
     }
 #endif
+
     /** Unconfig IPv6. */
-    if ( WanManager_Ipv6PrefixUtil(p_VirtIf->Name, DEL_ADDR,0,0) < 0)
+    if ( WanManager_Ipv6AddrUtil(p_VirtIf, DEL_ADDR) < 0)
     {
         AnscTraceError(("%s %d -  Failed to remove inactive address \n", __FUNCTION__,__LINE__));
     }
@@ -1603,6 +1580,7 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
 
 //RBUS_WAN_IP
+//TODO : **************************** Check this ************************
 #if defined (RBUS_WAN_IP)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     unsigned char ConfigureWANIPv6OnLANBridgeSupport = FALSE;
@@ -1811,14 +1789,14 @@ static ANSC_STATUS WanMgr_SendMsgTo_ConnectivityCheck(WanMgr_IfaceSM_Controller_
                     //Restarting firewall to add IPOE_HEALTH_CHECK firewall rules.
                     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
                 }
-                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_UP, p_VirtIf->Name);
+                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_UP, p_VirtIf);
                 pWanIfaceCtrl->IhcV4Status = IHC_STARTED;
             }
         }
         else if(type == CONNECTION_MSG_IPV4 && ConnStatus == FALSE)
         {
                 CcspTraceInfo(("%s %d Sending IPOE_MSG_WAN_CONNECTION_DOWN \n", __FUNCTION__, __LINE__));
-                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_DOWN, p_VirtIf->Name);
+                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_DOWN, p_VirtIf);
                 pWanIfaceCtrl->IhcV4Status = IHC_STOPPED;
         }
         else if(type == CONNECTION_MSG_IPV6 && ConnStatus == TRUE)
@@ -1834,14 +1812,14 @@ static ANSC_STATUS WanMgr_SendMsgTo_ConnectivityCheck(WanMgr_IfaceSM_Controller_
                     //Restarting firewall to add IPOE_HEALTH_CHECK firewall rules.
                     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
                 }
-               WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_UP, p_VirtIf->Name);
+               WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_UP, p_VirtIf);
                pWanIfaceCtrl->IhcV6Status = IHC_STARTED;
             }
         }
         else if(type == CONNECTION_MSG_IPV6 && ConnStatus == FALSE)
         {
                 CcspTraceInfo(("%s %d Sending IPOE_MSG_WAN_CONNECTION_IPV6_DOWN \n", __FUNCTION__, __LINE__));
-                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_DOWN, p_VirtIf->Name);
+                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_DOWN, p_VirtIf);
                 pWanIfaceCtrl->IhcV6Status = IHC_STOPPED;
         }
 
@@ -2694,7 +2672,6 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Prefix",  p_VirtIf->baseIfIdx+1, p_VirtIf->VirIfIdx+1);
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
-    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
 
     //Disable accept_ra
     WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
@@ -2714,6 +2691,16 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
             CcspTraceError(("%s %d - Failed to remove IPv6 route and address for '%s'\n", 
                            __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
+    }
+
+    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
+    //clear IPv6 lease from the interface data
+    memset(&(p_VirtIf->IP.Ipv6Data), 0, sizeof(WANMGR_IPV6_DATA));
+    if (p_VirtIf->IP.pIpcIpv6Data != NULL )
+    {
+        //free memory
+        free(p_VirtIf->IP.pIpcIpv6Data);
+        p_VirtIf->IP.pIpcIpv6Data = NULL;
     }
 
 #if defined(FEATURE_464XLAT)
@@ -3535,7 +3522,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
                 p_VirtIf->IP.Ipv6Changed = FALSE;
                 return WAN_STATE_OBTAINING_IP_ADDRESSES;
             }
-            if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
             {
                 return wan_transition_ipv6_up(pWanIfaceCtrl);
             }
@@ -3606,7 +3593,7 @@ static eWanState_t wan_state_standby(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
                 }
                 p_VirtIf->IP.Ipv6Changed = FALSE;
             }
-            if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
             {
                 ret = wan_transition_ipv6_up(pWanIfaceCtrl);
                 CcspTraceInfo((" %s %d - IPv6 Address Assigned to Bridge Yet.\n", __FUNCTION__, __LINE__));
@@ -3709,7 +3696,7 @@ static eWanState_t wan_state_ipv4_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             p_VirtIf->IP.Ipv6Changed = FALSE;
             return WAN_STATE_IPV4_LEASED;
         }
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+        if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
         {
             return wan_transition_ipv6_up(pWanIfaceCtrl);
         }
@@ -3820,7 +3807,7 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
             p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
     {
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
+        if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
         {
             return wan_transition_mapt_up(pWanIfaceCtrl);
         } 
@@ -3845,18 +3832,6 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
 
     WanMgr_CheckDefaultRA(p_VirtIf);
 
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-    if(lanState == LAN_STATE_STOPPED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-        lanState = LAN_STATE_RESET;
-    }
-    else if(lanState == LAN_STATE_STARTED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
-        lanState = LAN_STATE_RESET;
-    }
-#endif
     return WAN_STATE_IPV6_LEASED;
 }
 
@@ -3958,7 +3933,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
             pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
             p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
     {
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
+        if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
         {
             return wan_transition_mapt_up(pWanIfaceCtrl);
         }
@@ -3990,18 +3965,6 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
     WanMgr_MonitorDhcpApps(pWanIfaceCtrl);
     WanMgr_CheckDefaultRA(p_VirtIf);
 
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-    if(lanState == LAN_STATE_STOPPED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-        lanState = LAN_STATE_RESET;
-    }
-    else if(lanState == LAN_STATE_STARTED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
-        lanState = LAN_STATE_RESET;
-    }
-#endif
     return WAN_STATE_DUAL_STACK_ACTIVE;
 }
 
@@ -4135,18 +4098,7 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     WanMgr_MonitorDhcpApps(pWanIfaceCtrl);
 
     WanMgr_CheckDefaultRA(p_VirtIf);
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-    if(lanState == LAN_STATE_STOPPED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-        lanState = LAN_STATE_RESET;
-    }
-    else if(lanState == LAN_STATE_STARTED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
-        lanState = LAN_STATE_RESET;
-    }
-#endif
+
     return WAN_STATE_MAPT_ACTIVE;
 }
 #endif //FEATURE_MAPT

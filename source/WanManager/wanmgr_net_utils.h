@@ -37,8 +37,6 @@
 #define PTM_IFC_STR                 "ptm"
 #define PHY_WAN_IF_NAME             "erouter0"
 #define ETH_BRIDGE_NAME             "brlan0"
-#define LAN_BRIDGE_NAME             "brlan0"
-//
 
 #define WAN_STATUS_UP   "up"
 #define WAN_STATUS_DOWN "down"
@@ -159,13 +157,11 @@ BOOL WanManager_IsApplicationRunning(const char *appName, const char * args);
 /***************************************************************************
  * @brief Utility function used to perform operation on IPV6 addresses
  * for a particular interface
- * @param ifname string indicates interface name
+ * @param p_VirtIf Pointer to the virtual interface
  * @param opr indicates operation type (Delete/Set)
- * @param preflft indicates preferred lifetime
- * @param vallft indicates valid lifetime
  * @return 0 upon success else -1 returned
  ***************************************************************************/
-int WanManager_Ipv6PrefixUtil(char *ifname,Ipv6OperType opr,int preflft,int vallft);
+int WanManager_Ipv6AddrUtil(DML_VIRTUAL_IFACE* p_VirtIf,Ipv6OperType opr);
 
 /***************************************************************************
  * @brief Utility function used to check a process is running using PID

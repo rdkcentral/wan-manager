@@ -53,10 +53,8 @@ extern char g_Subsystem[32];
 #endif
 #endif
 
-#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
 #define COSA_DML_WANIface_ADDR_SYSEVENT_NAME           "tr_%s_dhcpv6_client_v6addr"
 char PreviousIPv6Address[128] = {0}; //Global varibale to store previous IPv6 address
-#endif
 
 static struct {
     pthread_t          dhcpv6c_thread;
@@ -1406,8 +1404,14 @@ WanMgr_DmlDhcpv6Remove(ANSC_HANDLE hContext)
 }
 
 #if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
- /* dhcpv6_assign_global_ip Copied from PAM module */
-int dhcpv6_assign_global_ip(char * prefix, char * intfName, char * ipAddr)
+/**
+@brief  Generates a full IPv6 address in EUI-64 format from a delegated prefix.
+@param prefix The delegated IPv6 prefix.
+@param intfName The name of the network interface.
+@param ipAddr The buffer to store the generated IPv6 address.
+@return int 0 on success, non-zero on failure. 
+*/
+static int WanMgr_create_eui64_ipv6_address(char * prefix, char * intfName, char * ipAddr)
 {
 
     unsigned int    length           = 0;
@@ -1447,28 +1451,6 @@ int dhcpv6_assign_global_ip(char * prefix, char * intfName, char * ipAddr)
         CcspTraceError(("error, there is not '::' in prefix:%s\n", prefix));
         return 1;
     }
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
-#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
-    WanMgr_Config_Data_t    *pWanConfigData = WanMgr_GetConfigData_locked();
-    unsigned char           IPv6EUI64FormatSupport = TRUE;
-
-    if( NULL != pWanConfigData )
-    {
-        IPv6EUI64FormatSupport = pWanConfigData->data.IPv6EUI64FormatSupport;
-        WanMgrDml_GetConfigData_release(pWanConfigData);
-    }
-
-    if ( FALSE == IPv6EUI64FormatSupport )
-#endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
-    {
-        if(strncmp(intfName, COSA_DML_DHCPV6_SERVER_IFNAME, strlen(intfName)) == 0)
-        {
-            snprintf(ipAddr, 128, "%s1", globalIP);
-            CcspTraceInfo(("the full part is:%s\n", ipAddr));
-            return 0;
-        }
-    }
-#endif
 
     j = i-2;
     k = 0;
@@ -1487,6 +1469,7 @@ int dhcpv6_assign_global_ip(char * prefix, char * intfName, char * ipAddr)
     CcspTraceInfo(("the first part is:%s\n", globalIP));
 
     /* prepare second part */
+    /* Step 1: Extract the MAC address of the specified network interface */
     fp = v_secure_popen("r", "ifconfig %s | grep HWaddr", intfName );
     _get_shell_output(fp, out, sizeof(out));
     v_secure_pclose(fp);
@@ -1499,6 +1482,7 @@ int dhcpv6_assign_global_ip(char * prefix, char * intfName, char * ipAddr)
     while( pMac && (pMac[0] == ' ') )
         pMac++;
 
+    /* Step 2: Toggle the 7th bit of the first byte of the MAC address */
     /* switch 7bit to 1*/
     tmp[0] = pMac[1];
 
@@ -1513,12 +1497,14 @@ int dhcpv6_assign_global_ip(char * prefix, char * intfName, char * ipAddr)
     pMac[1] = k;
     pMac[17] = '\0';
 
+    /* Step 3: Insert the "FF:FE" sequence in the middle of the MAC address */
     //00:50:56: FF:FE:  92:00:22
     _ansc_strncpy(out, pMac, 9);
     out[9] = '\0';
     _ansc_strcat(out, "FF:FE:");
     _ansc_strcat(out, pMac+9);
 
+    /* Step 4: Format the resulting string into the IPv6 address format */
     for(k=0,j=0;out[j];j++){
         if ( out[j] == ':' )
             continue;
@@ -1531,7 +1517,7 @@ int dhcpv6_assign_global_ip(char * prefix, char * intfName, char * ipAddr)
 
     globalIP[i-1] = '\0';
 
-    CcspTraceInfo(("the full part is:%s\n", globalIP));
+    CcspTraceInfo(("The generated Ip v6 address for interface %s is:%s\n",intfName, globalIP));
     _ansc_strncpy(ipAddr, globalIP, sizeof(globalIP) - 1);
     /* This IP should be unique. If not I have no idea. */
     return 0;
@@ -1591,6 +1577,98 @@ static int WanMgr_CopyPreviousPrefix(WANMGR_IPV6_DATA* pOld, WANMGR_IPV6_DATA* p
     return 0;
 }
 #endif
+
+/**
+ * @brief Constructs a dedicated WAN IPv6 address from the received IAPD (IA Prefix Delegation).
+ *
+ * This function extracts the IPv6 prefix and its length from the given IAPD data. It then uses
+ * the provided prefix to construct a unique WAN IPv6 address by using the next available /64 subnet.
+ * The first /64 subnet of the IAPD is reserved for LAN, while the next /64 is used for the WAN address.
+ * The constructed WAN address is assigned to the specified WAN interface.
+ *
+ * @param[in] pIpv6DataNew Pointer to the WANMGR_IPV6_DATA structure.
+ *
+ * @return 
+ * - 0 on success.
+ * - -1 on failure (e.g., invalid prefix format, prefix length >= 64, or system command failure).
+ *
+ * @note The function assumes that if the prefix length is less than 64, there are sufficient bits available
+ *       to split the IAPD into multiple /64 subnets. If the prefix length is 64 or greater, it logs an error 
+ *       and returns -1 since further subnetting is not possible.
+ *
+ * ### Example:
+ * Given an IAPD of "2a06:5906:13:d000::/56", the function may construct the following addresses:
+ * - LAN IPv6 Address Range: "2a06:5906:13:d000::/64"
+ * - WAN IPv6 Address: "2a06:5906:13:d001::1/128"
+ */
+#define WAN_SUFFIX 1
+int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
+{
+    int prefix_length;
+    char iapd_prefix[128] = {0};
+    char cmdLine[256] = {0};
+    if (sscanf(pIpv6DataNew->sitePrefix, "%[^/]/%d", iapd_prefix, &prefix_length) != 2) 
+    {
+        return -1; // Parsing failed
+    }
+
+    if ( prefix_length >= 64) 
+    {
+        CcspTraceError(("%s %d Prefix length is >= 64. Can't split to multiple /64 networks\n", __FUNCTION__, __LINE__));        
+        return -1;
+    }
+
+    struct in6_addr prefix;
+    // Convert prefix to binary format
+    if (inet_pton(AF_INET6, iapd_prefix, &prefix) != 1) 
+    {
+        fprintf(stderr, "Invalid IPv6 prefix\n");
+        CcspTraceError(("%s %d Failed to convert prefix to in6_addr\n", __FUNCTION__, __LINE__));        
+        return -1;
+    }
+
+    prefix.s6_addr[7] += 0x01; // Use next subnet for WAN. First /64 will be used for LAN.
+
+    WanMgr_Config_Data_t    *pWanConfigData = WanMgr_GetConfigData_locked();
+    unsigned char           IPv6EUI64FormatSupport = TRUE;
+    if( NULL != pWanConfigData )
+    {
+        IPv6EUI64FormatSupport = pWanConfigData->data.IPv6EUI64FormatSupport;
+        WanMgrDml_GetConfigData_release(pWanConfigData);
+    }
+    
+    if(IPv6EUI64FormatSupport)
+    {
+        char newPref[128] = {0};
+        inet_ntop(AF_INET6, &prefix, newPref, sizeof(newPref));
+        CcspTraceInfo(("%s %d EUI64 format is enabled using new prefix %s \n", __FUNCTION__, __LINE__, newPref));    
+        snprintf(cmdLine, sizeof(cmdLine), "%s/%d", newPref, prefix_length);    
+        WanMgr_create_eui64_ipv6_address(cmdLine, pIpv6DataNew->ifname, pIpv6DataNew->address);
+    }
+    else
+    {
+        CcspTraceInfo(("%s %d EUI64 format is not enabled using WAN SUFFIX %d \n", __FUNCTION__, __LINE__, WAN_SUFFIX));    
+        prefix.s6_addr[15] = WAN_SUFFIX; // Setting the last byte for WAN address
+        inet_ntop(AF_INET6, &prefix, pIpv6DataNew->address, sizeof(pIpv6DataNew->address));
+    }
+    
+    pIpv6DataNew->addrAssigned = true;
+    pIpv6DataNew->addrCmd = IFADDRCONF_ADD;
+
+    CcspTraceInfo(("%s %d Calculated WAN network IP %s/128 \n", __FUNCTION__, __LINE__, pIpv6DataNew->address));        
+    //Since this address calculated by us, it will be assigned by the DHCPv6c client. Assign the address on the Wan interface
+    memset(cmdLine, 0, sizeof(cmdLine));
+    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s", pIpv6DataNew->address, pIpv6DataNew->ifname);
+    if (WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine) != 0)
+        CcspTraceError(("failed to run cmd: %s", cmdLine));
+
+    memset(cmdLine, 0, sizeof(cmdLine));
+    snprintf(cmdLine, sizeof(cmdLine), COSA_DML_WANIface_ADDR_SYSEVENT_NAME , pIpv6DataNew->ifname);
+    sysevent_set(sysevent_fd, sysevent_token, cmdLine, pIpv6DataNew->address, 0);
+
+    return 0;
+}
+
 
 ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
 {
@@ -1664,7 +1742,8 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
         /* In an IPv6 lease, both IANA and IAPD details are sent together in a struct. 
          * If only one of them is renewed, the other field will be set to its default value.
          * In this scenario, we should not consider IANA or IAPD as deleted. 
-         * If we reach this point, only IAPD has been renewed. Use the previous IANA details. */
+         * If we reach this point, only IAPD has been renewed. Use the previous IANA details. 
+         */
 
         CcspTraceWarning(("%s %d IANA is not assigned in this IPC msg, but we have IANA configured from previous lease. Assuming only IAPD renewed. \n", __FUNCTION__, __LINE__));
         strncpy(Ipv6DataNew.address, pDhcp6cInfoCur->address, sizeof(Ipv6DataNew.address));
@@ -1672,6 +1751,18 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
         pNewIpcMsg->addrAssigned = true;
         Ipv6DataNew.addrCmd = pDhcp6cInfoCur->addrCmd;
     }
+    else if(Ipv6DataNew.prefixAssigned)
+    {
+        /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
+         * We can use the received IAPD to construct a Ipv6 /128 address which can be used for managerment and voice ...
+         * If we reach this point, only IAPD has been received. Canculate Wan Ipv6 address 
+         */
+
+        CcspTraceInfo(("IANA is not assigned by DHCPV6. Constructing WAN address from the IAPD for Wan Interface \n"));
+        wanmgr_construct_wan_address_from_IAPD(&Ipv6DataNew);
+        pNewIpcMsg->addrAssigned = true;
+    }
+
 
     /* dhcp6c receives prefix delegation for LAN */
     if (pNewIpcMsg->prefixAssigned && !IS_EMPTY_STRING(pNewIpcMsg->sitePrefix))
@@ -1873,28 +1964,7 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
         {
             if(pVirtIf->Status == WAN_IFACE_STATUS_UP &&  pNewIpcMsg->prefixPltime > 0 && pNewIpcMsg->prefixVltime > 0 ) //Update life time only if the interface is active.
             {
-#if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) //Do not add prefix on LAN bridge for the Comcast platforms.
-#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
-            WanMgr_Config_Data_t    *pWanConfigData = WanMgr_GetConfigData_locked();
-            unsigned char           ConfigureWANIPv6OnLANBridgeSupport = FALSE;
-
-            if( NULL != pWanConfigData )
-            {
-                ConfigureWANIPv6OnLANBridgeSupport = pWanConfigData->data.ConfigureWANIPv6OnLANBridgeSupport;
-                WanMgrDml_GetConfigData_release(pWanConfigData);
-            }
-
-            if ( TRUE == ConfigureWANIPv6OnLANBridgeSupport )
-#endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
-            {
-                //call function for changing the prlft and vallft
-                if ((WanManager_Ipv6PrefixUtil(pVirtIf->Name, SET_LFT, pNewIpcMsg->prefixPltime, pNewIpcMsg->prefixVltime) < 0))
-                {
-                    CcspTraceError(("Life Time Setting Failed"));
-                }
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_RADVD_RESTART, NULL, 0);
-            }
-#endif
             }
             pVirtIf->IP.Ipv6Renewed = TRUE;
         }
@@ -1953,6 +2023,14 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
     return ANSC_STATUS_SUCCESS;
 } /* End of ProcessDhcp6cStateChanged() */
 
+/**
+ * @brief Sets up the IPv6 /128 address for the LAN bridge.
+ * This function creates an IPv6 /128 address for the LAN bridge, 
+ * configures all necessary system events for the IPv6 LAN, 
+ * and restarts the DHCPv6 server and RA server if required.
+ * @param pVirtIf Pointer to the virtual interface structure.
+ * @return int 0 on success, non-zero on failure.
+ */
 int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
 {
     if (pVirtIf == NULL)
@@ -2013,27 +2091,22 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
 
     if (pVirtIf->IP.Ipv6Data.prefixPltime != 0 && pVirtIf->IP.Ipv6Data.prefixVltime != 0)
     {
-        ret = dhcpv6_assign_global_ip(pVirtIf->IP.Ipv6Data.sitePrefix, COSA_DML_DHCPV6_SERVER_IFNAME, globalIP);
+        //Create a global IP for the LAN bridge from the received delegated prefix.
+        ret = WanMgr_create_eui64_ipv6_address(pVirtIf->IP.Ipv6Data.sitePrefix, COSA_DML_DHCPV6_SERVER_IFNAME, globalIP);
         if(ret != 0) {
             CcspTraceInfo(("Assign global ip error \n"));
         }
         else 
         {
-#if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_))  //Do not add prefix on LAN bridge for the Comcast platforms.
-            CcspTraceInfo(("%s Going to set [%s] address on brlan0 interface \n", __FUNCTION__, globalIP));
-            memset(cmdLine, 0, sizeof(cmdLine));
-            snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/64 dev %s valid_lft %d preferred_lft %d",
-                    globalIP, COSA_DML_DHCPV6_SERVER_IFNAME, pVirtIf->IP.Ipv6Data.prefixVltime, pVirtIf->IP.Ipv6Data.prefixPltime);
-            if (WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine) != 0)
-                CcspTraceError(("failed to run cmd: %s", cmdLine));
-#endif
-            CcspTraceInfo(("%s lan_ipaddr_v6 set to [%s]  \n", __FUNCTION__, globalIP));
+            snprintf(pVirtIf->IP.Ipv6Data.pdIfAddress, sizeof(pVirtIf->IP.Ipv6Data.pdIfAddress), "%s/64", globalIP);
             /*This is for brlan0 interface */
             char pref_len[10] ={0};
             sscanf (pVirtIf->IP.Ipv6Data.sitePrefix,"%*[^/]/%s" ,pref_len);
             sysevent_set(sysevent_fd, sysevent_token, "lan_prefix_v6", pref_len, 0);
             sysevent_set(sysevent_fd, sysevent_token, "lan_ipaddr_v6", globalIP, 0);
             sysevent_set(sysevent_fd, sysevent_token, "lan_prefix_set", globalIP, 0); //TODO: This was a event to Wanmanager. if no other process listens to it. remove it.
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_TR_BRLAN0_DHCPV6_SERVER_ADDRESS, globalIP, 0);
+            CcspTraceInfo(("%s lan_ipaddr_v6 set to [%s]  \n", __FUNCTION__, globalIP));
         }
         memset(cmdLine, 0, sizeof(cmdLine));
         snprintf(cmdLine, sizeof(cmdLine), "ip -6 route add %s dev %s", pVirtIf->IP.Ipv6Data.sitePrefix, COSA_DML_DHCPV6_SERVER_IFNAME);
@@ -2080,11 +2153,12 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
             int index = strcspn(pVirtIf->IP.Ipv6Data.sitePrefix, "/");
             if (index < strlen(pVirtIf->IP.Ipv6Data.sitePrefix) && index < sizeof(prefix))
             {
-                strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, index);                                            // only copy prefix without the prefix length
-                snprintf(set_value, sizeof(set_value), "%s1", prefix);                                        // concatenate "1" onto the prefix, which is in the form "xxxx:xxxx:xxxx:xxxx::"
-                snprintf(pVirtIf->IP.Ipv6Data.pdIfAddress, sizeof(pVirtIf->IP.Ipv6Data.pdIfAddress), "%s/64", set_value); // concatenate prefix address with length "/64"
-                syscfg_set_string(SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, pVirtIf->IP.Ipv6Data.pdIfAddress);
-                sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_TR_BRLAN0_DHCPV6_SERVER_ADDRESS, set_value, 0);
+                strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, index);                                            // only copy prefix without the prefix length 
+                // Create and set IPv6 address with /128 prefix length  //TODO: SYSCFG_FIELD_IPV6_PREFIX_ADDRESS may not be used anymore. Check and remove if not used in the NTP script
+                char ipv6_addr_with_prefix[BUFLEN_64] = {0};
+                snprintf(ipv6_addr_with_prefix, sizeof(ipv6_addr_with_prefix), "%s/128", pVirtIf->IP.Ipv6Data.address);
+                syscfg_set_string(SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, ipv6_addr_with_prefix);
+                CcspTraceInfo(("%s %d IPv6 address syscfg %s set to  %s\n", __FUNCTION__, __LINE__, SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, ipv6_addr_with_prefix));
                 CcspTraceInfo(("%s %d new prefix = %s\n", __FUNCTION__, __LINE__, pVirtIf->IP.Ipv6Data.sitePrefix));
 #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
                 /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */

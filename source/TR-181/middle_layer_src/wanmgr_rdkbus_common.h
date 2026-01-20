@@ -90,7 +90,6 @@ typedef  struct _CONTEXT_LINK_OBJECT
 
 #define  DML_ALIAS_NAME_LENGTH                 64
 #define  DML_DHCP_CLIENT_IFNAME                "erouter0"
-#define  CFG_TR181_DHCPv6_SERVER_IfName        "brlan0"
 
 
 ANSC_STATUS SListPushEntryByInsNum (PSLIST_HEADER pListHead, PCONTEXT_LINK_OBJECT pLinkContext);

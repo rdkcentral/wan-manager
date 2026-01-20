@@ -673,14 +673,19 @@ static void * WanMgr_DhcpV6MsgHandler()
                             CcspTraceInfo(("%s %d Prefix Assigned\n", __FUNCTION__, __LINE__));
                             snprintf(dhcpv6_data.sitePrefix, sizeof(dhcpv6_data.sitePrefix), "%s/%d", v6pref, pref_len);
 
-                            dhcpv6_data.prefixAssigned = TRUE;
                             strncpy(dhcpv6_data.pdIfAddress, "", sizeof(dhcpv6_data.pdIfAddress));
                             dhcpv6_data.prefixCmd = 0;
                             remove_single_quote(iapd_pretm);
                             remove_single_quote(iapd_vldtm);
                             sscanf(iapd_pretm, "%d", &(dhcpv6_data.prefixPltime));
                             sscanf(iapd_vldtm, "%d", &(dhcpv6_data.prefixVltime));
-
+                            // Set prefixAssigned to TRUE only if both preferred and valid lifetimes are positive
+                            if (dhcpv6_data.prefixPltime > 0 && dhcpv6_data.prefixVltime > 0) 
+                            {
+                                dhcpv6_data.prefixAssigned = TRUE;
+                            } else {
+                                dhcpv6_data.prefixAssigned = FALSE;
+                            }
                             //IPv6 prefix related sysevents
                             // Define the eventMaps array as before
                             Ipv6SyseventMap eventMaps[] = {

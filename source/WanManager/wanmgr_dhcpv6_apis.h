@@ -49,7 +49,7 @@
     #define ULOGF
 #endif
 
-#define COSA_DML_DHCPV6_SERVER_IFNAME                 CFG_TR181_DHCPv6_SERVER_IfName
+#define COSA_DML_DHCPV6_SERVER_IFNAME                 "brlan0"
 
 #define COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME           "tr_"DML_DHCP_CLIENT_IFNAME"_dhcpv6_client_v6pref"
 #define COSA_DML_DHCPV6C_PREF_IAID_SYSEVENT_NAME      "tr_"DML_DHCP_CLIENT_IFNAME"_dhcpv6_client_pref_iaid"
@@ -352,6 +352,31 @@ void _get_shell_output(FILE *fp, char * out, int len);
  * @return RETURN_OK on success else RETURN_ERR
  ************************************************************************************/
 int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf);
+
+/**
+ * @brief Constructs a dedicated WAN IPv6 address from the received IAPD (IA Prefix Delegation).
+ *
+ * This function extracts the IPv6 prefix and its length from the given IAPD data. It then uses
+ * the provided prefix to construct a unique WAN IPv6 address by using the next available /64 subnet.
+ * The first /64 subnet of the IAPD is reserved for LAN, while the next /64 is used for the WAN address.
+ * The constructed WAN address is assigned to the specified WAN interface.
+ *
+ * @param[in] pIpv6DataNew Pointer to the WANMGR_IPV6_DATA structure.
+ *
+ * @return 
+ * - 0 on success.
+ * - -1 on failure (e.g., invalid prefix format, prefix length >= 64, or system command failure).
+ *
+ * @note The function assumes that if the prefix length is less than 64, there are sufficient bits available
+ *       to split the IAPD into multiple /64 subnets. If the prefix length is 64 or greater, it logs an error 
+ *       and returns -1 since further subnetting is not possible.
+ *
+ * ### Example:
+ * Given an IAPD of "2a06:5906:13:d000::/56", the function may construct the following addresses:
+ * - LAN IPv6 Address Range: "2a06:5906:13:d000::/64"
+ * - WAN IPv6 Address: "2a06:5906:13:d001::1/128"
+ */
+int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew);
 
 ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pstAddrEvent);
 
