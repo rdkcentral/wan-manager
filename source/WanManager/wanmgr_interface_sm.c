@@ -1280,21 +1280,23 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_START_TIME, syseventParam, 0);
 #ifdef _SR213_PRODUCT_REQ_
     int ret_res;
-    ret_res = v_secure_system("iptables -S");
+    ret_res = v_secure_system("touch /var/RDKB-62412.txt");
     CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
-    ret_res = v_secure_system("iptables -I INPUT");
+    ret_res = v_secure_system("/usr/sbin/iptables -S");
     CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
-    ret_res = v_secure_system("iptables -I INPUT 1");
+    ret_res = v_secure_system("/usr/sbin/iptables -I INPUT");
     CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
-    ret_res = v_secure_system("iptables -I INPUT 1 -i brlan0");
+    ret_res = v_secure_system("/usr/sbin/iptables -I INPUT 1");
     CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
-    ret_res = v_secure_system("iptables -I INPUT 1 -i brlan0 -d %s", p_VirtIf->IP.Ipv4Data.ip);
+    ret_res = v_secure_system("/usr/sbin/iptables -I INPUT 1 -i brlan0");
     CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
-    ret_res = v_secure_system("iptables -I INPUT 1 -i brlan0 -d %s -p tcp",  p_VirtIf->IP.Ipv4Data.ip);
+    ret_res = v_secure_system("/usr/sbin/iptables -I INPUT 1 -i brlan0 -d %s", p_VirtIf->IP.Ipv4Data.ip);
     CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
-    ret_res = v_secure_system("iptables -I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022", p_VirtIf->IP.Ipv4Data.ip);
+    ret_res = v_secure_system("/usr/sbin/iptables -I INPUT 1 -i brlan0 -d %s -p tcp",  p_VirtIf->IP.Ipv4Data.ip);
     CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
-    ret_res = v_secure_system("iptables -I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
+    ret_res = v_secure_system("/usr/sbin/iptables -I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022", p_VirtIf->IP.Ipv4Data.ip);
+    CcspTraceInfo(("%d RDKB-62412 ret_res %d\n", __LINE__, ret_res));
+    ret_res = v_secure_system("/usr/sbin/iptables -I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
     CcspTraceInfo(("%s RDKB-62412 p_VirtIf->IP.Ipv4Data.ip = %s\n", __FUNCTION__, p_VirtIf->IP.Ipv4Data.ip));
     CcspTraceInfo(("%s RDKB-62412 ret_res %d\n", __FUNCTION__, ret_res));
 #endif
