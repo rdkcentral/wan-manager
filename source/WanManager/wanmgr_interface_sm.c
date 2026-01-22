@@ -1386,7 +1386,7 @@ static int wan_tearDownIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 #ifdef _SR213_PRODUCT_REQ_
     char Cmd_rule[300] = {'\0'};
-    if(p_VirtIf != NULL && p_VirtIf->IP.Ipv4Data != NULL)
+    if(p_VirtIf != NULL)
     {
        snprintf(Cmd_rule, sizeof(Cmd_rule), "iptables -D INPUT -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
        v_secure_system(Cmd_rule);
