@@ -1279,8 +1279,9 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     snprintf(syseventParam, sizeof(syseventParam), "%u", WanManager_getUpTime());
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_START_TIME, syseventParam, 0);
 #ifdef _SR213_PRODUCT_REQ_
-    int ret_res = v_secure_system("iptables -I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
-    CcspTraceInfo(("%s %d - RDKB-62412 inside _SR213_PRODUCT_REQ_ p_VirtIf->IP.Ipv4Data.ip = %s , v_secure_system result = %d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, ret_res));
+    int ret_res = v_secure_system("/usr/sbin/iptables -I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
+    CcspTraceInfo(("%s RDKB-62412 p_VirtIf->IP.Ipv4Data.ip = %s\n", __FUNCTION__, p_VirtIf->IP.Ipv4Data.ip));
+    CcspTraceInfo(("%s RDKB-62412 ret_res %d\n", __FUNCTION__, ret_res));
 #endif
 
     //Enabling IP forwarding 
@@ -1385,8 +1386,9 @@ static int wan_tearDownIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     CcspTraceInfo(("%s %d - RDKB-62412 inside _SR213_PRODUCT_REQ_\n", __FUNCTION__, __LINE__));
     if(p_VirtIf != NULL)
     {
-       int ret_res = v_secure_system("iptables -D INPUT -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
-       CcspTraceInfo(("%s %d - RDKB-62412 inside _SR213_PRODUCT_REQ_ p_VirtIf->IP.Ipv4Data.ip = %s , v_secure_system result = %d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, ret_res));
+       int ret_res = v_secure_system("/usr/sbin/iptables -D INPUT -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
+       CcspTraceInfo(("%s RDKB-62412 p_VirtIf->IP.Ipv4Data.ip = %s\n", __FUNCTION__, p_VirtIf->IP.Ipv4Data.ip));
+       CcspTraceInfo(("%s RDKB-62412 v_secure_system result = %d\n", __FUNCTION__, ret_res));
     }
 #endif
 
