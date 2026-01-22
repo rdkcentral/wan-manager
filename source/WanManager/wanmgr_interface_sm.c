@@ -1234,6 +1234,9 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         return RETURN_ERR;
     }
 
+#ifdef _SR213_PRODUCT_REQ_
+    char Cmd_rule[256] = {'\0'};
+#endif
     int ret = RETURN_OK;
     char cmdStr[BUFLEN_128 + IP_ADDR_LENGTH] = {0};
     char bCastStr[IP_ADDR_LENGTH] = {0};
@@ -1278,6 +1281,10 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 
     snprintf(syseventParam, sizeof(syseventParam), "%u", WanManager_getUpTime());
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_START_TIME, syseventParam, 0);
+#ifdef _SR213_PRODUCT_REQ_
+    snprintf(Cmd_rule, sizeof(Cmd_rule), "iptables -I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
+    v_secure_system(Cmd_rule);
+#endif
 
     //Enabling IP forwarding 
     CcspTraceInfo(("%s %d - net.ipv4.ip_forward set to 1 \n", __FUNCTION__, __LINE__));
@@ -1377,6 +1384,14 @@ static int wan_tearDownIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
             CcspTraceInfo(("%s %d -  IPv4 DNS servers unconfig successfully \n", __FUNCTION__, __LINE__));
         }   
     }
+#ifdef _SR213_PRODUCT_REQ_
+    char Cmd_rule[300] = {'\0'};
+    if(p_VirtIf != NULL && p_VirtIf->IP.Ipv4Data != NULL)
+    {
+       snprintf(Cmd_rule, sizeof(Cmd_rule), "iptables -D INPUT -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", p_VirtIf->IP.Ipv4Data.ip);
+       v_secure_system(Cmd_rule);
+    }
+#endif
 
     if (WanManager_DelDefaultGatewayRoute(DeviceNwMode, pWanIfaceCtrl->DeviceNwModeChanged, &p_VirtIf->IP.Ipv4Data) != RETURN_OK)
     {
