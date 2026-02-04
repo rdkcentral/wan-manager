@@ -2267,9 +2267,20 @@ int WanManager_AddGatewayRoute(const WANMGR_IPV4_DATA* pIpv4Info)
     char cmd[BUFLEN_128]={0};
     int ret = RETURN_OK;
     FILE *fp = NULL;
-    
+    char interface_gw[32] = {0};
+    char backup_gw[32] = {0};
+
     /* delete gateway first before add  */
-    snprintf(cmd, sizeof(cmd), "route del %s dev %s", pIpv4Info->gateway, pIpv4Info->ifname);
+    snprintf(interface_gw,sizeof(interface_gw),"%s_backup_gw",pIpv4Info->ifname);
+    sysevent_get(sysevent_fd, sysevent_token, interface_gw, backup_gw, sizeof(backup_gw));
+    if(strlen(backup_gw) > 0)
+    {
+        snprintf(cmd, sizeof(cmd), "route del %s dev %s", backup_gw, pIpv4Info->ifname);
+    }
+    else
+    {
+        snprintf(cmd, sizeof(cmd), "route del %s dev %s", pIpv4Info->gateway, pIpv4Info->ifname);
+    }
     WanManager_DoSystemAction("SetUpSystemGateway:", cmd);
 
     /* Sets gateway route entry */
@@ -2279,6 +2290,7 @@ int WanManager_AddGatewayRoute(const WANMGR_IPV4_DATA* pIpv4Info)
         WanManager_DoSystemAction("SetUpSystemGateway:", cmd);
         CcspTraceInfo(("%s %d - The gateway route entries set!\n",__FUNCTION__,__LINE__));
     }
+    sysevent_set(sysevent_fd, sysevent_token,interface_gw, pIpv4Info->gateway, 0);
 
     return ret;
 }
