@@ -483,19 +483,93 @@ static void WanMgr_MonitorDhcpApps (WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
         (p_VirtIf->IP.Dhcp6cPid > 0 &&                                                                          // dhcp started by ISM
         WanMgr_IsPIDRunning(p_VirtIf->IP.Dhcp6cPid) != TRUE)))                                                   // but DHCP client not running
     {
-        if (p_VirtIf->IP.Dhcp6cPid == -1 )
+        /*
+         * RS Retry for SLAAC IPv6 Recovery (Xfinity Hotspot Mode)
+         * ---------------------------------------------------------
+         * In SLAAC-only mode where initial RS failed, use controlled retry mechanism
+         * instead of immediate DHCPv6 restart. This handles BNG not responding to
+         * initial Router Solicitation.
+         *
+         * Retry Parameters:
+         * - Interval: 60 seconds between retries
+         * - Max Attempts: 5 (total 5 minutes)
+         */
+        if (p_VirtIf->IP.Dhcp6cPid == -1 &&
+            p_VirtIf->IP.IPv6Source == DML_WAN_IP_SOURCE_SLAAC &&
+            p_VirtIf->IP.Dhcp6cStatus == DHCPC_FAILED)
         {
+            RS_RETRY_STATUS rsRetryStatus = WanMgr_RSRetryHandler(p_VirtIf);
+
+            switch (rsRetryStatus)
+            {
+                case RS_RETRY_SUCCESS:
+                    CcspTraceInfo(("%s %d - [RS-Retry] RA received successfully on interface %s. "
+                                   "IPv6 SLAAC recovery complete.\n",
+                                   __FUNCTION__, __LINE__, p_VirtIf->Name));
+                    /* Don't restart DHCPv6 - SLAAC will handle IPv6 configuration */
+                    break;
+
+                case RS_RETRY_IN_PROGRESS:
+                case RS_RETRY_SENT:
+                    /* Retry in progress - don't restart DHCPv6 client yet */
+                    CcspTraceDebug(("%s %d - [RS-Retry] Retry in progress on interface %s. "
+                                    "Attempt %u/%d\n",
+                                    __FUNCTION__, __LINE__, p_VirtIf->Name,
+                                    p_VirtIf->IP.RSRetry.uiRetryCount, RS_RETRY_MAX_ATTEMPTS));
+                    break;
+
+                case RS_RETRY_EXHAUSTED:
+                    CcspTraceWarning(("%s %d - [RS-Retry] Max retries exhausted on interface %s. "
+                                      "Falling back to standard recovery.\n",
+                                      __FUNCTION__, __LINE__, p_VirtIf->Name));
+                    
+                    /* Log detailed error for self-healing/debugging */
+                    CcspTraceError(("%s %d - [RS-Retry] ERROR: IPv6 SLAAC RS retry mechanism failed after %d attempts. "
+                                    "Interface '%s' will use standard DHCPv6 recovery.\n",
+                                    __FUNCTION__, __LINE__, RS_RETRY_MAX_ATTEMPTS, p_VirtIf->Name));
+                    
+                    /* Reset retry state and fall through to original recovery mechanism */
+                    WanMgr_RSRetryReset(p_VirtIf);
+                    
+                    /* Log fallback action */
+                    CcspTraceInfo(("%s %d - [RS-Retry] Initiating fallback recovery: Force IPv6 toggle and DHCPv6 restart on interface %s\n",
+                                   __FUNCTION__, __LINE__, p_VirtIf->Name));
+                    
+                    Force_IPv6_toggle(p_VirtIf->Name);
+                    WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
+                    CcspTraceInfo(("%s %d - SELFHEAL - [RS-Retry] Restarted dhcp6c on interface %s after retry exhaustion\n",
+                                   __FUNCTION__, __LINE__, p_VirtIf->Name));
+                    break;
+
+                default:
+                    CcspTraceError(("%s %d - [RS-Retry] Unknown status %d on interface %s\n",
+                                    __FUNCTION__, __LINE__, rsRetryStatus, p_VirtIf->Name));
+                    break;
+            }
+        }
+        else if (p_VirtIf->IP.Dhcp6cPid == -1)
+        {
+            /* Non-SLAAC case or DHCPv6 required - use original recovery mechanism */
             /* DHCPv6c client can fail to start due to DAD failuer on the link local address. 
              * This could happen if multiple WAN interfaces are up with same MAC address. Toggling will restart the DAD again.
              */
             CcspTraceInfo(("%s %d - DHCPv6c client failed to start on interface %s. Toggeling Ipv6 before retry... \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-            Force_IPv6_toggle(p_VirtIf->Name); 
-        }
-        WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
-        CcspTraceInfo(("%s %d - SELFHEAL - Started dhcp6c on interface %s, dhcpv6_pid %d \n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Dhcp6cPid));
+            Force_IPv6_toggle(p_VirtIf->Name);
+            WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
+            CcspTraceInfo(("%s %d - SELFHEAL - Started dhcp6c on interface %s, dhcpv6_pid %d \n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Dhcp6cPid));
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-        t2_event_d("SYS_ERROR_DHCPV6Client_notrunning", 1);
+            t2_event_d("SYS_ERROR_DHCPV6Client_notrunning", 1);
 #endif
+        }
+        else
+        {
+            /* DHCPv6 client crashed - restart it */
+            WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
+            CcspTraceInfo(("%s %d - SELFHEAL - Restarted crashed dhcp6c on interface %s, dhcpv6_pid %d \n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Dhcp6cPid));
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+            t2_event_d("SYS_ERROR_DHCPV6Client_notrunning", 1);
+#endif
+        }
     }
 #endif
 
@@ -1052,9 +1126,7 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
     }
 
     buffer[0] = '\0';
-    char cmd[128];
-    snprintf(cmd, sizeof(cmd), "ip -6 ro show default dev %s", p_VirtIf->Name);
-    if ((fp_route = popen(cmd, "r"))) {
+    if ((fp_route = popen("ip -6 ro | grep default", "r"))) {
         if(fp_route != NULL) {
             fgets(buffer, BUFLEN_256, fp_route);
             if(strlen(buffer) > 0 ) {
@@ -2576,6 +2648,11 @@ static eWanState_t wan_transition_ipv6_up(WanMgr_IfaceSM_Controller_t* pWanIface
 
     /* successfully got the v6 lease from the interface, so lets mark it validated */
     p_VirtIf->Status = WAN_IFACE_STATUS_UP;
+
+    /* Reset RS Retry state since IPv6 is now UP */
+    WanMgr_RSRetryReset(p_VirtIf);
+    CcspTraceInfo(("%s %d - [RS-Retry] IPv6 UP - RS retry state reset for interface '%s'\n",
+                   __FUNCTION__, __LINE__, p_VirtIf->Name));
 
 #if defined(_DT_WAN_Manager_Enable_)
     if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))

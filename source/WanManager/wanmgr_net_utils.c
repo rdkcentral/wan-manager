@@ -3068,3 +3068,155 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
 
     return returnStatus;
 }
+
+/**
+ * @brief Reset RS Retry state
+ * @param pVirtIf: Virtual Interface pointer
+ *
+ * Called when IPv6 comes up successfully or interface resets.
+ * Resets retry count, timestamp, and disables retry mechanism.
+ */
+void WanMgr_RSRetryReset(DML_VIRTUAL_IFACE* pVirtIf)
+{
+    if (pVirtIf == NULL)
+    {
+        CcspTraceError(("%s %d: Invalid argument - pVirtIf is NULL\n", __FUNCTION__, __LINE__));
+        return;
+    }
+
+    CcspTraceInfo(("%s %d: Resetting RS Retry state for interface '%s'\n",
+                   __FUNCTION__, __LINE__, pVirtIf->Name));
+
+    memset(&pVirtIf->IP.RSRetry, 0, sizeof(WANMGR_RS_RETRY_CTRL));
+    pVirtIf->IP.RSRetry.uiRetryCount = 0;
+    pVirtIf->IP.RSRetry.bRetryEnabled = FALSE;
+    memset(&pVirtIf->IP.RSRetry.lastRSAttemptTime, 0, sizeof(struct timespec));
+}
+
+/**
+ * @brief RS Retry Handler for SLAAC IPv6 Recovery
+ * @param pVirtIf: Virtual Interface pointer
+ * @return RS_RETRY_STATUS - retry status
+ *
+ * This function implements the RS retry mechanism for SLAAC IPv6 recovery
+ * in Xfinity Hotspot mode where BNG may not respond to initial RS.
+ *
+ * Flow:
+ * 1. Check if retry is enabled and within max attempts
+ * 2. Check if retry interval (60 sec) has elapsed
+ * 3. Send RS via WanManager_SendRS_And_ProcessRA()
+ * 4. Update retry state based on result
+ *
+ * Called from: WanMgr_MonitorDhcpApps() in interface state machine
+ * Interval: 60 seconds between retries
+ * Max Attempts: 5 (total 5 minutes)
+ */
+RS_RETRY_STATUS WanMgr_RSRetryHandler(DML_VIRTUAL_IFACE* pVirtIf)
+{
+    struct timespec currentTime;
+    long elapsedSeconds = 0;
+    ANSC_STATUS rsStatus = ANSC_STATUS_FAILURE;
+
+    /* Input validation */
+    if (pVirtIf == NULL)
+    {
+        CcspTraceError(("%s %d: Invalid argument - pVirtIf is NULL\n", __FUNCTION__, __LINE__));
+        return RS_RETRY_EXHAUSTED;
+    }
+
+    /* Initialize RS retry on first call */
+    if (!pVirtIf->IP.RSRetry.bRetryEnabled)
+    {
+        CcspTraceInfo(("%s %d: [RS-Retry] Initializing RS retry for interface '%s'\n",
+                       __FUNCTION__, __LINE__, pVirtIf->Name));
+        pVirtIf->IP.RSRetry.bRetryEnabled = TRUE;
+        pVirtIf->IP.RSRetry.uiRetryCount = 0;
+        clock_gettime(CLOCK_MONOTONIC, &pVirtIf->IP.RSRetry.lastRSAttemptTime);
+        /* Initial attempt already done in WanManager_StartDhcpv6Client, 
+         * so we start counting from next retry */
+    }
+
+    /* Check if max retries exceeded */
+    if (pVirtIf->IP.RSRetry.uiRetryCount >= RS_RETRY_MAX_ATTEMPTS)
+    {
+        /* Log comprehensive error message */
+        CcspTraceError(("%s %d: [RS-Retry] ERROR: Max retries (%d) exhausted for interface '%s'\n",
+                        __FUNCTION__, __LINE__, RS_RETRY_MAX_ATTEMPTS, pVirtIf->Name));
+        CcspTraceError(("%s %d: [RS-Retry] ERROR: IPv6 SLAAC recovery failed. "
+                        "No RA response received after %d attempts at 60-second intervals (total 5 minutes)\n",
+                        __FUNCTION__, __LINE__, RS_RETRY_MAX_ATTEMPTS));
+        
+        /* IMPORTANT: Disable retry mechanism to ensure loop termination */
+        pVirtIf->IP.RSRetry.bRetryEnabled = FALSE;
+        
+        /* Send telemetry event for monitoring and alerting */
+        CcspTraceWarning(("%s %d: [RS-Retry] Sending telemetry event SYS_ERROR_RS_RETRY_EXHAUSTED "
+                          "for interface '%s'\n",
+                          __FUNCTION__, __LINE__, pVirtIf->Name));
+#ifdef ENABLE_FEATURE_TELEMETRY2_0
+        t2_event_s("SYS_ERROR_RS_RETRY_EXHAUSTED", pVirtIf->Name);
+#endif
+        
+        CcspTraceInfo(("%s %d: [RS-Retry] RS retry mechanism terminated. "
+                       "Falling back to standard DHCPv6 recovery mechanism.\n",
+                       __FUNCTION__, __LINE__));
+        
+        return RS_RETRY_EXHAUSTED;
+    }
+
+    /* Check if retry interval has elapsed */
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+    elapsedSeconds = currentTime.tv_sec - pVirtIf->IP.RSRetry.lastRSAttemptTime.tv_sec;
+
+    if (elapsedSeconds < RS_RETRY_INTERVAL_SEC)
+    {
+        /* Retry interval not elapsed, continue waiting */
+        CcspTraceDebug(("%s %d: [RS-Retry] Waiting for retry interval. "
+                        "Elapsed: %ld sec, Required: %d sec, Retry: %u/%d\n",
+                        __FUNCTION__, __LINE__, elapsedSeconds, RS_RETRY_INTERVAL_SEC,
+                        pVirtIf->IP.RSRetry.uiRetryCount, RS_RETRY_MAX_ATTEMPTS));
+        return RS_RETRY_IN_PROGRESS;
+    }
+
+    /* Retry interval elapsed - send RS */
+    pVirtIf->IP.RSRetry.uiRetryCount++;
+    clock_gettime(CLOCK_MONOTONIC, &pVirtIf->IP.RSRetry.lastRSAttemptTime);
+
+    CcspTraceInfo(("%s %d: [RS-Retry] Sending RS attempt %u/%d for interface '%s'\n",
+                   __FUNCTION__, __LINE__, pVirtIf->IP.RSRetry.uiRetryCount,
+                   RS_RETRY_MAX_ATTEMPTS, pVirtIf->Name));
+
+    /* Send RS and process RA response */
+    rsStatus = WanManager_SendRS_And_ProcessRA(pVirtIf);
+
+    if (rsStatus == ANSC_STATUS_SUCCESS)
+    {
+        /* RA received successfully */
+        CcspTraceInfo(("%s %d: [RS-Retry] SUCCESS! RA received on attempt %u for interface '%s'\n",
+                       __FUNCTION__, __LINE__, pVirtIf->IP.RSRetry.uiRetryCount, pVirtIf->Name));
+
+        /* Check if SLAAC address is configured (valid RA for SLAAC) */
+        if (pVirtIf->IP.Ipv6RA.enIPv6RAStatus == IPV6_RA_VALID_SLAAC)
+        {
+            CcspTraceInfo(("%s %d: [RS-Retry] SLAAC configuration successful for interface '%s'\n",
+                           __FUNCTION__, __LINE__, pVirtIf->Name));
+            /* Don't reset here - let wan_transition_ipv6_up() do the reset */
+            return RS_RETRY_SUCCESS;
+        }
+        else if (pVirtIf->IP.Ipv6RA.DHCPStartStatusFlag == TRUE)
+        {
+            /* RA indicates DHCPv6 is needed - this path may trigger DHCPv6 client */
+            CcspTraceInfo(("%s %d: [RS-Retry] RA received but DHCPv6 required. "
+                           "RAStatus=%d for interface '%s'\n",
+                           __FUNCTION__, __LINE__, pVirtIf->IP.Ipv6RA.enIPv6RAStatus, pVirtIf->Name));
+            return RS_RETRY_SUCCESS;
+        }
+    }
+
+    /* RS sent but no valid response yet */
+    CcspTraceWarning(("%s %d: [RS-Retry] No RA response on attempt %u/%d for interface '%s'\n",
+                      __FUNCTION__, __LINE__, pVirtIf->IP.RSRetry.uiRetryCount,
+                      RS_RETRY_MAX_ATTEMPTS, pVirtIf->Name));
+
+    return RS_RETRY_SENT;
+}

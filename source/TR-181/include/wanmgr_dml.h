@@ -21,6 +21,7 @@
 #define  _WANMGR_DML_H_
 
 #include "ipc_msg.h"
+#include <time.h>       /* For struct timespec in RS Retry control */
 
 #define PAM_COMPONENT_NAME          "eRT.com.cisco.spvtg.ccsp.pam"
 #define PAM_DBUS_PATH               "/com/cisco/spvtg/ccsp/pam"
@@ -377,6 +378,23 @@ typedef struct _WANMGR_IPV6_RA_DATA
     unsigned int         uiRouterLifetime;       //Router LifeTime
 } WANMGR_IPV6_RA_DATA;
 
+/* RS Retry Control for SLAAC IPv6 Recovery */
+#define RS_RETRY_MAX_ATTEMPTS       5       /* Maximum RS retry attempts */
+#define RS_RETRY_INTERVAL_SEC       60      /* Retry interval in seconds (1 minute) */
+
+typedef enum {
+    RS_RETRY_SUCCESS = 0,       /* RA received, retry complete */
+    RS_RETRY_IN_PROGRESS,       /* Retry in progress, waiting for interval */
+    RS_RETRY_SENT,              /* RS sent, waiting for response */
+    RS_RETRY_EXHAUSTED          /* Max retries reached */
+} RS_RETRY_STATUS;
+
+typedef struct _WANMGR_RS_RETRY_CTRL {
+    UINT            uiRetryCount;           /* Current retry count (0 to max) */
+    struct timespec lastRSAttemptTime;      /* Timestamp of last RS attempt */
+    BOOL            bRetryEnabled;          /* RS retry mechanism active */
+} WANMGR_RS_RETRY_CTRL;
+
 typedef struct _DML_WANIFACE_IP
 {
     CHAR                        Interface[BUFLEN_64];
@@ -412,6 +430,7 @@ typedef struct _DML_WANIFACE_IP
     WANMGR_DHCPC_STATUS         Dhcp4cStatus; //Status of DHCPv4 client
     int                         Dhcp6cPid;
     WANMGR_DHCPC_STATUS         Dhcp6cStatus; //Status of DHCPv6 client
+    WANMGR_RS_RETRY_CTRL        RSRetry;      // RS Retry control for SLAAC recovery
 } DML_WANIFACE_IP;
 
 #ifdef FEATURE_MAPT

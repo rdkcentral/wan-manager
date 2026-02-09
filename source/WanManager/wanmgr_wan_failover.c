@@ -322,33 +322,51 @@ ANSC_STATUS UpdateLedStatus (WanMgr_FailOver_Controller_t* pFailOverController)
                 if (pWanDmlIfaceData != NULL)
                 {
                     DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data);
-                    /* Update the Wan/IP connection status of the interface to LED*/
-                    // Group selected and State machine is running, so update v4/v6/map_t status accordingly
-                    if(pWanIfaceData->VirtIfList->eCurrentState != pFailOverController->ActiveIfaceState ||  //Wan State changed
-                        pWanIfaceData->BaseInterfaceStatus != pFailOverController->PhyState) //Phy status changed
+                    
+                    /* Check Physical Status first - Physical link status takes priority over ISM state */
+                    if(pWanIfaceData->BaseInterfaceStatus != pFailOverController->PhyState || 
+                       pWanIfaceData->VirtIfList->eCurrentState != pFailOverController->ActiveIfaceState)
                     {
                         CcspTraceInfo(("%s %d Updating LED status of Selected Interface (%s) BaseInterface (%s) \n", __FUNCTION__, __LINE__,pWanIfaceData->DisplayName, pWanIfaceData->BaseInterface));
-                        wanmgr_setWanLedState(pWanIfaceData->VirtIfList->eCurrentState);
-
-                        /* For the following states, Update the PHY connection status of the interface to LED */
-                        if((pWanIfaceData->VirtIfList->eCurrentState == WAN_STATE_EXIT ||
-                                pWanIfaceData->VirtIfList->eCurrentState == WAN_STATE_PHY_DOWN ||
-                                pWanIfaceData->VirtIfList->eCurrentState == WAN_STATE_PHY_CONFIGURING))
+                        
+                        /* Priority 1: Check Physical Link Status */
+                        if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_DOWN)
                         {
-                            if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP)
+                            /* PHY is DOWN - always show link down regardless of ISM state */
+                            CcspTraceInfo(("%s %d PHY DOWN - Setting LED to LINK_DOWN for Interface (%s)\n", __FUNCTION__, __LINE__, pWanIfaceData->DisplayName));
+                            wanmgr_sysevents_setWanState(WAN_LINK_DOWN_STATE);
+                        }
+                        else if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_INITIALIZING)
+                        {
+                            /* PHY Initializing - DSL training for PTM/ATM, link down for others */
+                            if((strstr(pWanIfaceData->BaseInterface,"PTM")) || (strstr(pWanIfaceData->BaseInterface,"ATM")))
                             {
-                                wanmgr_sysevents_setWanState(WAN_LINK_UP_STATE);
-                            }else if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_INITIALIZING && 
-                                    ((strstr(pWanIfaceData->BaseInterface,"PTM")) || (strstr(pWanIfaceData->BaseInterface,"ATM"))) != NULL)
-                            {
-                                /* Update DSL_Training only for DSL connection */
+                                CcspTraceInfo(("%s %d PHY INITIALIZING - Setting LED to DSL_TRAINING for Interface (%s)\n", __FUNCTION__, __LINE__, pWanIfaceData->DisplayName));
                                 wanmgr_sysevents_setWanState(DSL_TRAINING);
-
-                            }else
+                            }
+                            else
                             {
+                                CcspTraceInfo(("%s %d PHY INITIALIZING (Non-DSL) - Setting LED to LINK_DOWN for Interface (%s)\n", __FUNCTION__, __LINE__, pWanIfaceData->DisplayName));
                                 wanmgr_sysevents_setWanState(WAN_LINK_DOWN_STATE);
                             }
                         }
+                        /* Priority 2: PHY is UP - show ISM state */
+                        else if(pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP)
+                        {
+                            if(pWanIfaceData->VirtIfList->eCurrentState != WAN_STATE_EXIT)
+                            {
+                                /* ISM is running - show connection state */
+                                CcspTraceInfo(("%s %d PHY UP, ISM running - Setting LED to ISM state for Interface (%s)\n", __FUNCTION__, __LINE__, pWanIfaceData->DisplayName));
+                                wanmgr_setWanLedState(pWanIfaceData->VirtIfList->eCurrentState);
+                            }
+                            else
+                            {
+                                /* ISM not running - show physical link up */
+                                CcspTraceInfo(("%s %d PHY UP, ISM stopped - Setting LED to LINK_UP for Interface (%s)\n", __FUNCTION__, __LINE__, pWanIfaceData->DisplayName));
+                                wanmgr_sysevents_setWanState(WAN_LINK_UP_STATE);
+                            }
+                        }
+                        
                         pFailOverController->ActiveIfaceState = pWanIfaceData->VirtIfList->eCurrentState;
                         pFailOverController->PhyState = pWanIfaceData->BaseInterfaceStatus;
                     }

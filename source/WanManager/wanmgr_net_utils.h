@@ -281,4 +281,24 @@ int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
 ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout);
 ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf);
 
+/**
+ * @brief RS Retry Handler for SLAAC IPv6 Recovery
+ * @param pVirtIf: Virtual Interface pointer
+ * @return RS_RETRY_STATUS - retry status
+ * 
+ * Called from WanMgr_MonitorDhcpApps() when SLAAC fails.
+ * - Retries RS at 60-second intervals
+ * - Maximum 5 attempts (5 minutes total)
+ * - Stops when RA received or max retries exhausted
+ */
+RS_RETRY_STATUS WanMgr_RSRetryHandler(DML_VIRTUAL_IFACE* pVirtIf);
+
+/**
+ * @brief Reset RS Retry state
+ * @param pVirtIf: Virtual Interface pointer
+ * 
+ * Called when IPv6 comes up or interface resets
+ */
+void WanMgr_RSRetryReset(DML_VIRTUAL_IFACE* pVirtIf);
+
 #endif // _WANMGR_NET_UTILS_H_
