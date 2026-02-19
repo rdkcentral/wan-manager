@@ -2001,6 +2001,13 @@ ANSC_STATUS Update_Interface_Status()
                 {
                 //Note: This function uses first Virtual interface as primary to set status information.
                 DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, virIf_id);
+                
+                /* Skip WAN status updates for voice interfaces (VOIP, VOICE, MTA) */
+                if (WanMgr_IsVoiceInterface(p_VirtIf))
+                {
+                    continue;
+                }
+                
                 struct IFACE_INFO *newIface = calloc(1, sizeof( struct IFACE_INFO));
                 newIface->next = NULL;
 
