@@ -38,6 +38,7 @@
 #include "wanmgr_rdkbus_apis.h"
 #include "dmsb_tr181_psm_definitions.h"
 #include "wanmgr_net_utils.h"
+#include "wanmgr_interface_sm.h"
 #ifdef RBUS_BUILD_FLAG_ENABLE
 #include "wanmgr_rbus_handler_apis.h"
 #endif //RBUS_BUILD_FLAG_ENABLE
