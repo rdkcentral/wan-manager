@@ -340,13 +340,15 @@ void  wanmgr_setWanLedState(eWanState_t state)
         case WAN_STATE_IPV4_LEASED:
             ipv4_state = true;
             break;
-        case WAN_STATE_MAPT_ACTIVE:
+        case WAN_STATE_MAP_ACTIVE:
             ipv6_state = true;
             mapt_state = true;
             break;
         case WAN_STATE_OBTAINING_IP_ADDRESSES:
             SetLinkUp = true;
         case WAN_STATE_EXIT:
+        case WAN_STATE_PHY_DOWN:
+        case WAN_STATE_PHY_CONFIGURING:
             break;
         default:
             // handle wan states related to IPv4/IPv6/MAPT UP/DOWN

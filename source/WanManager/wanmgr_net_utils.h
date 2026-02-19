@@ -49,6 +49,7 @@
 #define INTF_V6LL_TIMEOUT_IN_MSEC        (5 * MSECS_IN_SEC)    // 5 sec
 
 #define WAN_IF_MARKING_MAX_LIMIT       ( 15 )
+
 typedef  struct _CONTEXT_MARKING_LINK_OBJECT
 {
     CONTEXT_LINK_CLASS_CONTENT
@@ -195,9 +196,9 @@ int isModuleLoaded(char *moduleName); // checks kernel module loaded.
  * @param vlanIf Vlan interface name
  * @return RETURN_OK in case of success else error code returned.
  ************************************************************************************/
-int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data);
+int WanManager_ProcessMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data);
 
-ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig);
+ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig);
 
 /***********************************************************************************
  * @brief This API used to display mapt feature status.

@@ -373,11 +373,13 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv4_CONFIG_TYPE);	
     }
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->IP.DHCPv4Iface, param_value);
+#endif
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -398,11 +400,13 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv6_CONFIG_TYPE);	
     }
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->IP.DHCPv6Iface, param_value);
+#endif
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -662,11 +666,13 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V4SOURCE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     AnscCopyString(param_value, pVirtIf->IP.DHCPv4Iface);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+#endif
 
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
@@ -674,12 +680,14 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V6SOURCE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     AnscCopyString(param_value, pVirtIf->IP.DHCPv6Iface);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-    
+#endif
+
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     _ansc_sprintf(param_value, "%d", pVirtIf->IP.PreferredMode );
@@ -1910,7 +1918,7 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     {
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-		t2_event_d("SYST_ERROR_DNSFAIL", 1);
+		t2_event_d("SYS_ERROR_DNSFAIL", 1);
 #endif
         return RETURN_ERR;
     }
@@ -2154,7 +2162,7 @@ ANSC_STATUS Update_Interface_Status()
                        }
 				       snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
 					   
-	                   t2_event_s("SYST_INFO_DNSSTART_split", uptime_str);
+	                   t2_event_s("SYS_INFO_DNSSTART_split", uptime_str);
 				       dns_start_sent = 1; 
 				   }
 				}

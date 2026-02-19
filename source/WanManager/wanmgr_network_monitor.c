@@ -139,12 +139,12 @@ static int WanManager_MaptRouteSetting()
 
     syscfg_get(NULL, "PartnerID", partnerID, sizeof(partnerID));
     int mtu_size_mapt = MTU_DEFAULT_SIZE; /* 1500 */
-#if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) // XB6 and CBR use 1500 MTU size for MAPT.
-    if (strcmp("sky-uk", partnerID) != 0)
+
+    if ( 0 == strcmp("sky-italia", partnerID) )
     {
         mtu_size_mapt = MAPT_MTU_SIZE; /* 1520 */
     }
-#endif
+
     CcspTraceInfo(("MAPT MTU Size = %d \n", mtu_size_mapt));
 
     sysevent_get(sysevent_nwm_fd, sysevent_token, MAP_WAN_IFACE, vlanIf, sizeof(vlanIf));
@@ -166,9 +166,16 @@ static int WanManager_MaptRouteSetting()
         return ANSC_STATUS_FAILURE;
     }
 
-    ret = v_secure_system("ip -6 route change default via %s dev %s mtu %d", defaultGatewayV6, vlanIf, MTU_DEFAULT_SIZE);
-    if(ret != 0) {
-         CcspTraceError(("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n", __FUNCTION__,__LINE__,ret));
+    /*
+     * Configure IPv6 default route with MTU for specific partner "sky-italia"
+     * Todo: Cleanup should be done to configure MTU based on delegated leases from DHCPv6 server or partners configurations
+     */
+    if ( 0 == strcmp(partnerID, "sky-italia") )
+    {
+        ret = v_secure_system("ip -6 route change default via %s dev %s mtu %d", defaultGatewayV6, vlanIf, MTU_DEFAULT_SIZE);
+        if(ret != 0) {
+            CcspTraceError(("%s %d: Failure in executing command via v_secure_system. ret:[%d] \n", __FUNCTION__,__LINE__,ret));
+        }
     }
     ret = v_secure_system("ip -6 route replace %s via %s dev %s mtu %d", brIPv6Prefix, defaultGatewayV6, vlanIf, mtu_size_mapt);
     if(ret != 0) {

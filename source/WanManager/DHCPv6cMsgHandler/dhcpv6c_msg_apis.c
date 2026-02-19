@@ -490,6 +490,7 @@ ANSC_STATUS WanMgr_MaptParseOpt95Response
      dhcpv6_data->mapt.psid = g_stMaptData.Psid;
      dhcpv6_data->mapt.iapdPrefixLen = g_stMaptData.PdIPv6PrefixLen;
      dhcpv6_data->mapt.ratio = g_stMaptData.Ratio;
+     dhcpv6_data->mapt.mapType = MAP_TYPE_MAPT;
 
      rc = snprintf (dhcpv6_data->mapt.pdIPv6Prefix, BUFLEN_40, "%s", g_stMaptData.PdIPv6Prefix);
      ERR_CHK(rc);
