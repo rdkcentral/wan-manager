@@ -28,6 +28,7 @@ extern ANSC_STATUS WanMgr_CheckAndResetV2PSMEntries(UINT IfaceCount);
 /******** WAN MGR DATABASE ********/
 WANMGR_DATA_ST gWanMgrDataBase;
 
+static WANMGR_MAP_ST gWanMgrMapDataBase;
 
 /******** WANMGR CONFIG FUNCTIONS ********/
 WanMgr_Config_Data_t* WanMgr_GetConfigData_locked(void)
@@ -58,6 +59,7 @@ void WanMgr_SetConfigData_Default(DML_WANMGR_CONFIG* pWanDmlConfig)
         pWanDmlConfig->Enable = TRUE;
         pWanDmlConfig->ResetFailOverScan = FALSE;
         pWanDmlConfig->AllowRemoteInterfaces = FALSE;
+        pWanDmlConfig->DisableAutoRouting = FALSE;
         memset(pWanDmlConfig->InterfaceAvailableStatus, 0, BUFLEN_64);
         memset(pWanDmlConfig->InterfaceActiveStatus, 0, BUFLEN_64);
         memset(pWanDmlConfig->CurrentStatus, 0, sizeof(pWanDmlConfig->CurrentStatus));
@@ -99,6 +101,15 @@ void WanMgr_SetIfaceCtrl_Default(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
     }
 }
 
+void WanMgr_SetMapCtrl_Default(WanMgr_MapDomainCtrl_Data_t* pWanMapCtrl)
+{
+    if(pWanMapCtrl != NULL)
+    {
+        pWanMapCtrl->ulTotalNumWanMapDomainEntries = 0;
+        pWanMapCtrl->Enable = false;
+        pWanMapCtrl->pDomain = NULL;
+    }
+}
 
 void WanMgr_IfaceCtrl_Delete(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
 {
@@ -799,6 +810,7 @@ void WanMgr_IfaceData_Init(WanMgr_Iface_Data_t* pIfaceData, UINT iface_index)
 
         pWanDmlIface->NoOfVirtIfs = 1; 
         pWanDmlIface->Type = WAN_IFACE_TYPE_UNCONFIGURED;
+        pWanDmlIface->IfaceConnectionType = WAN_IFACE_CONN_TYPE_PRIMARY;
         pWanDmlIface->bSendSelectionTimerExpired = TRUE;	
     }
 }
@@ -858,6 +870,7 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->IP.pIpcIpv4Data = NULL;
     pVirtIf->IP.pIpcIpv6Data = NULL;
     pVirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;
+    pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
     memset(pVirtIf->MAP.Path, 0, 64);
     pVirtIf->MAP.MaptChanged = FALSE;
 #ifdef FEATURE_MAPT
@@ -913,6 +926,7 @@ void WanMgr_Remote_IfaceData_Update(WanMgr_Iface_Data_t* pIfaceData, UINT iface_
 void WanMgr_Data_Init(void)
 {
     WANMGR_DATA_ST*         pWanMgrData = &gWanMgrDataBase;
+    WANMGR_MAP_ST*          pWanMgrMapData = &gWanMgrMapDataBase;
     pthread_mutexattr_t     muttex_attr;
 
     //Initialise mutex attributes
@@ -928,6 +942,11 @@ void WanMgr_Data_Init(void)
     WanMgr_SetIfaceGroup_Default(&(pWanMgrData->IfaceGroup));
 
     pthread_mutex_init(&(gWanMgrDataBase.gDataMutex), &(muttex_attr));
+
+    /*** WAN MAP ***/
+    WanMgr_SetMapCtrl_Default(&(pWanMgrMapData->MapDomainCtrl));
+    pthread_mutex_init(&(pWanMgrMapData->MapDomainCtrl.mDataMutex), &(muttex_attr));
+
 }
 
 ANSC_STATUS WanMgr_Data_Delete(void)

@@ -38,6 +38,9 @@
 #define X_RDK_REMOTE_DEVICE_STATUS                   "Device.X_RDK_Remote.Device.%d.Status"
 #define MAX_NO_OF_RBUS_REMOTE_PARAMS                 64
 
+#define WANMGR_EVENT_INITIAL_SCAN_COMPLETED          "Device.X_RDK_WanManager.InitialScanComplete"
+#define WANMGR_EVENT_WAN_INTERFACEIPSTATUS           "Device.X_RDK_WanManager.InterfaceIpStatus"
+
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED)
 #define WANMGR_INFACE                                 "Device.X_RDK_WanManager.Interface.{i}."
 #define WANMGR_INFACE_TABLE                           "Device.X_RDK_WanManager.Interface"
@@ -189,6 +192,7 @@ void WanMgr_Rbus_SubscribeDML(void);
 void WanMgr_Rbus_UnSubscribeDML(void);
 ANSC_STATUS WanMgr_RestartUpdateRemoteIface();
 ANSC_STATUS WanMgr_WanRemoteIfaceConfigure(WanMgr_DeviceChangeEvent * pDeviceChangeEvent);
+ANSC_STATUS WanManager_ManageInterfaceStatusSubscription(char *pParam, bool bSubscribeFlag);
 #endif //RBUS_BUILD_FLAG_ENABLE
 void WanMgr_Rbus_SubscribeWanReady();
 /* WCC - Wan Connectivity Check*/

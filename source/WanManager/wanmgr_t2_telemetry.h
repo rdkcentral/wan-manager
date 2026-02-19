@@ -46,7 +46,8 @@ static const char * const WanMgr_Telemetry_IpSourceStr[] =
 {
     [DML_WAN_IP_SOURCE_STATIC] = "STATIC",
     [DML_WAN_IP_SOURCE_DHCP] = "DHCP",
-    [DML_WAN_IP_SOURCE_PPP] = "PPP"
+    [DML_WAN_IP_SOURCE_PPP] = "PPP",
+    [DML_WAN_IP_SOURCE_SLAAC] = "SLAAC"
 };
 static const char * const WanMgr_Telemetry_IpModeStr[] =
 {

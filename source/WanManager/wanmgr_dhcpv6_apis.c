@@ -1774,7 +1774,12 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
                 if (strcmp(pDhcp6cInfoCur->sitePrefix, pNewIpcMsg->sitePrefix) != 0)
                 {
                     CcspTraceInfo(("%s %d new prefix = %s, current prefix = %s \n", __FUNCTION__, __LINE__, pNewIpcMsg->sitePrefix, pDhcp6cInfoCur->sitePrefix));
-                    strncat(prefix, "/64",sizeof(prefix)-1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+                    /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+                    strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
+#else
+                    strncat(prefix, "/64", sizeof(prefix) - 1);
+#endif
                     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
                 }
             }
@@ -1900,7 +1905,7 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
     }
 
 #ifdef FEATURE_MAPT
-    ipc_mapt_data_t dhcp6cMAPTMsgBodyPrvs;
+    ipc_map_data_t dhcp6cMAPTMsgBodyPrvs;
     CcspTraceNotice(("FEATURE_MAPT: MAP-T Enable %d\n", pNewIpcMsg->maptAssigned));
     if (pNewIpcMsg->maptAssigned)
     {
@@ -1909,16 +1914,16 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
 #endif
 
         //get MAP-T previous data
-        memcpy(&dhcp6cMAPTMsgBodyPrvs, &(pVirtIf->MAP.dhcp6cMAPTparameters), sizeof(ipc_mapt_data_t));
+        memcpy(&dhcp6cMAPTMsgBodyPrvs, &(pVirtIf->MAP.dhcp6cMAPparameters), sizeof(ipc_map_data_t));
 
-        if (memcmp(&(pNewIpcMsg->mapt), &dhcp6cMAPTMsgBodyPrvs, sizeof(ipc_mapt_data_t)) != 0)
+        if (memcmp(&(pNewIpcMsg->mapt), &dhcp6cMAPTMsgBodyPrvs, sizeof(ipc_map_data_t)) != 0)
         {
             pVirtIf->MAP.MaptChanged = TRUE;
             CcspTraceInfo(("MAPT configuration has been changed \n"));
         }
 
         // store MAP-T parameters locally
-        memcpy(&(pVirtIf->MAP.dhcp6cMAPTparameters), &(pNewIpcMsg->mapt), sizeof(ipc_mapt_data_t));
+        memcpy(&(pVirtIf->MAP.dhcp6cMAPparameters), &(pNewIpcMsg->mapt), sizeof(ipc_map_data_t));
 
         // update MAP-T flags
         WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPT_START);
@@ -1931,7 +1936,7 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
             MaptInfo("--------- Got an event in Wanmanager for MAPT_STOP ---------");
 #endif
             // reset MAP-T parameters
-            memset(&(pVirtIf->MAP.dhcp6cMAPTparameters), 0, sizeof(ipc_mapt_data_t));
+            memset(&(pVirtIf->MAP.dhcp6cMAPparameters), 0, sizeof(ipc_map_data_t));
             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPT_STOP);
         }
     }
@@ -1972,7 +1977,12 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
             char previousPrefix[BUFLEN_48] = {0};
             char previousPrefix_vldtime[BUFLEN_48] = {0};
             char previousPrefix_prdtime[BUFLEN_48] = {0};
-            strncat(lanPrefix, "/64",sizeof(lanPrefix)-1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+            /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+            strncpy(lanPrefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(lanPrefix) - 1);
+#else
+            strncat(lanPrefix, "/64", sizeof(lanPrefix) - strlen(lanPrefix) - 1);
+#endif
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, previousPrefix, sizeof(previousPrefix));
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIXVLTIME, previousPrefix_vldtime, sizeof(previousPrefix_vldtime));
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIXPLTIME, previousPrefix_prdtime, sizeof(previousPrefix_prdtime));
@@ -2076,7 +2086,12 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
                 syscfg_set_string(SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, pVirtIf->IP.Ipv6Data.pdIfAddress);
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_TR_BRLAN0_DHCPV6_SERVER_ADDRESS, set_value, 0);
                 CcspTraceInfo(("%s %d new prefix = %s\n", __FUNCTION__, __LINE__, pVirtIf->IP.Ipv6Data.sitePrefix));
-                strncat(prefix, "/64",sizeof(prefix)-1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+                /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+                strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
+#else
+                strncat(prefix, "/64", sizeof(prefix) - 1);
+#endif
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
                 sysevent_set(sysevent_fd, sysevent_token, "lan_prefix", prefix, 0);
             }
@@ -2133,4 +2148,77 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
 #endif
 #endif
     return RETURN_OK;
+}
+
+/** WanMgr_Handle_Dhcpv6_NetLink_Address_Event() */
+ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pstAddrEvent)
+{
+    ANSC_STATUS ret = ANSC_STATUS_FAILURE;
+
+    if( NULL == pstAddrEvent )
+    {
+        CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
+        return ret;
+    }
+
+    UINT uiLoopCount;
+    UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
+
+    for( uiLoopCount = 0; uiLoopCount < TotalIfaces; uiLoopCount++ )
+    {
+        WanMgr_Iface_Data_t*   pWanDmlIfaceData = WanMgr_GetIfaceData_locked(uiLoopCount);
+        if(pWanDmlIfaceData != NULL)
+        {
+            DML_WAN_IFACE* pWanIfaceData = &(pWanDmlIfaceData->data); 
+
+            //CcspTraceInfo(("%s %d: '%s' <Entry> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+
+            for(int VirtId=0; VirtId < pWanIfaceData->NoOfVirtIfs; VirtId++)
+            {
+                DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIface_locked(uiLoopCount, VirtId);
+                if( NULL != p_VirtIf )
+                {
+                    //Allow only for SLAAC use
+                    if ( ( p_VirtIf->Enable == TRUE ) && \
+                            ( DML_WAN_IP_SOURCE_SLAAC == p_VirtIf->IP.IPv6Source ) && \
+                            ( 0 == strncmp( p_VirtIf->Name, pstAddrEvent->ifname, strlen(pstAddrEvent->ifname) ) ) && \
+                            ( IPV6_RA_VALID_SLAAC == p_VirtIf->IP.Ipv6RA.enIPv6RAStatus ) )
+                    {
+                        if ( 0 == strncmp(pstAddrEvent->event, "NEWADDR", strlen("NEWADDR")) ) //Address Add
+                        {
+                            if ( ( 0 != strncmp( p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr, strlen(pstAddrEvent->addr) ) ) ||
+                                 ( WAN_IFACE_IPV6_STATE_UP != p_VirtIf->IP.Ipv6Status ) )
+                            {
+                                CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Changed for '%s' Previous Address[%s], Current Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr));
+
+                                snprintf(p_VirtIf->IP.Ipv6Data.address, sizeof(p_VirtIf->IP.Ipv6Data.address), "%s", pstAddrEvent->addr);
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
+                                p_VirtIf->IP.Ipv6Data.addrAssigned   = TRUE;
+                                p_VirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_ADD;
+#endif /** FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE */
+                                p_VirtIf->IP.Ipv6Changed             = TRUE;
+                                p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_UP;
+                            }
+                        }
+                        else if ( 0 == strncmp(pstAddrEvent->event, "DELADDR", strlen("DELADDR")) ) //Address Delete
+                        {
+                            CcspTraceInfo(("%s %d: [SLAAC] IPv6 Address Deleted for '%s' Deleted Address[%s]\n", __FUNCTION__, __LINE__, p_VirtIf->Name, pstAddrEvent->addr));
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
+                            p_VirtIf->IP.Ipv6Data.addrCmd        = IFADDRCONF_REMOVE;
+#endif /** FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE */
+                            p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_DOWN;
+                        }
+                    }
+
+                    WanMgr_VirtualIfaceData_release(p_VirtIf);
+                }
+            }
+
+            //CcspTraceInfo(("%s %d: '%s' <Exit> Event checking for '%s' interface\n", __FUNCTION__, __LINE__, pstAddrEvent->event, pstAddrEvent->ifname));
+        }   
+
+        WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
+    }
+                        
+    return ANSC_STATUS_SUCCESS;
 }

@@ -213,6 +213,15 @@ int get_Wan_Interface_ParametersFromPSM(ULONG instancenum, DML_WAN_IFACE* p_Inte
         _ansc_sscanf(param_value, "%d", &(p_Interface->NoOfVirtIfs));
     }
 
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_IF_CONNECTION_TYPE, instancenum);
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    if (retPsmGet == CCSP_SUCCESS)
+    {
+        _ansc_sscanf(param_value, "%d", &(p_Interface->IfaceConnectionType));
+    }
+
     return ANSC_STATUS_SUCCESS;
 }
 
@@ -332,7 +341,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.Mode));
+        DML_WAN_IP_MODE tmpIPMode = DML_WAN_IP_MODE_DUAL_STACK;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPMode);
+        if ( (sscanf_result == 1) && (tmpIPMode < DML_WAN_IP_MODE_MAX) )
+        {
+            pVirtIf->IP.Mode = tmpIPMode;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid IP Mode value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpIPMode, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IP_MODE);	
     }
 
@@ -342,15 +360,26 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv4Source));
+        DML_WAN_IP_SOURCE  tmpIPv4Source = DML_WAN_IP_SOURCE_DHCP;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPv4Source);
+        if ( (sscanf_result == 1) && (tmpIPv4Source < DML_WAN_IP_SOURCE_MAX) )
+        {
+            pVirtIf->IP.IPv4Source = tmpIPv4Source;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid IPv4 Source value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpIPv4Source, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv4_CONFIG_TYPE);	
     }
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->IP.DHCPv4Iface, param_value);
+#endif
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -358,15 +387,26 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.IPv6Source));
+        DML_WAN_IP_SOURCE  tmpIPv6Source = DML_WAN_IP_SOURCE_DHCP;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpIPv6Source);
+        if ( (sscanf_result == 1) && (tmpIPv6Source < DML_WAN_IP_SOURCE_MAX) )
+        {
+            pVirtIf->IP.IPv6Source = tmpIPv6Source;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid IPv6 Source value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpIPv6Source, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv6_CONFIG_TYPE);	
     }
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->IP.DHCPv6Iface, param_value);
+#endif
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -393,7 +433,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if(retPsmGet == CCSP_SUCCESS)
     {
-        _ansc_sscanf(param_value, "%d", &(pVirtIf->IP.ConnectivityCheckType));
+        CONNECTIVITY_CHECK_TYPE tmpConnectivityCheckType = WAN_CONNECTIVITY_TYPE_NO_CHECK;
+        int sscanf_result = _ansc_sscanf(param_value, "%d", &tmpConnectivityCheckType);
+        if ( (sscanf_result == 1) && (tmpConnectivityCheckType < WAN_CONNECTIVITY_TYPE_MAX) )
+        {
+            pVirtIf->IP.ConnectivityCheckType = tmpConnectivityCheckType;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Invalid Connectivity Check Type value %d retrieved from PSM for instance %d param %s\n", __FUNCTION__, __LINE__, tmpConnectivityCheckType, instancenum, param_name));
+        }
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_CONNECTIVITY_CHECK_TYPE);	
     }
 }
@@ -617,11 +666,13 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V4SOURCE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     AnscCopyString(param_value, pVirtIf->IP.DHCPv4Iface);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+#endif
 
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
@@ -629,12 +680,14 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V6SOURCE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     AnscCopyString(param_value, pVirtIf->IP.DHCPv6Iface);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-    
+#endif
+
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     _ansc_sprintf(param_value, "%d", pVirtIf->IP.PreferredMode );
@@ -1536,6 +1589,16 @@ ANSC_STATUS WanMgr_Read_GroupConf_FromPSM(WANMGR_IFACE_GROUP *pGroup, UINT group
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
+    _ansc_sprintf(param_name, PSM_WANMANAGER_GROUP_EXTERNAL_CONTROL, (groupId + 1));
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    if (retPsmGet == CCSP_SUCCESS && strcmp(param_value, PSM_ENABLE_STRING_TRUE) == 0)
+    {
+        CcspTraceWarning(("%s %d: External control enabled for group %d. WFO policy will not control this Group and its interfaces. \n", __FUNCTION__, __LINE__, (groupId + 1)));
+        pGroup->State = STATE_GROUP_DEACTIVATED;
+    }
+
+    _ansc_memset(param_name, 0, sizeof(param_name));
+    _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_GROUP_PERSIST_SELECTED_IFACE, (groupId + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS && strcmp(param_value, PSM_ENABLE_STRING_TRUE) == 0)
@@ -1894,6 +1957,7 @@ ANSC_STATUS Update_Interface_Status()
     struct IFACE_INFO *head = NULL;
     DEVICE_NETWORKING_MODE devMode = GATEWAY_MODE;
     CHAR    InterfaceAvailableStatus[BUFLEN_64]  = {0};
+    CHAR    InterfaceIpStatus[BUFLEN_64]  = {0};
     CHAR    InterfaceActiveStatus[BUFLEN_64]     = {0};
     CHAR    CurrentActiveInterface[BUFLEN_64] = {0};
     CHAR    CurrentStandbyInterface[BUFLEN_64] = {0};
@@ -1958,6 +2022,15 @@ ANSC_STATUS Update_Interface_Status()
                 }else
                     snprintf(newIface->ActiveStatus, sizeof(newIface->ActiveStatus), "%s,0", pWanIfaceData->DisplayName);
 
+                if((p_VirtIf->Status == WAN_IFACE_STATUS_UP || 
+                    p_VirtIf->Status == WAN_IFACE_STATUS_STANDBY || 
+                    p_VirtIf->Status == WAN_IFACE_STATUS_VALID) &&
+                    (pWanIfaceData->IfaceType != REMOTE_IFACE || p_VirtIf->RemoteStatus == WAN_IFACE_STATUS_UP)) //If its a remote interface, check remote status
+                {
+                    snprintf(newIface->InterfaceIpStatus, sizeof(newIface->InterfaceIpStatus), "%s,1", pWanIfaceData->DisplayName);
+                }else
+                    snprintf(newIface->InterfaceIpStatus, sizeof(newIface->InterfaceIpStatus), "%s,0", pWanIfaceData->DisplayName);
+
                 /*
                  * In Gateway Mode, CurrentActiveInterface should be an actual virtual Interface Name
                  * In Modem/Extender Mode, CurrentActiveInterface should be always Mesh Interface Name
@@ -2017,7 +2090,11 @@ ANSC_STATUS Update_Interface_Status()
             strcat(InterfaceActiveStatus,"|");
         }
         strcat(InterfaceActiveStatus,pHead->ActiveStatus);
-
+        if(strlen(InterfaceIpStatus)>0 && strlen(pHead->InterfaceIpStatus)>0)
+        {
+            strcat(InterfaceIpStatus,"|");
+        }
+        strcat(InterfaceIpStatus,pHead->InterfaceIpStatus);
         tmp = pHead->next;
         free(pHead);
         pHead = tmp;
@@ -2045,6 +2122,15 @@ ANSC_STATUS Update_Interface_Status()
             publishActiveStatus = TRUE;
 #endif
         }
+
+        if(strcmp(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus) != 0)
+        {
+#ifdef RBUS_BUILD_FLAG_ENABLE
+            WanMgr_Rbus_String_EventPublish_OnValueChange(WANMGR_EVENT_WAN_INTERFACEIPSTATUS, pWanDmlData->InterfaceIpStatus, InterfaceIpStatus);
+#endif
+            strncpy(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus, sizeof(pWanDmlData->InterfaceIpStatus)-1);
+        }
+
     	if(RETURN_OK == Update_Current_ActiveDNS(CurrentActiveDNS))
     	{
             if(strcmp(pWanDmlData->CurrentActiveDNS,CurrentActiveDNS) != 0)
