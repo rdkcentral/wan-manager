@@ -1622,7 +1622,7 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
     // Convert prefix to binary format
     if (inet_pton(AF_INET6, iapd_prefix, &prefix) != 1) 
     {
-        fprintf(stderr, "Invalid IPv6 prefix\n");
+
         CcspTraceError(("%s %d Failed to convert prefix to in6_addr\n", __FUNCTION__, __LINE__));        
         return -1;
     }
