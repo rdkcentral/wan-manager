@@ -473,6 +473,7 @@ ANSC_STATUS WanMgr_Dhcpv4BackendGetDhcpv4Info (ANSC_HANDLE hThisObject)
                     }
                     
                     AnscFreeMemory(pCxtLink);
+                    AnscFreeMemory(pReqOption);
                     pCxtLink                  = pCxtLink2;
                     pCxtLink2                 = NULL;
                 }
