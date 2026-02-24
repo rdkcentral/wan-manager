@@ -1188,8 +1188,6 @@ ANSC_STATUS WanMgr_DSLite_TeardownTunnel(DML_VIRTUAL_IFACE *pVirtIf)
 {
     UINT inst = 0;
     char tunnelIf[BUFLEN_64];
-    char remote_addr[BUFLEN_64] = {0};
-    char local_addr[BUFLEN_64] = {0};
     char cmd_str[256];
     FILE *fp = NULL;
 
@@ -1221,37 +1219,8 @@ ANSC_STATUS WanMgr_DSLite_TeardownTunnel(DML_VIRTUAL_IFACE *pVirtIf)
     snprintf(tunnelIf, sizeof(tunnelIf), "ipip6tun%u", (unsigned int)(inst ? inst - 1 : 0));
     CcspTraceInfo(("%s: Tearing down DSLITE inst=%u tunnel=%s\n", __FUNCTION__, inst, tunnelIf));
 
-    /* Get Remote Address */
-    fp = v_secure_popen("r", "ip -6 tunnel show | grep %s | awk '/remote/{print $4}'", tunnelIf);
-    if (fp)
-    {
-        WanManager_Util_GetShell_output(fp, remote_addr, sizeof(remote_addr));
-        v_secure_pclose(fp);
-        CcspTraceInfo(("%s: remote = %s\n", __FUNCTION__, remote_addr));
-    }
-
-    /* Get Local Address */
-    fp = v_secure_popen("r", "ip -6 tunnel show | grep %s | awk '/remote/{print $6}'", tunnelIf);
-    if (fp)
-    {
-        WanManager_Util_GetShell_output(fp, local_addr, sizeof(local_addr));
-        v_secure_pclose(fp);
-        CcspTraceInfo(("%s: local = %s\n", __FUNCTION__, local_addr));
-    }
-
-    if ((strlen(remote_addr) != 0) && (strlen(local_addr) != 0))
-    {
-        snprintf(cmd_str, sizeof(cmd_str),
-                 "ip -6 tunnel del %s mode ip4ip6 remote %s local %s dev %s encaplimit none",
-                 tunnelIf, remote_addr, local_addr, pVirtIf->Name);
-
-        WanManager_DoSystemAction("WanMgr_DSLite_TeardownTunnel", cmd_str);
-    }
-    else
-    {
-        CcspTraceInfo(("%s: Tunnel already deleted (inst=%u)\n",
-                        __FUNCTION__, inst));
-    }
+    snprintf(cmd_str, sizeof(cmd_str), "ip -6 tunnel del %s 2>/dev/null", tunnelIf);
+    WanManager_DoSystemAction("WanMgr_DSLite_TeardownTunnel", cmd_str);
 
     cfg = &entry->CurrCfg;
     cfg->AddrInUse[0] = '\0';
