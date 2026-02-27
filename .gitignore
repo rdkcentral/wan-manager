@@ -1,0 +1,29 @@
+# Autotools generated files
+/aclocal.m4
+/autom4te.cache/
+/configure
+
+# Autotools m4 macros and scripts
+/cfg/compile
+/cfg/config.guess
+/cfg/config.h.in
+/cfg/config.h.in~
+/cfg/config.sub
+/cfg/depcomp
+/cfg/install-sh
+/cfg/libtool.m4
+/cfg/ltmain.sh
+/cfg/ltoptions.m4
+/cfg/ltsugar.m4
+/cfg/ltversion.m4
+/cfg/lt~obsolete.m4
+/cfg/missing
+
+# Generated Makefiles
+Makefile.in
+
+# Build artifacts
+.lastlogin
+
+# Generated source files
+/source/WanManager/dm_pack_datamodel.c
