@@ -1306,6 +1306,26 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
          CcspTraceError(("%s %d - Could not store ipv4 data!", __FUNCTION__, __LINE__));
      }
 
+    /** Assign IPv4 address on the interface and bring it up */
+    CcspTraceInfo(("%s %d - Assigning IPv4 address %s with netmask %s on interface %s\n", 
+                   __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, 
+                   p_VirtIf->IP.Ipv4Data.mask, p_VirtIf->IP.Ipv4Data.ifname));
+    
+    snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s %s netmask %s broadcast %s mtu %u",
+             p_VirtIf->IP.Ipv4Data.ifname, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr, p_VirtIf->IP.Ipv4Data.mtuSize);
+    
+    if (WanManager_DoSystemActionWithStatus("wan_setUpIPv4: Assign IPv4 address", cmdStr) != 0)
+    {
+        CcspTraceError(("%s %d - Failed to assign IPv4 address on interface %s\n", 
+                       __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ifname));
+        ret = RETURN_ERR;
+    }
+    else
+    {
+        CcspTraceInfo(("%s %d - Successfully assigned IPv4 address on interface %s\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ifname));
+    }
+
     /** configure DNS */
     if (RETURN_OK != wan_updateDNS(pWanIfaceCtrl, TRUE, (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)))
     {
@@ -1485,6 +1505,37 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     {
         CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
         return RETURN_ERR;
+    }
+
+    /** Assign IPv6 IANA address on the interface */
+
+    if (p_VirtIf->IP.Ipv6Data.address[0] != '\0')
+    {
+        char cmdStr[BUFLEN_256] = {0};
+        
+        CcspTraceInfo(("%s %d - Assigning IPv6 address %s on interface %s\n",
+                       __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, 
+                       p_VirtIf->Name));
+        
+        snprintf(cmdStr, sizeof(cmdStr), "ip -6 addr add %s dev %s",
+                 p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+        
+        if (WanManager_DoSystemActionWithStatus("wan_setUpIPv6: Assign IPv6 address", cmdStr) != 0)
+        {
+            CcspTraceError(("%s %d - Failed to assign IPv6 address on interface %s\n",
+                           __FUNCTION__, __LINE__, p_VirtIf->Name));
+            ret = RETURN_ERR;
+        }
+        else
+        {
+            CcspTraceInfo(("%s %d - Successfully assigned IPv6 address on interface %s\n",
+                          __FUNCTION__, __LINE__, p_VirtIf->Name));
+        }
+    }
+    else
+    {
+        CcspTraceInfo(("%s %d - IPv6 address not assigned, skipping address assignment\n",
+                       __FUNCTION__, __LINE__));
     }
 
     /** Reset IPv6 DNS configuration. */
