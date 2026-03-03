@@ -1138,29 +1138,6 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
     return 0;
 }
 
-
-/**
- * @brief Updates voice interface status to TelcoVoiceManager
- * 
- * This function notifies TelcoVoiceManager when voice-related interfaces (VOIP, VOICE, MTA, DATA) 
- * come up or go down by setting the X_RDK_BoundIfName parameter.
- * 
- * @param[in] pWanIfaceCtrl Pointer to WAN interface state machine controller
- * @param[in] voip_started  TRUE if interface is up, FALSE if interface is down
- * 
- * @note Behavior by interface type:
- *       - VOIP/VOICE/MTA: Always updates TelcoVoiceManager with the interface name
- *       - DATA: Updates TelcoVoiceManager ONLY if no VOIP interface exists
- *       - Other: No action taken (warning logged)
- * 
- * @note When voip_started is FALSE, an empty string is sent to TelcoVoiceManager
- *       to indicate the interface is down
- * 
- * @note Priority: VOIP takes precedence over DATA. If VOIP interface exists,
- *       DATA interface will not update TelcoVoiceManager
- * 
- * @warning This function is only applicable for DATA, VOIP, VOICE, and MTA alias interfaces
- */
 static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, bool voip_started)
 {
     ANSC_STATUS retStatus        = ANSC_STATUS_FAILURE;
@@ -1176,11 +1153,12 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
     DML_WAN_IFACE* pWanIfaceData = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    if (WanMgr_IsVoiceInterface(p_VirtIf))
+    if (0 == strcmp("VOIP", p_VirtIf->Alias))
     {
-        /* Update VOIP/VOICE/MTA interface name to TelcoVoiceManager */
+        /* Update VOIP vlan name to TelcoVoiceManager */
         isUpdate = true;
 
+	// Update the Interface name after auto wan sesning is complete.
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
             strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
@@ -1189,16 +1167,17 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
     {
         isUpdate = true;
 
+        // Update the Interface name after auto wan sesning is complete.
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
             strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
 
-        /* If there is a VOIP interface present, then do not update DATA vlan name to TelcoVoiceManager. */
+        /* If there is a VOIP interface present, then do not update DATA vlan name to TelecoVoiceManager. */
         for(int virIf_id=0; virIf_id< pWanIfaceData->NoOfVirtIfs; virIf_id++)
         {
             DML_VIRTUAL_IFACE* VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, virIf_id);
 
-            if (WanMgr_IsVoiceInterface(VirtIf))
+            if (0 == strcmp("VOIP", VirtIf->Alias))
             {
                 isUpdate = false;
                 break;
@@ -1322,14 +1301,6 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     DML_WAN_IFACE * pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
-    if (WanMgr_IsVoiceInterface(p_VirtIf))
-    {
-        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv4 system configuration\n", 
-                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
-        return RETURN_OK;
-    }
-
      if (wanmgr_set_Ipv4Sysevent(&p_VirtIf->IP.Ipv4Data, pWanIfaceCtrl->DeviceNwMode) != ANSC_STATUS_SUCCESS)
      {
          CcspTraceError(("%s %d - Could not store ipv4 data!", __FUNCTION__, __LINE__));
@@ -1433,14 +1404,6 @@ static int wan_tearDownIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     DML_WAN_IFACE * pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
-    if (WanMgr_IsVoiceInterface(p_VirtIf))
-    {
-        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv4 teardown\n", 
-                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
-        return RETURN_OK;
-    }
-
     /** Reset IPv4 DNS configuration. */
 #if (defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_))
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -1522,14 +1485,6 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     {
         CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
         return RETURN_ERR;
-    }
-
-    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
-    if (WanMgr_IsVoiceInterface(p_VirtIf))
-    {
-        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv6 system configuration\n", 
-                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
-        return RETURN_OK;
     }
 
     /** Reset IPv6 DNS configuration. */
@@ -1643,14 +1598,6 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 
     DML_WAN_IFACE * pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
-
-    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
-    if (WanMgr_IsVoiceInterface(p_VirtIf))
-    {
-        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv6 teardown\n", 
-                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
-        return RETURN_OK;
-    }
 
     //TODO: FIXME: XB devices use the DNS of primary for backup and doesn't deconfigure the primary ipv6 prefix from the LAN interface. 
 #if (!(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_))) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -2419,37 +2366,21 @@ static eWanState_t wan_transition_ipv4_up(WanMgr_IfaceSM_Controller_t* pWanIface
     /* successfully got the v4 lease from the interface, so lets mark it validated */
     p_VirtIf->Status = WAN_IFACE_STATUS_UP;
 
-    /* 
-     * Handle voice-related interfaces (DATA, VOIP, VOICE, MTA)
-     * These interfaces need to be registered with TelcoVoiceManager
-     */
-    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || WanMgr_IsVoiceInterface(p_VirtIf))
+#if defined(_DT_WAN_Manager_Enable_)
+    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
     {
         /* Update voice interface name to TelcoVoiceManager */
         updateInterfaceToVoiceManager(pWanIfaceCtrl, true);
-        
-        /* 
-         * For actual voice interfaces (VOIP, VOICE, MTA), return early
-         * DATA interface continues with normal WAN setup flow below
-         */
-        if (strcmp(p_VirtIf->Alias, "DATA") != 0)
-        {
-            /* Check if both IPv4 and IPv6 are up */
-            if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
-            {
-                CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION DUAL STACK ACTIVE\n", 
-                              __FUNCTION__, __LINE__, pInterface->Name));
-                return WAN_STATE_DUAL_STACK_ACTIVE;
-            }
-            
-            /* Voice interface with IPv4 only */
-            CcspTraceInfo(("%s %d - Interface '%s' - Voice interface IPv4 configured\n", 
-                          __FUNCTION__, __LINE__, pInterface->Name));
-            return WAN_STATE_IPV4_LEASED;
-        }
     }
 
-    /* Continue normal WAN setup for DATA interface or non-voice interfaces */
+    if(strcmp(p_VirtIf->Alias, "DATA"))
+    {
+        return WAN_STATE_IPV4_LEASED;
+    }
+    v_secure_system("echo 2 > /proc/sys/net/ipv6/conf/erouter0/accept_ra");
+    v_secure_system("echo 0 > /proc/sys/net/ipv6/conf/erouter0/accept_ra_mtu");
+
+#endif
 
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
@@ -2546,37 +2477,6 @@ static eWanState_t wan_transition_ipv4_down(WanMgr_IfaceSM_Controller_t* pWanIfa
         }
     }
     WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
-
-    /* 
-     * Handle voice interfaces (VOIP, VOICE, MTA) specially:
-     * - Voice interfaces only need address cleanup, not full WAN teardown
-     * - They don't require system-level configuration (DNS, firewall, sysevents)
-     * - State transition depends on whether IPv6 is still active
-     */
-    if (WanMgr_IsVoiceInterface(p_VirtIf))
-    {
-        /* Clean up IPv4 address from interface only */
-        wan_deconfigIPv4onInterface(pWanIfaceCtrl);
-        
-        CcspTraceInfo(("%s %d - Voice interface '%s' IPv4 down - removing address only\n", 
-                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
-        
-        /* Determine next state based on IPv6 availability */
-        if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP) 
-        {
-            /* IPv6 still active - transition to IPv6-only state */
-            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED (voice interface, IPv6 active)\n", 
-                          __FUNCTION__, __LINE__, pInterface->Name));
-            return WAN_STATE_IPV6_LEASED;
-        }
-        else
-        {
-            /* No IPv6 - return to IP acquisition state */
-            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION OBTAINING IP ADDRESSES (voice interface, no IPv6)\n", 
-                          __FUNCTION__, __LINE__, pInterface->Name));
-            return WAN_STATE_OBTAINING_IP_ADDRESSES;
-        }
-    }
 
 #if defined(_DT_WAN_Manager_Enable_)
     if(strcmp(p_VirtIf->Alias, "DATA"))
@@ -2736,38 +2636,13 @@ static eWanState_t wan_transition_ipv6_up(WanMgr_IfaceSM_Controller_t* pWanIface
     /* successfully got the v6 lease from the interface, so lets mark it validated */
     p_VirtIf->Status = WAN_IFACE_STATUS_UP;
 
-    /* 
-     * Handle voice-related interfaces (DATA, VOIP, VOICE, MTA)
-     * These interfaces need to be registered with TelcoVoiceManager
-     */
-    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || WanMgr_IsVoiceInterface(p_VirtIf))
+#if defined(_DT_WAN_Manager_Enable_)
+    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
     {
         /* Update voice interface name to TelcoVoiceManager */
         updateInterfaceToVoiceManager(pWanIfaceCtrl, true);
-        
-        /* 
-         * For actual voice interfaces (VOIP, VOICE, MTA), return early
-         * DATA interface continues with normal WAN setup flow below
-         */
-        if (strcmp(p_VirtIf->Alias, "DATA") != 0)
-        {
-            /* Check if both IPv4 and IPv6 are up */
-            if (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
-            {
-                CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION DUAL STACK ACTIVE\n", 
-                              __FUNCTION__, __LINE__, pInterface->Name));
-                return WAN_STATE_DUAL_STACK_ACTIVE;
-            }
-            
-            /* Voice interface with IPv6 only */
-            CcspTraceInfo(("%s %d - Interface '%s' - Voice interface IPv6 configured\n", 
-                          __FUNCTION__, __LINE__, pInterface->Name));
-            return WAN_STATE_IPV6_LEASED;
-        }
     }
-
-    /* Continue normal WAN setup for DATA interface or non-voice interfaces */
-
+#endif
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
         WanMgr_Publish_WanStatus(pWanIfaceCtrl->interfaceIdx, pWanIfaceCtrl->VirIfIdx);
@@ -2883,38 +2758,6 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     //Disable accept_ra
     WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
 
-    /* 
-     * Handle voice interfaces (VOIP, VOICE, MTA) specially:
-     * - Voice interfaces only need route/address cleanup, not full WAN teardown
-     * - They don't require system-level configuration (DNS, firewall, sysevents)
-     * - State transition depends on whether IPv4 is still active
-     */
-    if (WanMgr_IsVoiceInterface(p_VirtIf))
-    {
-        /* Clean up IPv6 routes and addresses only */
-        WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name);
-        
-        CcspTraceInfo(("%s %d - Voice interface '%s' IPv6 down - removing routes/addresses only\n", 
-                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
-        
-        /* Determine next state based on IPv4 availability */
-        if (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP) 
-        {
-            /* IPv4 still active - transition to IPv4-only state */
-            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV4 LEASED (voice interface, IPv4 active)\n", 
-                          __FUNCTION__, __LINE__, pInterface->Name));
-            return WAN_STATE_IPV4_LEASED;
-        }
-        else
-        {
-            /* No IPv4 - return to IP acquisition state */
-            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION OBTAINING IP ADDRESSES (voice interface, no IPv4)\n", 
-                          __FUNCTION__, __LINE__, pInterface->Name));
-            return WAN_STATE_OBTAINING_IP_ADDRESSES;
-        }
-    }
-
-    /* Continue with normal WAN IPv6 teardown for non-voice interfaces */
     if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
     {
         if (wan_tearDownIPv6(pWanIfaceCtrl) != RETURN_OK)
@@ -3677,8 +3520,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
         p_VirtIf->PPP.LinkStatus ==  WAN_IFACE_PPP_LINK_STATUS_CONFIGURING ||
         p_VirtIf->Reset == TRUE)
     {
-        //Update that voice interface is down to TelcoVoiceManager
-        if (!strcmp("DATA", p_VirtIf->Alias) || WanMgr_IsVoiceInterface(p_VirtIf))
+        if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
         {
             /* Update voice interface name to TelcoVoiceManager */
             updateInterfaceToVoiceManager(pWanIfaceCtrl, false);
@@ -3701,8 +3543,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
         CcspTraceInfo(("%s %d VlanDiscovery timer expired Or VLAN/PPP status DOWN \n", __FUNCTION__, __LINE__));
         p_VirtIf->VLAN.Expired = TRUE;
 
-        //Update that voice interface is down to TelcoVoiceManager
-        if (!strcmp("DATA", p_VirtIf->Alias) || WanMgr_IsVoiceInterface(p_VirtIf))
+        if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
         {
             /* Update voice interface name to TelcoVoiceManager */
             updateInterfaceToVoiceManager(pWanIfaceCtrl, false);

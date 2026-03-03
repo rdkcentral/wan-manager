@@ -1961,14 +1961,6 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
         return RETURN_ERR;
     }
 
-    /* Voice interfaces (VOIP, VOICE, MTA) don't need LAN prefix configuration */
-    if (WanMgr_IsVoiceInterface(pVirtIf))
-    {
-        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping LAN prefix IPv6 configuration\n", 
-                      __FUNCTION__, __LINE__, pVirtIf->Alias));
-        return RETURN_OK;
-    }
-
     CcspTraceInfo(("%s %d Updating SYSEVENT_CURRENT_WAN_IFNAME %s\n", __FUNCTION__, __LINE__,pVirtIf->IP.Ipv6Data.ifname));
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, pVirtIf->IP.Ipv6Data.ifname, 0);
 
