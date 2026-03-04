@@ -83,12 +83,18 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
 #ifdef FEATURE_MAPT
         "| maptAssigned        : %-40d |\n"
 #endif
+#ifdef FEATURE_DSLITE_V2
+        "| aftrName            : %-40s |\n"
+#endif
         "=================================================================\n",
         leaseInfo->ifname, leaseInfo->address, leaseInfo->nameserver, leaseInfo->nameserver1,
         leaseInfo->domainName, leaseInfo->sitePrefix, leaseInfo->prefixPltime, leaseInfo->prefixVltime,
         leaseInfo->addrAssigned, leaseInfo->prefixAssigned, leaseInfo->domainNameAssigned, leaseInfo->mapeAssigned
 #ifdef FEATURE_MAPT
         , leaseInfo->maptAssigned
+#endif
+#ifdef FEATURE_DSLITE_V2
+        , leaseInfo->aftr
 #endif
     ));
 
@@ -104,6 +110,9 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->prefixAssigned = leaseInfo->prefixAssigned;
     pDhcpv6Data->domainNameAssigned = leaseInfo->domainNameAssigned;
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
+#ifdef FEATURE_DSLITE_V2
+    strncpy(pDhcpv6Data->aftr, leaseInfo->aftr, sizeof(pDhcpv6Data->aftr) - 1);
+#endif
 }
 
 pthread_mutex_t DhcpClientEvents_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -246,6 +255,14 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
                             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPE_STOP);
                         }
                     }
+#ifdef FEATURE_DSLITE_V2
+                    if (WanMgr_DSLite_isEndpointNameChanged(pVirtIf, leaseInfo->aftr))
+                    {
+                        WanMgr_DSLite_UpdateEndPointName(pVirtIf, leaseInfo->aftr);
+                        pVirtIf->DSLite.Changed = TRUE; // sm checks this flag to take action
+                        CcspTraceInfo(("DS-Lite Endpoint name has been changed\n"));
+                    }
+#endif
 
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Address",  pVirtIf->baseIfIdx+1, pVirtIf->VirIfIdx+1);
