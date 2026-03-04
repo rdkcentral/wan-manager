@@ -38,7 +38,10 @@ extern token_t sysevent_token;
 extern ANSC_HANDLE bus_handle;
 extern char g_Subsystem[32];
 
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && defined(_COSA_BCM_MIPS_)
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
+#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && defined(_COSA_BCM_MIPS_)) || defined(_ONESTACK_PRODUCT_REQ_)
 #include <netinet/in.h>
 #endif
 #define CLIENT_DUID_FILE "/var/lib/dibbler/client-duid"
@@ -444,15 +447,31 @@ static int _dibbler_client_operation(char * arg)
         CcspTraceInfo(("%s stop\n", __func__));
         /*TCXB6 is also calling service_dhcpv6_client.sh but the actuall script is installed from meta-rdk-oem layer as the intel specific code
                    had to be removed */
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(DHCPV6_PREFIX_FIX)
-        sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_client-stop", "", 0);
-#elif defined(CORE_NET_LIB)
-        v_secure_system("/usr/bin/service_dhcpv6_client dhcpv6_client_service_disable");
-        CcspTraceInfo(("%s  Calling service_dhcpv6_client.c with dhcpv6_client_service_disable from wanmgr_dhcpv6_apis.c\n", __func__));
-#else
-        v_secure_system("/etc/utopia/service.d/service_dhcpv6_client.sh disable &");
-#endif
+#ifdef _ONESTACK_PRODUCT_REQ_
+	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+	{
 
+	    sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_client-stop", "", 0);
+	}
+	else
+	{
+#if defined(CORE_NET_LIB)
+	    v_secure_system("/usr/bin/service_dhcpv6_client dhcpv6_client_service_disable");
+	    CcspTraceInfo(("%s  Calling service_dhcpv6_client.c with dhcpv6_client_service_disable from wanmgr_dhcpv6_apis.c\n", __func__));
+#else
+	    v_secure_system("/etc/utopia/service.d/service_dhcpv6_client.sh disable &");
+#endif
+	}
+#else
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(DHCPV6_PREFIX_FIX)
+	sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_client-stop", "", 0);
+#elif defined(CORE_NET_LIB)
+	v_secure_system("/usr/bin/service_dhcpv6_client dhcpv6_client_service_disable");
+	CcspTraceInfo(("%s  Calling service_dhcpv6_client.c with dhcpv6_client_service_disable from wanmgr_dhcpv6_apis.c\n", __func__));
+#else
+	v_secure_system("/etc/utopia/service.d/service_dhcpv6_client.sh disable &");
+#endif
+#endif
 #ifdef _COSA_BCM_ARM_
         if (TRUE == WanManager_IsApplicationRunning (CLIENT_BIN, NULL))
         {
@@ -548,15 +567,30 @@ static int _dibbler_client_operation(char * arg)
         /*TCXB6 is also calling service_dhcpv6_client.sh but the actuall script is installed from meta-rdk-oem layer as the intel specific code
          had to be removed */
         CcspTraceInfo(("%s  Callin service_dhcpv6_client.sh enable \n", __func__));
+#ifdef _ONESTACK_PRODUCT_REQ_
+	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+	{
+	    sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_client-start", "", 0);
+	}
+	else 
+	{
+#if defined(CORE_NET_LIB)
+	    v_secure_system("/usr/bin/service_dhcpv6_client dhcpv6_client_service_enable");
+	    CcspTraceInfo(("%s  Calling service_dhcpv6_client.c with dhcpv6_client_service_enable from wanmgr_dhcpv6_apis.c\n", __func__));
+#else
+	    v_secure_system("/etc/utopia/service.d/service_dhcpv6_client.sh enable &");
+#endif
+	}
+#else
 #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(DHCPV6_PREFIX_FIX)
-        sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_client-start", "", 0);
+	sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_client-start", "", 0);
 #elif defined(CORE_NET_LIB)
-        v_secure_system("/usr/bin/service_dhcpv6_client dhcpv6_client_service_enable");
-        CcspTraceInfo(("%s  Calling service_dhcpv6_client.c with dhcpv6_client_service_enable from wanmgr_dhcpv6_apis.c\n", __func__));
+	v_secure_system("/usr/bin/service_dhcpv6_client dhcpv6_client_service_enable");
+	CcspTraceInfo(("%s  Calling service_dhcpv6_client.c with dhcpv6_client_service_enable from wanmgr_dhcpv6_apis.c\n", __func__));
 #else
         v_secure_system("/etc/utopia/service.d/service_dhcpv6_client.sh enable &");
 #endif
-
+#endif
 #ifdef _COSA_BCM_ARM_
         /* Dibbler-init is called to set the pre-configuration for dibbler */
         CcspTraceInfo(("%s dibbler-init.sh Called \n", __func__));
@@ -1774,13 +1808,24 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
                 if (strcmp(pDhcp6cInfoCur->sitePrefix, pNewIpcMsg->sitePrefix) != 0)
                 {
                     CcspTraceInfo(("%s %d new prefix = %s, current prefix = %s \n", __FUNCTION__, __LINE__, pNewIpcMsg->sitePrefix, pDhcp6cInfoCur->sitePrefix));
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
-                    /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
-                    strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
-#else
-                    strncat(prefix, "/64", sizeof(prefix) - 1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+		    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 #endif
-                    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
+		    {
+			/* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+			strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
+		    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+		    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+		    {
+			strncat(prefix, "/64", sizeof(prefix) - 1);
+		    }
+#endif
+		    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
                 }
             }
         }
@@ -1985,11 +2030,22 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
             char previousPrefix[BUFLEN_48] = {0};
             char previousPrefix_vldtime[BUFLEN_48] = {0};
             char previousPrefix_prdtime[BUFLEN_48] = {0};
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
-            /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
-            strncpy(lanPrefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(lanPrefix) - 1);
-#else
-            strncat(lanPrefix, "/64", sizeof(lanPrefix) - strlen(lanPrefix) - 1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+	    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+	    {
+		/* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+		strncpy(lanPrefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(lanPrefix) - 1);
+	    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+	    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+	    {
+		strncat(lanPrefix, "/64", sizeof(lanPrefix) - strlen(lanPrefix) - 1);
+	    }
 #endif
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, previousPrefix, sizeof(previousPrefix));
             sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIXVLTIME, previousPrefix_vldtime, sizeof(previousPrefix_vldtime));
@@ -2094,11 +2150,22 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
                 syscfg_set_string(SYSCFG_FIELD_IPV6_PREFIX_ADDRESS, pVirtIf->IP.Ipv6Data.pdIfAddress);
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_TR_BRLAN0_DHCPV6_SERVER_ADDRESS, set_value, 0);
                 CcspTraceInfo(("%s %d new prefix = %s\n", __FUNCTION__, __LINE__, pVirtIf->IP.Ipv6Data.sitePrefix));
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
-                /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
-                strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
-#else
-                strncat(prefix, "/64", sizeof(prefix) - 1);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+		if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+		{
+		    /* Use the delegated prefix length directly for platforms that support prefix delegation to LAN clients */
+		    strncpy(prefix, pVirtIf->IP.Ipv6Data.sitePrefix, sizeof(prefix) - 1);
+		}
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+		if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+		{
+		    strncat(prefix, "/64", sizeof(prefix) - 1);
+		}
 #endif
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, 0);
                 sysevent_set(sysevent_fd, sysevent_token, "lan_prefix", prefix, 0);
@@ -2137,21 +2204,32 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
 
     CcspTraceWarning(("%s: setting lan-restart\n", __FUNCTION__));
     sysevent_set(sysevent_fd, sysevent_token, "lan-restart", "1", 0);
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(DHCPV6_PREFIX_FIX) 
-    CcspTraceWarning(("%s: setting dhcpv6_server-restart\n", __FUNCTION__));
-    sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_server-restart", "", 0);
-#else
-    // Below code copied from CosaDmlDHCPv6sTriggerRestart(FALSE) PAm function.
-    int fd = 0;
-    char str[32] = "restart";
-    fd= open(DHCPS6V_SERVER_RESTART_FIFO, O_RDWR);
-    if (fd < 0)
-    {
-        fprintf(stderr, "open dhcpv6 server restart fifo when writing.\n");
-        return 1;
+#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(DHCPV6_PREFIX_FIX)) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+    { 
+	CcspTraceWarning(("%s: setting dhcpv6_server-restart\n", __FUNCTION__));
+	sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_server-restart", "", 0);
     }
-    write( fd, str, sizeof(str) );
-    close(fd);
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+    {
+	// Below code copied from CosaDmlDHCPv6sTriggerRestart(FALSE) PAm function.
+	int fd = 0;
+	char str[32] = "restart";
+	fd= open(DHCPS6V_SERVER_RESTART_FIFO, O_RDWR);
+	if (fd < 0)
+	{
+	    fprintf(stderr, "open dhcpv6 server restart fifo when writing.\n");
+	    return 1;
+	}
+	write( fd, str, sizeof(str) );
+	close(fd);
+    }
 #endif
 #endif
 #endif
@@ -2165,7 +2243,7 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
 
     if( NULL == pstAddrEvent )
     {
-        CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
+	CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
         return ret;
     }
 
