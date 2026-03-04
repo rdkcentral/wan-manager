@@ -1293,7 +1293,7 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     int ret = RETURN_OK;
-    char cmdStr[BUFLEN_128 + IP_ADDR_LENGTH] = {0};
+    char cmdStr[BUFLEN_256] = {0};
     char bCastStr[IP_ADDR_LENGTH] = {0};
     char buf[BUFLEN_32] = {0};
 
@@ -1311,6 +1311,12 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
                    __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, 
                    p_VirtIf->IP.Ipv4Data.mask, p_VirtIf->IP.Ipv4Data.ifname));
     
+    if (WanManager_GetBCastFromIpSubnetMask(p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr) != RETURN_OK)
+    {
+        CcspTraceError(("%s %d - bad address %s/%s \n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask));
+        return RETURN_ERR;
+    }
+
     snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s %s netmask %s broadcast %s mtu %u",
              p_VirtIf->IP.Ipv4Data.ifname, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr, p_VirtIf->IP.Ipv4Data.mtuSize);
     
@@ -1337,7 +1343,7 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         CcspTraceInfo(("%s %d -  IPv4 DNS servers configures successfully \n", __FUNCTION__, __LINE__));
     }
 
-        /** Set default gatway. */
+        /** Set default gateway. */
     if (WanManager_AddDefaultGatewayRoute(DeviceNwMode, &p_VirtIf->IP.Ipv4Data) != RETURN_OK)
     {
         CcspTraceError(("%s %d - Failed to set up default system gateway", __FUNCTION__, __LINE__));
