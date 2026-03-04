@@ -136,6 +136,18 @@ int WanManager_StartDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, char* baseInterface
  ***************************************************************************/
 ANSC_STATUS WanManager_StopDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE_BEHAVIOUR IsReleaseNeeded);
 
+#if defined( FEATURE_RDKB_DHCP_MANAGER )
+/***************************************************************************
+ * @brief Check if a DHCP client (v4 or v6) is currently running via DHCP Manager
+ *        and stop it before a new start. This avoids duplicate client instances.
+ * @param pVirtIf  Pointer to the virtual interface structure
+ * @param isIPv4   TRUE to check DHCPv4 client, FALSE to check DHCPv6 client
+ * @return ANSC_STATUS_SUCCESS if the client was not running or was stopped
+ *         successfully, ANSC_STATUS_FAILURE on error.
+ ****************************************************************************/
+ANSC_STATUS WanManager_StopDhcpClientIfRunning(DML_VIRTUAL_IFACE* pVirtIf, BOOL isIPv4);
+#endif /* FEATURE_RDKB_DHCP_MANAGER */
+
 /***************************************************************************
  * @brief API used to restart Dhcpv6 client application.
  * @param ifName_info interface name
