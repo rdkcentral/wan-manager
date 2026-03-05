@@ -1317,8 +1317,8 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         return RETURN_ERR;
     }
 
-    snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s %s netmask %s broadcast %s mtu %u",
-             p_VirtIf->IP.Ipv4Data.ifname, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr, p_VirtIf->IP.Ipv4Data.mtuSize);
+    snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s %s netmask %s broadcast %s up",
+             p_VirtIf->IP.Ipv4Data.ifname, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr);
     
     if (WanManager_DoSystemActionWithStatus("wan_setUpIPv4: Assign IPv4 address", cmdStr) != 0)
     {
@@ -1330,6 +1330,23 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     {
         CcspTraceInfo(("%s %d - Successfully assigned IPv4 address on interface %s\n", 
                       __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ifname));
+    }
+
+    /* Set MTU separately if valid */
+    if (p_VirtIf->IP.Ipv4Data.mtuSize > 0)
+    {
+        memset(cmdStr, 0, sizeof(cmdStr));
+        snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s mtu %u", p_VirtIf->IP.Ipv4Data.ifname, p_VirtIf->IP.Ipv4Data.mtuSize);
+        if (WanManager_DoSystemActionWithStatus("wan_setUpIPv4: Set MTU", cmdStr) != 0)
+        {
+            CcspTraceError(("%s %d - Failed to set MTU on interface %s\n", 
+                           __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ifname));
+        }
+        else
+        {
+            CcspTraceInfo(("%s %d - Successfully set MTU %u on interface %s\n", 
+                          __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.mtuSize, p_VirtIf->IP.Ipv4Data.ifname));
+        }
     }
 
     /** configure DNS */
