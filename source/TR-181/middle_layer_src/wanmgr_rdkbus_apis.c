@@ -38,6 +38,7 @@
 #include "wanmgr_rdkbus_apis.h"
 #include "dmsb_tr181_psm_definitions.h"
 #include "wanmgr_net_utils.h"
+#include "wanmgr_interface_sm.h"
 #ifdef RBUS_BUILD_FLAG_ENABLE
 #include "wanmgr_rbus_handler_apis.h"
 #endif //RBUS_BUILD_FLAG_ENABLE
@@ -2001,6 +2002,13 @@ ANSC_STATUS Update_Interface_Status()
                 {
                 //Note: This function uses first Virtual interface as primary to set status information.
                 DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, virIf_id);
+                
+                /* Skip WAN status updates for voice interfaces (VOIP, VOICE, MTA) */
+                if (WanMgr_IsVoiceInterface(p_VirtIf))
+                {
+                    continue;
+                }
+                
                 struct IFACE_INFO *newIface = calloc(1, sizeof( struct IFACE_INFO));
                 newIface->next = NULL;
 
