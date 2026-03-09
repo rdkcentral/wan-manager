@@ -1309,7 +1309,7 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     /** Assign IPv4 address on the interface and bring it up */
     CcspTraceInfo(("%s %d - Assigning IPv4 address %s with netmask %s on interface %s\n", 
                    __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, 
-                   p_VirtIf->IP.Ipv4Data.mask, p_VirtIf->IP.Ipv4Data.ifname));
+                   p_VirtIf->IP.Ipv4Data.mask, p_VirtIf->Name));
     
     if (WanManager_GetBCastFromIpSubnetMask(p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr) != RETURN_OK)
     {
@@ -1318,7 +1318,7 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s %s netmask %s broadcast %s up",
-             p_VirtIf->IP.Ipv4Data.ifname, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr);
+             p_VirtIf->Name, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr);
     
     if (WanManager_DoSystemActionWithStatus("wan_setUpIPv4: Assign IPv4 address", cmdStr) != 0)
     {
