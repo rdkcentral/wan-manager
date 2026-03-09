@@ -1365,16 +1365,16 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     if (p_VirtIf->IP.Ipv4Data.mtuSize > 0)
     {
         memset(cmdStr, 0, sizeof(cmdStr));
-        snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s mtu %u", p_VirtIf->IP.Ipv4Data.ifname, p_VirtIf->IP.Ipv4Data.mtuSize);
+        snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s mtu %u", p_VirtIf->Name, p_VirtIf->IP.Ipv4Data.mtuSize);
         if (WanManager_DoSystemActionWithStatus("wan_setUpIPv4: Set MTU", cmdStr) != 0)
         {
             CcspTraceError(("%s %d - Failed to set MTU on interface %s\n", 
-                           __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ifname));
+                           __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
         else
         {
             CcspTraceInfo(("%s %d - Successfully set MTU %u on interface %s\n", 
-                          __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.mtuSize, p_VirtIf->IP.Ipv4Data.ifname));
+                          __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.mtuSize, p_VirtIf->Name));
         }
     }
 
