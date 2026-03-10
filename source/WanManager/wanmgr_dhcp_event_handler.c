@@ -106,13 +106,18 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
 }
 
-pthread_mutex_t DhcpClientEvents_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
+/*
+ * Process a single DHCP client event.  Called by the queue worker thread
+ * so events are guaranteed to be handled in FIFO order.
+ * Caller is responsible for freeing eventData after this returns.
+ */
+void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
 {
-    DhcpEventThreadArgs *eventData = (DhcpEventThreadArgs *)arg;
-    pthread_mutex_lock(&DhcpClientEvents_mutex);
-    pthread_detach(pthread_self());
+    if (eventData == NULL)
+    {
+        CcspTraceError(("%s-%d : eventData is NULL\n", __FUNCTION__, __LINE__));
+        return;
+    }
 
     DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(eventData->ifName);
     if(pVirtIf != NULL)
@@ -262,8 +267,4 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
         } 
         WanMgr_VirtualIfaceData_release(pVirtIf);
     }
-    free(eventData);
-    pthread_mutex_unlock(&DhcpClientEvents_mutex);
-    pthread_exit(NULL);
-    return NULL;
 }
