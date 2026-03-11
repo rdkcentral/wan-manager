@@ -112,7 +112,7 @@ AC_ARG_ENABLE([dhcp_manager],
              ],
              [echo "dhcp manager is disabled"])
 AM_CONDITIONAL(DHCPMANAGER_ENABLED, test "x$DHCPMANAGER_SUPPORT_ENABLED" = xtrue)
-
+AM_CONDITIONAL([ONESTACK_PRODUCT_REQ], [test "x$ONESTACK_PRODUCT_REQ" = "xtrue"])
 dnl Checks for header files.
 AC_CHECK_HEADERS([limits.h memory.h stdlib.h string.h sys/socket.h unistd.h])
 

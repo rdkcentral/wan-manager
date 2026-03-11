@@ -36,7 +36,9 @@
 #include <string.h>
 #include <unistd.h>
 #include "secure_wrapper.h"
-
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 #if defined(_DT_WAN_Manager_Enable_)
 int _get_shell_output2(char * cmd, char * dststr)
 {
@@ -226,12 +228,16 @@ WanMgr_DmlDhcpv6Init
 {
     DSLHDMAGNT_CALLBACK *  pEntry = NULL;
     CcspTraceWarning(("Inside %s %d \n", __FUNCTION__, __LINE__));
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(_CBR_PRODUCT_REQ_) && ! defined(_BCI_FEATURE_REQ)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(_CBR_PRODUCT_REQ_) && ! defined(_BCI_FEATURE_REQ) && !defined(_ONESTACK_PRODUCT_REQ_)
 
 #else
-/* handle message from wan dchcp6 client */
-    WanMgr_DmlDhcpv6SMsgHandler(NULL);
-
+    #ifdef _ONESTACK_PRODUCT_REQ_
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+    {
+        /* handle message from wan dhcp6 client */
+        WanMgr_DmlDhcpv6SMsgHandler(NULL);
+    }
 #endif
 
 
@@ -734,16 +740,34 @@ dhcpv6c_dbg_thrd(void * in)
                             sprintf(v6pref+strlen(v6pref), "/%d", pref_len);
                         else
                         {
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
                             sprintf(v6pref+strlen(v6pref), "/%d", pref_len);
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
                             sprintf(v6pref+strlen(v6pref), "/%d", 64);
+    }
 #endif
                         }
 #endif
     char cmd[100];
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && defined(_CBR_PRODUCT_REQ_)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && \
+    defined(_CBR_PRODUCT_REQ_) && \
+    !defined(_ONESTACK_PRODUCT_REQ_)
 #else
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+    {
             char out1[100];
             char *token = NULL;char *pt;
             char s[2] = ",";
@@ -812,6 +836,7 @@ dhcpv6c_dbg_thrd(void * in)
                                         }
                 }
             }
+    }
 #endif
             char previous_v6pref[128] = {0};
             sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", previous_v6pref, sizeof(previous_v6pref));
@@ -1229,14 +1254,21 @@ dhcpv6c_dbg_thrd(void * in)
                     v_secure_system("sysevent set firewall-restart");
                     bRestartFirewall = FALSE;
                 }
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && (defined(_CBR_PRODUCT_REQ_) || defined(_BCI_FEATURE_REQ))
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && \
+    (defined(_CBR_PRODUCT_REQ_) || defined(_BCI_FEATURE_REQ_)) && \
+    !defined(_ONESTACK_PRODUCT_REQ_)
 
 #else
+#ifdef _ONESTACK_PRODUCT_REQ_
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+    {
 #ifdef LAN_MGR_SUPPORT
         v_secure_system("sysevent set dhcpv6_raserver-restart");
 #else
         v_secure_system("sysevent set zebra-restart");
 #endif
+    }
 #endif
             }
 
