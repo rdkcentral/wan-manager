@@ -155,6 +155,22 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
 
                 case DHCP_LEASE_UPDATE:
                     CcspTraceInfo(("%s-%d : DHCPv4 lease updated for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    /* A gateway of 0.0.0.0 indicates a private lease used solely for
+                     * validity and authentication of the WAN connection. This lease must
+                     * not be used for internet traffic. In this case, only mark the
+                     * interface as VALID and wait for the DHCPv6 lease (with MAP-T) to
+                     * establish the actual internet-capable connection. */
+                    if (strcmp(eventData->lease.v4.gateway, "0.0.0.0") == 0)
+                    {
+                        //Don't set the status to VALID if it is already UP or STANDBY
+                        if (pVirtIf->Status != WAN_IFACE_STATUS_STANDBY && pVirtIf->Status != WAN_IFACE_STATUS_UP)
+                        {
+                            CcspTraceInfo(("%s %d - gateway=[%s] Setting Iface Status to VALID\n", __FUNCTION__, __LINE__, eventData->lease.v4.gateway));
+                            pVirtIf->Status = WAN_IFACE_STATUS_VALID;
+                        }
+                        break;
+                    }
+
                     copyDhcpv4Data(&(pVirtIf->IP.Ipv4Data), &(eventData->lease.v4));
                     pVirtIf->IP.Ipv4Changed = TRUE;
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
@@ -162,7 +178,6 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv4Address", pVirtIf->baseIfIdx + 1, pVirtIf->VirIfIdx + 1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv4Data.ip, RBUS_STRING);
-                    // TODO: Check for sysevents
                     break;
 
                 default:
