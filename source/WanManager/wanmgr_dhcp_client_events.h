@@ -35,7 +35,13 @@ typedef struct _DhcpEventThreadArgs
         DHCP_MGR_IPV4_MSG v4;
         DHCP_MGR_IPV6_MSG v6;
     }lease;
+    struct _DhcpEventThreadArgs *next; /* linked-list pointer for event queue */
 }DhcpEventThreadArgs;
 
-void* WanMgr_DhcpClientEventsHandler_Thread(void *arg);
+/* Process a single DHCP client event (called by queue worker thread). */
+void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData);
+
+/* Enqueue a DHCP event for ordered processing; starts worker thread on first call. */
+void WanMgr_DhcpEventQueue_Enqueue(DhcpEventThreadArgs *eventData);
+
 #endif //_WANMGR_DHCP_EVENTS_H_
