@@ -106,13 +106,18 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
 }
 
-pthread_mutex_t DhcpClientEvents_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
+/*
+ * Process a single DHCP client event.  Called by the queue worker thread
+ * so events are guaranteed to be handled in FIFO order.
+ * Caller is responsible for freeing eventData after this returns.
+ */
+void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
 {
-    DhcpEventThreadArgs *eventData = (DhcpEventThreadArgs *)arg;
-    pthread_mutex_lock(&DhcpClientEvents_mutex);
-    pthread_detach(pthread_self());
+    if (eventData == NULL)
+    {
+        CcspTraceError(("%s-%d : eventData is NULL\n", __FUNCTION__, __LINE__));
+        return;
+    }
 
     DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(eventData->ifName);
     if(pVirtIf != NULL)
@@ -150,6 +155,22 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
 
                 case DHCP_LEASE_UPDATE:
                     CcspTraceInfo(("%s-%d : DHCPv4 lease updated for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    /* A gateway of 0.0.0.0 indicates a private lease used solely for
+                     * validity and authentication of the WAN connection. This lease must
+                     * not be used for internet traffic. In this case, only mark the
+                     * interface as VALID and wait for the DHCPv6 lease (with MAP-T) to
+                     * establish the actual internet-capable connection. */
+                    if (strcmp(eventData->lease.v4.gateway, "0.0.0.0") == 0)
+                    {
+                        //Don't set the status to VALID if it is already UP or STANDBY
+                        if (pVirtIf->Status != WAN_IFACE_STATUS_STANDBY && pVirtIf->Status != WAN_IFACE_STATUS_UP)
+                        {
+                            CcspTraceInfo(("%s %d - gateway=[%s] Setting Iface Status to VALID\n", __FUNCTION__, __LINE__, eventData->lease.v4.gateway));
+                            pVirtIf->Status = WAN_IFACE_STATUS_VALID;
+                        }
+                        break;
+                    }
+
                     copyDhcpv4Data(&(pVirtIf->IP.Ipv4Data), &(eventData->lease.v4));
                     pVirtIf->IP.Ipv4Changed = TRUE;
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
@@ -157,7 +178,6 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv4Address", pVirtIf->baseIfIdx + 1, pVirtIf->VirIfIdx + 1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv4Data.ip, RBUS_STRING);
-                    // TODO: Check for sysevents
                     break;
 
                 default:
@@ -262,8 +282,4 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
         } 
         WanMgr_VirtualIfaceData_release(pVirtIf);
     }
-    free(eventData);
-    pthread_mutex_unlock(&DhcpClientEvents_mutex);
-    pthread_exit(NULL);
-    return NULL;
 }
