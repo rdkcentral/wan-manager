@@ -814,6 +814,14 @@ BOOL WanMapRule_GetParamUlongValue(ANSC_HANDLE hInsContext, char* ParamName, ULO
          return TRUE;
     }
 
+    if( AnscEqualString(ParamName, "X_RDKCENTRAL-COM_Ratio", TRUE))
+    {
+        /* collect value */
+        *puLong = pDomainRule->Ratio;
+
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -881,6 +889,15 @@ BOOL WanMapRule_GetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, ch
         AnscCopyString(pValue, pDomainRule->IPv4Prefix);
         return 0;
     }
+
+#ifdef FEATURE_MAPT
+    if( AnscEqualString(ParamName, "X_RDKCENTRAL-COM_IPv4Address", TRUE))
+    {
+        /* collect value */
+        AnscCopyString(pValue, pDomainRule->IPv4Address);
+        return 0;
+    }
+#endif
 
     return FALSE;
 }
@@ -1003,6 +1020,14 @@ BOOL WanMapRule_SetParamUlongValue(ANSC_HANDLE hInsContext, char* ParamName, ULO
         return TRUE;
     }
 
+    if( AnscEqualString(ParamName, "X_RDKCENTRAL-COM_Ratio", TRUE))
+    {
+        /* save update to backup */
+        pDomainRule->Ratio = uValue;
+
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -1066,6 +1091,16 @@ BOOL WanMapRule_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, ch
 
         return TRUE;
     }
+
+#ifdef FEATURE_MAPT
+    if( AnscEqualString(ParamName, "X_RDKCENTRAL-COM_IPv4Address", TRUE))
+    {
+        /* save update to backup */
+        AnscCopyString(pDomainRule->IPv4Address, pString);
+
+        return TRUE;
+    }
+#endif
 
     return FALSE;
 }

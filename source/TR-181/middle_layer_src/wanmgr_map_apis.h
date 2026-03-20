@@ -135,6 +135,7 @@ _WAN_DML_MAP_RULE
     WAN_DML_RULE_STATUS           Status;
     CHAR                          Alias[DML_BUFF_SIZE_32];
     CHAR                          Origin[DML_BUFF_SIZE_32];
+    CHAR                          IPv4Address[DML_BUFF_SIZE_64];
     CHAR                          IPv6Prefix[DML_BUFF_SIZE_64];
     CHAR                          IPv4Prefix[DML_BUFF_SIZE_64];
     UINT                          EABitsLength;
@@ -143,6 +144,7 @@ _WAN_DML_MAP_RULE
     UINT                          PSIDLength;
     UINT                          PSID;
     BOOL                          IncludeSystemPorts;
+    ULONG                         Ratio;
 }WAN_DML_MAP_RULE, *PWAN_DML_MAP_RULE;
 
 typedef  struct
