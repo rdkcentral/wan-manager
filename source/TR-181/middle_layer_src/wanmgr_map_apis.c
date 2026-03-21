@@ -752,12 +752,12 @@ WanDmlMapDomGetRule_Data
         AnscCopyString(pMapRule->Origin, "DHCPv6");
         AnscCopyString(pMapRule->IPv6Prefix, pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv6Prefix);
         if (pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv4Prefix[0] != '\0')
-        {
-            // fetch IPv4Prefix in CIDR format for TR-181
-            snprintf(pMapRule->IPv4Prefix, sizeof(pMapRule->IPv4Prefix), "%s/%u",
-                         pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv4Prefix,
-                         pVirtIf->MAP.dhcp6cMAPparameters.v4Len);
-        }
+	{
+            // fetch IPv4Prefix in CIDR format for TR-181
+            snprintf(pMapRule->IPv4Prefix, sizeof(pMapRule->IPv4Prefix), "%s/%u",
+                         pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv4Prefix,
+                         pVirtIf->MAP.dhcp6cMAPparameters.v4Len);
+        }
 #ifdef FEATURE_MAPT
         AnscCopyString(pMapRule->IPv4Address, pVirtIf->MAP.MaptConfig.ipAddressString);
 #endif
