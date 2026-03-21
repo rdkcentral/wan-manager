@@ -890,14 +890,12 @@ BOOL WanMapRule_GetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, ch
         return 0;
     }
 
-#ifdef FEATURE_MAPT
     if( AnscEqualString(ParamName, "X_RDKCENTRAL-COM_IPv4Address", TRUE))
     {
         /* collect value */
         AnscCopyString(pValue, pDomainRule->IPv4Address);
         return 0;
     }
-#endif
 
     return FALSE;
 }
@@ -1092,7 +1090,6 @@ BOOL WanMapRule_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, ch
         return TRUE;
     }
 
-#ifdef FEATURE_MAPT
     if( AnscEqualString(ParamName, "X_RDKCENTRAL-COM_IPv4Address", TRUE))
     {
         /* save update to backup */
@@ -1100,7 +1097,6 @@ BOOL WanMapRule_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, ch
 
         return TRUE;
     }
-#endif
 
     return FALSE;
 }
