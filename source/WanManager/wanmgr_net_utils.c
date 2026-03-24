@@ -2790,7 +2790,7 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
         perror("popen");
         return -1;
     }
-        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
 
     // Read the output line by line
     while (fgets(buffer, sizeof(buffer), fp) != NULL) 
@@ -2807,13 +2807,13 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
             if (inet_pton(AF_INET6, p_VirtIf->IP.Ipv6RA.acDefaultGw, &addr) == 1)  //check parsed value is a valid ipv6 address
             {
                 ret = 0;
-                        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
 
                 break;
             }
         }
     }
-        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
 
     // Close the pipe
     pclose(fp);
@@ -2822,7 +2822,7 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
     {
         CcspTraceInfo(("%s %d: Received Router Advertisement with default route %s lifetime %d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6RA.acDefaultGw, p_VirtIf->IP.Ipv6RA.uiRouterLifetime));
     }
-        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
 
     return ret;
 }
