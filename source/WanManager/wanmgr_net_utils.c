@@ -489,6 +489,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
         CcspTraceError(("%s %d: Invalid args \n", __FUNCTION__, __LINE__));
         return 0;
     }
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
     // Send RS(Solicited) request when IPv6 source as SLAAC to comply RA(Solicited) response
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )
@@ -510,17 +511,27 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     }
     else
     {
+                CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+
         WanManager_send_and_receive_rs(pVirtIf);
+                CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+
     }
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
+            CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+
     WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
+            CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
 
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName , "true", ccsp_boolean, TRUE))
     {
@@ -534,6 +545,8 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
         pVirtIf->IP.Dhcp6cStatus = DHCPC_FAILED;
         CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
     }
+            CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+
     pVirtIf->IP.Dhcp6cPid = 1; //Set a dummy value to indicate dhcp client is started
     return 0;
 #else
@@ -2777,6 +2790,7 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
         perror("popen");
         return -1;
     }
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
     // Read the output line by line
     while (fgets(buffer, sizeof(buffer), fp) != NULL) 
@@ -2793,10 +2807,13 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
             if (inet_pton(AF_INET6, p_VirtIf->IP.Ipv6RA.acDefaultGw, &addr) == 1)  //check parsed value is a valid ipv6 address
             {
                 ret = 0;
+                        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+
                 break;
             }
         }
     }
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
     // Close the pipe
     pclose(fp);
@@ -2805,6 +2822,7 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
     {
         CcspTraceInfo(("%s %d: Received Router Advertisement with default route %s lifetime %d\n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6RA.acDefaultGw, p_VirtIf->IP.Ipv6RA.uiRouterLifetime));
     }
+        CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
     return ret;
 }

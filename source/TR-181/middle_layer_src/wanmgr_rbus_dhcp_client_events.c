@@ -183,16 +183,23 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
 
 void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
 {
+                CcspTraceInfo(("%s %d - Trace \n", __FUNCTION__, __LINE__));
+
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     char eventName[64] = {0};
     snprintf(eventName, sizeof(eventName), "%s.Events", DhcpInterface);
+                    CcspTraceInfo(("%s %d - Trace \n", __FUNCTION__, __LINE__));
+
     rc = rbusEvent_Subscribe(rbusHandle, eventName, WanMgr_DhcpClientEventsHandler, NULL, 60);
+                    CcspTraceInfo(("%s %d - Trace \n", __FUNCTION__, __LINE__));
+
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to Subscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));
         return;
     }
-    
+                    CcspTraceInfo(("%s %d - Trace \n", __FUNCTION__, __LINE__));
+
     CcspTraceInfo(("%s %d: Subscribed to %s  n", __FUNCTION__, __LINE__, eventName));
 }
 
