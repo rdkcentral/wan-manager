@@ -113,6 +113,8 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
  */
 void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
 {
+            CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
     if (eventData == NULL)
     {
         CcspTraceError(("%s-%d : eventData is NULL\n", __FUNCTION__, __LINE__));
@@ -122,8 +124,12 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
     DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(eventData->ifName);
     if(pVirtIf != NULL)
     {
+                    CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
         if(eventData->version == DHCPV4)
         {    
+            CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
             switch (eventData->type)
             {
                 case DHCP_CLIENT_STARTED:
@@ -146,11 +152,13 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     pVirtIf->IP.Ipv4Renewed = TRUE;
                     CcspTraceInfo(("%s-%d : DHCPv4 lease renewed for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
+                    CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
                     break;
 
                 case DHCP_LEASE_DEL:
                     CcspTraceInfo(("%s-%d : DHCPv4 lease expired for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_DOWN);
+                    CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
                     break;
 
                 case DHCP_LEASE_UPDATE:
@@ -168,16 +176,22 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                             CcspTraceInfo(("%s %d - gateway=[%s] Setting Iface Status to VALID\n", __FUNCTION__, __LINE__, eventData->lease.v4.gateway));
                             pVirtIf->Status = WAN_IFACE_STATUS_VALID;
                         }
+                                            CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
                         break;
                     }
+                    CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
 
                     copyDhcpv4Data(&(pVirtIf->IP.Ipv4Data), &(eventData->lease.v4));
                     pVirtIf->IP.Ipv4Changed = TRUE;
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
+                    CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
 
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv4Address", pVirtIf->baseIfIdx + 1, pVirtIf->VirIfIdx + 1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv4Data.ip, RBUS_STRING);
+                                        CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
                     break;
 
                 default:
@@ -187,6 +201,8 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
         }
         else if(eventData->version == DHCPV6)
         {
+                                CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
             switch (eventData->type)
             {
                 case DHCP_CLIENT_STARTED:
@@ -219,6 +235,8 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                 case DHCP_LEASE_DEL:
                     CcspTraceInfo(("%s-%d : DHCPv6 lease expired for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
+                                        CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
                     break;
 
                 case DHCP_LEASE_UPDATE:
@@ -266,13 +284,18 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPE_STOP);
                         }
                     }
+                    CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
 
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Address",  pVirtIf->baseIfIdx+1, pVirtIf->VirIfIdx+1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv6Data.address,RBUS_STRING);
+                                        CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Prefix",  pVirtIf->baseIfIdx+1, pVirtIf->VirIfIdx+1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv6Data.sitePrefix,RBUS_STRING);
                     //TODO: Check for sysevents
+                                        CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
                     break;
 
                 default:
@@ -280,6 +303,10 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     break;
             }
         } 
+                            CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
         WanMgr_VirtualIfaceData_release(pVirtIf);
     }
+                        CcspTraceError(("%s-%d : Trace \n", __FUNCTION__, __LINE__));
+
 }
