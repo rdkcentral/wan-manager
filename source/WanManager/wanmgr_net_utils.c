@@ -523,7 +523,10 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     char dmlName[256] = {0};
             CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
+    if (0 != access("/tmp/Ignore_V6Event", F_OK))
+    {
     WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
+}
             CcspTraceInfo(("%s %d - Trace %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
