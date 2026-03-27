@@ -782,8 +782,8 @@ typedef struct WANMGR_MAP_ST
 
 typedef struct _WANMGR_DATA_ST_
 {
-    //Mutex
-    pthread_mutex_t             gDataMutex;
+    //Read-Write Lock (allows concurrent readers, exclusive writers)
+    pthread_rwlock_t            gDataRwlock;
 
     //WAN CONFIG
     WanMgr_Config_Data_t        Config;

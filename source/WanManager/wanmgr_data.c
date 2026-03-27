@@ -35,8 +35,8 @@ WanMgr_Config_Data_t* WanMgr_GetConfigData_locked(void)
 {
     WanMgr_Config_Data_t* pWanConfigData = &(gWanMgrDataBase.Config);
 
-    //lock
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    //read lock (allows concurrent readers)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         return pWanConfigData;
     }
@@ -48,7 +48,7 @@ void WanMgrDml_GetConfigData_release(WanMgr_Config_Data_t* pWanConfigData)
 {
     if(pWanConfigData != NULL)
     {
-        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+        pthread_rwlock_unlock(&gWanMgrDataBase.gDataRwlock);
     }
 }
 
@@ -129,7 +129,7 @@ ANSC_STATUS WanMgr_Group_Configure()
 {
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
     CcspTraceInfo(("%s %d Initialize Wan Group Conf \n", __FUNCTION__, __LINE__));
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_wrlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceGroup_t *pWanIfacegroup = &(gWanMgrDataBase.IfaceGroup);
 
@@ -293,7 +293,7 @@ ANSC_STATUS WanMgr_WanIfaceConfInit(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
 ANSC_STATUS WanMgr_WanDataInit(void)
 {
     ANSC_STATUS retStatus = ANSC_STATUS_FAILURE;
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_wrlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         retStatus = WanMgr_WanIfaceConfInit(pWanIfaceCtrl);
@@ -332,7 +332,7 @@ ANSC_STATUS WanMgr_WanConfigInit(void)
 UINT WanMgr_IfaceData_GetTotalWanIface(void)
 {
    UINT TotalIfaces = 0;
-   if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+   if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
    {
        if(&(gWanMgrDataBase.IfaceCtrl) != NULL)
        {
@@ -345,7 +345,7 @@ UINT WanMgr_IfaceData_GetTotalWanIface(void)
 
 WanMgr_Iface_Data_t* WanMgr_GetIfaceData_locked(UINT iface_index)
 {
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(iface_index < pWanIfaceCtrl->ulTotalNumbWanInterfaces)
@@ -364,7 +364,7 @@ WanMgr_Iface_Data_t* WanMgr_GetIfaceData_locked(UINT iface_index)
 
 DML_VIRTUAL_IFACE* WanMgr_getVirtualIface_locked(UINT baseIfidx, UINT virtIfIdx)
 {
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(baseIfidx < pWanIfaceCtrl->ulTotalNumbWanInterfaces)
@@ -382,7 +382,7 @@ DML_VIRTUAL_IFACE* WanMgr_getVirtualIface_locked(UINT baseIfidx, UINT virtIfIdx)
 
 DML_VLAN_IFACE_TABLE* WanMgr_getVlanIface_locked(UINT baseIfidx, UINT virtIfIdx, UINT vlanid)
 {
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(baseIfidx < pWanIfaceCtrl->ulTotalNumbWanInterfaces)
@@ -403,13 +403,13 @@ void WanMgr_VlanIfaceMutex_release(DML_VLAN_IFACE_TABLE* vlanIf)
     WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
     if(pWanIfaceCtrl != NULL)
     {
-        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+        pthread_rwlock_unlock(&gWanMgrDataBase.gDataRwlock);
     }
 }
 
 DML_VIRTIF_MARKING* WanMgr_getVirtualMarking_locked(UINT baseIfidx, UINT virtIfIdx, UINT Markingid)
 {
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(baseIfidx < pWanIfaceCtrl->ulTotalNumbWanInterfaces)
@@ -430,7 +430,7 @@ void WanMgr_VirtMarkingMutex_release(DML_VIRTIF_MARKING* virtMarking)
     WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
     if(pWanIfaceCtrl != NULL)
     {
-        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+        pthread_rwlock_unlock(&gWanMgrDataBase.gDataRwlock);
     }
 }
 
@@ -438,7 +438,7 @@ WanMgr_Iface_Data_t* WanMgr_GetIfaceDataByName_locked(char* iface_name)
 {
    UINT idx;
 
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(pWanIfaceCtrl->pIface != NULL)
@@ -481,7 +481,7 @@ DML_VIRTUAL_IFACE* WanMgr_GetVirtualIfaceByName_locked(const char* iface_name)
         return NULL;
     }
 
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(pWanIfaceCtrl->pIface != NULL)
@@ -530,7 +530,7 @@ DML_VIRTUAL_IFACE* WanMgr_GetVIfByName_VISM_running_locked(const char* iface_nam
         return NULL;
     }
 
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(pWanIfaceCtrl->pIface != NULL)
@@ -668,7 +668,7 @@ DML_VIRTUAL_IFACE* WanMgr_getVirtualIfaceById(DML_VIRTUAL_IFACE* virIface, UINT 
 
 void WanMgr_GetIfaceAliasNameByIndex(UINT iface_index, char *AliasName)
 {
-    if(pthread_mutex_lock(&(gWanMgrDataBase.gDataMutex)) == 0)
+    if(pthread_rwlock_rdlock(&(gWanMgrDataBase.gDataRwlock)) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(iface_index < pWanIfaceCtrl->ulTotalNumbWanInterfaces)
@@ -693,7 +693,7 @@ UINT WanMgr_GetIfaceIndexByAliasName(char* AliasName)
        return index;
     }
 
-    if(pthread_mutex_lock(&(gWanMgrDataBase.gDataMutex)) == 0)
+    if(pthread_rwlock_rdlock(&(gWanMgrDataBase.gDataRwlock)) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(pWanIfaceCtrl->pIface != NULL)
@@ -720,7 +720,7 @@ void WanMgrDml_GetIfaceData_release(WanMgr_Iface_Data_t* pWanIfaceData)
     WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
     if(pWanIfaceCtrl != NULL)
     {
-        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+        pthread_rwlock_unlock(&gWanMgrDataBase.gDataRwlock);
     }
 }
 
@@ -729,14 +729,14 @@ void WanMgr_VirtualIfaceData_release(DML_VIRTUAL_IFACE* pVirtIf)
     WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
     if(pWanIfaceCtrl != NULL)
     {
-        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+        pthread_rwlock_unlock(&gWanMgrDataBase.gDataRwlock);
     }
 }
 
 UINT WanMgr_GetTotalNoOfGroups()
 {
     UINT groupCount = MAX_INTERFACE_GROUP; 
-    if(pthread_mutex_lock(&(gWanMgrDataBase.gDataMutex)) == 0)
+    if(pthread_rwlock_rdlock(&(gWanMgrDataBase.gDataRwlock)) == 0)
     {
                 WanMgr_IfaceGroup_t* pWanIfaceGroup = &(gWanMgrDataBase.IfaceGroup);
         groupCount = pWanIfaceGroup->ulTotalNumbWanIfaceGroup;
@@ -748,7 +748,7 @@ UINT WanMgr_GetTotalNoOfGroups()
 
 WANMGR_IFACE_GROUP* WanMgr_GetIfaceGroup_locked(UINT iface_index)
 {
-    if(pthread_mutex_lock(&(gWanMgrDataBase.gDataMutex)) == 0)
+    if(pthread_rwlock_rdlock(&(gWanMgrDataBase.gDataRwlock)) == 0)
     {
         WanMgr_IfaceGroup_t* pWanIfaceGroup = &(gWanMgrDataBase.IfaceGroup);
         if(iface_index < pWanIfaceGroup->ulTotalNumbWanIfaceGroup)
@@ -770,7 +770,7 @@ void WanMgrDml_GetIfaceGroup_release(void)
     WanMgr_IfaceGroup_t* pWanIfaceGroup = &(gWanMgrDataBase.IfaceGroup);
     if(pWanIfaceGroup != NULL)
     {
-        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+        pthread_rwlock_unlock(&gWanMgrDataBase.gDataRwlock);
     }
 }
 
@@ -941,7 +941,7 @@ void WanMgr_Data_Init(void)
 
     WanMgr_SetIfaceGroup_Default(&(pWanMgrData->IfaceGroup));
 
-    pthread_mutex_init(&(gWanMgrDataBase.gDataMutex), &(muttex_attr));
+    pthread_rwlock_init(&(gWanMgrDataBase.gDataRwlock), NULL);
 
     /*** WAN MAP ***/
     WanMgr_SetMapCtrl_Default(&(pWanMgrMapData->MapDomainCtrl));
@@ -957,14 +957,14 @@ ANSC_STATUS WanMgr_Data_Delete(void)
     /*** WAN IFACECTRL ***/
     WanMgr_IfaceCtrl_Delete(&(pWanMgrData->IfaceCtrl));
 
-    pthread_mutex_destroy(&(gWanMgrDataBase.gDataMutex));
+    pthread_rwlock_destroy(&(gWanMgrDataBase.gDataRwlock));
     return result;
 }
 
 ANSC_STATUS WanMgr_Remote_IfaceData_configure(char *remoteCPEMac, int  *iface_index)
 {
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_wrlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         WanMgr_Iface_Data_t*  pIfaceData = NULL;
@@ -1082,7 +1082,7 @@ DML_VIRTUAL_IFACE* WanMgr_GetVirtIfDataByAlias_locked(char* Alias)
     }
     UINT idx;
 
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(pWanIfaceCtrl->pIface != NULL)
@@ -1114,7 +1114,7 @@ DML_VIRTUAL_IFACE* WanMgr_GetActiveVirtIfData_locked(void)
 {
     UINT idx = 0;
 
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    if(pthread_rwlock_rdlock(&gWanMgrDataBase.gDataRwlock) == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(pWanIfaceCtrl->pIface != NULL)
