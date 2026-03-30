@@ -751,13 +751,23 @@ WanDmlMapDomGetRule_Data
         snprintf(pMapRule->Alias, sizeof(pMapRule->Alias), "Rule_%lu", ulIndex + 1);
         AnscCopyString(pMapRule->Origin, "DHCPv6");
         AnscCopyString(pMapRule->IPv6Prefix, pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv6Prefix);
-        AnscCopyString(pMapRule->IPv4Prefix, pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv4Prefix);
+        if (pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv4Prefix[0] != '\0')
+	{
+            // fetch IPv4Prefix in CIDR format for TR-181
+            snprintf(pMapRule->IPv4Prefix, sizeof(pMapRule->IPv4Prefix), "%s/%u",
+                         pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv4Prefix,
+                         pVirtIf->MAP.dhcp6cMAPparameters.v4Len);
+        }
+#ifdef FEATURE_MAPT
+        AnscCopyString(pMapRule->IPv4Address, pVirtIf->MAP.MaptConfig.ipAddressString);
+#endif
 
         pMapRule->EABitsLength = pVirtIf->MAP.dhcp6cMAPparameters.eaLen;
         pMapRule->IsFMR = pVirtIf->MAP.dhcp6cMAPparameters.isFMR;
         pMapRule->PSIDOffset = pVirtIf->MAP.dhcp6cMAPparameters.psidOffset;
         pMapRule->PSIDLength = pVirtIf->MAP.dhcp6cMAPparameters.psidLen;
         pMapRule->PSID = pVirtIf->MAP.dhcp6cMAPparameters.psid;
+        pMapRule->Ratio = pVirtIf->MAP.dhcp6cMAPparameters.ratio;
         pMapRule->IncludeSystemPorts = FALSE;
     }
     else
@@ -770,11 +780,13 @@ WanDmlMapDomGetRule_Data
         AnscCopyString(pMapRule->Origin, "DHCPv6");
         pMapRule->IPv6Prefix[0] = '\0';
         pMapRule->IPv4Prefix[0] = '\0';
+        pMapRule->IPv4Address[0] = '\0';
         pMapRule->EABitsLength = 0;
         pMapRule->IsFMR = 0;
         pMapRule->PSIDOffset = 0;
         pMapRule->PSIDLength = 0;
         pMapRule->PSID = 0;
+        pMapRule->Ratio = 0;
         pMapRule->IncludeSystemPorts = FALSE;
     }
 
@@ -866,6 +878,11 @@ WanDmlMapDomSetRule
         AnscCopyString(pBuf_rule->IPv4Prefix, pEntry->IPv4Prefix);
     }
 
+    if (0 != strcmp(pEntry->IPv4Address, pBuf_rule->IPv4Address))
+    {
+        AnscCopyString(pBuf_rule->IPv4Address, pEntry->IPv4Address);
+    }
+
     if (pEntry->EABitsLength != pBuf_rule->EABitsLength)
     {
         pBuf_rule->EABitsLength = pEntry->EABitsLength;
@@ -889,6 +906,11 @@ WanDmlMapDomSetRule
     if (pEntry->PSID != pBuf_rule->PSID)
     {
         pBuf_rule->PSID = pEntry->PSID;
+    }
+
+    if (pEntry->Ratio != pBuf_rule->Ratio)
+    {
+        pBuf_rule->Ratio = pEntry->Ratio;
     }
 
     if (pEntry->IncludeSystemPorts != pBuf_rule->IncludeSystemPorts)
