@@ -158,7 +158,7 @@ ANSC_STATUS WanMgr_FailOverCtrlInit(WanMgr_FailOver_Controller_t* pFailOverContr
         }
         else
         {
-            CcspTraceWarn(("%s %d: FailOverType not found in PSM (Error %d), using default HOTSWAP\n", __FUNCTION__, __LINE__, retPsmGet));
+            CcspTraceError(("%s %d: FailOverType not found in PSM (Error %d), using default HOTSWAP\n", __FUNCTION__, __LINE__, retPsmGet));
             g_cachedFailOverType = HOTSWAP;
         }
         
