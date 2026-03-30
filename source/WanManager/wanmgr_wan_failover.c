@@ -28,6 +28,11 @@
 
 #define FAILOVER_SM_LOOP_TIMEOUT 300000 // timeout 
 
+/* FailOverType caching - read from PSM only once */
+static FAILOVER_TYPE g_cachedFailOverType = HOTSWAP;
+static bool g_failOverTypeInitialized = false;
+static pthread_mutex_t g_failOverTypeLock = PTHREAD_MUTEX_INITIALIZER;
+
 extern void *WanMgr_AutoWanSelectionProcess (void* arg);
 extern void *WanMgr_ParallelScanSelectionProcess (void* arg);
 
@@ -138,13 +143,30 @@ ANSC_STATUS WanMgr_FailOverCtrlInit(WanMgr_FailOver_Controller_t* pFailOverContr
         }
     }
 
-    //Read Failover type from PSM
-    char param_value[256] = {0};
-    int retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(PSM_WANMANAGER_FAILOVER_TYPE, param_value,sizeof(param_value));
-    if (retPsmGet == CCSP_SUCCESS)
+    // Read Failover type from PSM (cached - only reads once)
+    pthread_mutex_lock(&g_failOverTypeLock);
+    
+    if (!g_failOverTypeInitialized)
     {
-        _ansc_sscanf(param_value, "%d", &(pFailOverController->FailOverType));
+        char param_value[256] = {0};
+        int retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(PSM_WANMANAGER_FAILOVER_TYPE, param_value, sizeof(param_value));
+        
+        if (retPsmGet == CCSP_SUCCESS)
+        {
+            _ansc_sscanf(param_value, "%d", &g_cachedFailOverType);
+            CcspTraceInfo(("%s %d: FailOverType read from PSM: %d\n", __FUNCTION__, __LINE__, g_cachedFailOverType));
+        }
+        else
+        {
+            CcspTraceWarn(("%s %d: FailOverType not found in PSM (Error %d), using default HOTSWAP\n", __FUNCTION__, __LINE__, retPsmGet));
+            g_cachedFailOverType = HOTSWAP;
+        }
+        
+        g_failOverTypeInitialized = true;
     }
+    
+    pFailOverController->FailOverType = g_cachedFailOverType;
+    pthread_mutex_unlock(&g_failOverTypeLock);
 
     return ANSC_STATUS_SUCCESS;
 }
