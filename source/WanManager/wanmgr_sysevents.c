@@ -883,13 +883,24 @@ static void *WanManagerSyseventHandler(void *args)
                 /*ToDo
                  *This is temporary changes because of Voice Issue,
                  * For More Info, please Refer RDKB-38461.
+                 * TODO: remove this when IPV6 moved from the LAN bridge.
                  */
                 char ifName[64] = {0};
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_CONNECTION_STATE, STATUS_DOWN_STRING, 0);
                 sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, ifName, sizeof(ifName));
                 if(strlen(ifName) > 0)
                 {
+#if defined( FEATURE_RDKB_DHCP_MANAGER )
+                    //in case of DHCP manager enabled builds set the ipv6 change flag to true, So VISM will reconfigure the lease.
+                    DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVirtualIfaceByName_locked(ifName);
+                    if(pVirtIf != NULL)
+                    {
+                        pVirtIf->IP.Ipv6Changed = TRUE;
+                        WanMgr_VirtualIfaceData_release(pVirtIf);
+                    }
+#else
                     WanMgr_SetInterfaceStatus(ifName, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
+#endif
                     Wan_ForceRenewDhcpIPv6(ifName);
                 }
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);

@@ -319,7 +319,25 @@ static ANSC_STATUS Wan_ForceRenewDhcpIPv4(char *ifName)
 
 ANSC_STATUS Wan_ForceRenewDhcpIPv6(char *ifName)
 {
+#if defined( FEATURE_RDKB_DHCP_MANAGER )
+    char dmlName[256] = {0};
+    DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVirtualIfaceByName_locked(ifName);
+    if(pVirtIf != NULL)
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.Renew", pVirtIf->IP.DHCPv6Iface );
+        if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName , "true", ccsp_boolean, TRUE))
+        {
+            CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        }
+        else
+        {
+            CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        }
+        WanMgr_VirtualIfaceData_release(pVirtIf);
+        return ANSC_STATUS_SUCCESS;
+    }
 
+#else
     /*send triggered renew request to DHCPv6C*/
     int pid = util_getPidByName(DHCPV6_CLIENT_NAME, ifName);
     if (pid > 0 )
@@ -327,7 +345,7 @@ ANSC_STATUS Wan_ForceRenewDhcpIPv6(char *ifName)
         CcspTraceInfo(("sending SIGUSR2 to dhcp6c, this will let the dhcp6c to send renew packet out \n"));
         util_signalProcess(pid, SIGUSR2);
     }
-
+#endif
     return  ANSC_STATUS_SUCCESS; 
 }
 

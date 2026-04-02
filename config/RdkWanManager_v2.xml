@@ -1580,6 +1580,12 @@
            <writable>false</writable>
            </parameter>
            <parameter>
+           <name>X_RDKCENTRAL-COM_IPv4Address</name>
+           <type>string</type>
+           <syntax>string</syntax>
+           <writable>false</writable>
+           </parameter>
+           <parameter>
            <name>EABitsLength</name>
            <type>unsignedInt</type>
            <syntax>uint32</syntax>
@@ -1605,6 +1611,12 @@
            </parameter>
            <parameter>
            <name>PSID</name>
+           <type>unsignedInt</type>
+           <syntax>uint32</syntax>
+           <writable>false</writable>
+           </parameter>
+           <parameter>
+           <name>X_RDKCENTRAL-COM_Ratio</name>
            <type>unsignedInt</type>
            <syntax>uint32</syntax>
            <writable>false</writable>

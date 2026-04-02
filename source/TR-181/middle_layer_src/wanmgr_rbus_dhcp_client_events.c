@@ -28,6 +28,98 @@
 
 extern rbusHandle_t rbusHandle;
 
+/*
+ * DHCP event queue – FIFO linked list protected by mutex + condvar.
+ * A single persistent worker thread drains the queue so events are
+ * always processed in the order they arrive.
+ */
+static DhcpEventThreadArgs *g_dhcpEventQueueHead = NULL;
+static DhcpEventThreadArgs *g_dhcpEventQueueTail = NULL;
+static pthread_mutex_t      g_dhcpEventQueueMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t       g_dhcpEventQueueCond  = PTHREAD_COND_INITIALIZER;
+static int                  g_dhcpEventWorkerRunning = 0;
+
+/* Worker thread: drains the queue in strict FIFO order. */
+static void* WanMgr_DhcpEventQueueWorker(void *arg)
+{
+    (void)arg;
+    pthread_detach(pthread_self());
+
+    while (1)
+    {
+        DhcpEventThreadArgs *eventData = NULL;
+
+        pthread_mutex_lock(&g_dhcpEventQueueMutex);
+        /* Wait until there is at least one event in the queue */
+        while (g_dhcpEventQueueHead == NULL)
+        {
+            pthread_cond_wait(&g_dhcpEventQueueCond, &g_dhcpEventQueueMutex);
+        }
+
+        /* Dequeue the head element */
+        eventData = g_dhcpEventQueueHead;
+        g_dhcpEventQueueHead = eventData->next;
+        if (g_dhcpEventQueueHead == NULL)
+        {
+            g_dhcpEventQueueTail = NULL;
+        }
+        eventData->next = NULL;
+        pthread_mutex_unlock(&g_dhcpEventQueueMutex);
+
+        /* Process the event — this runs outside the queue lock so that
+         * new events can still be enqueued while we process. */
+        CcspTraceInfo(("%s-%d : Dequeued DHCP event (type %d) for %s\n",
+                       __FUNCTION__, __LINE__, eventData->type, eventData->ifName));
+        WanMgr_ProcessDhcpClientEvent(eventData);
+        free(eventData);
+    }
+
+    return NULL;
+}
+
+/* Enqueue a DHCP event and ensure the worker thread is running. */
+void WanMgr_DhcpEventQueue_Enqueue(DhcpEventThreadArgs *eventData)
+{
+    if (eventData == NULL)
+    {
+        return;
+    }
+
+    eventData->next = NULL;
+
+    pthread_mutex_lock(&g_dhcpEventQueueMutex);
+
+    /* Append to tail of queue */
+    if (g_dhcpEventQueueTail != NULL)
+    {
+        g_dhcpEventQueueTail->next = eventData;
+    }
+    else
+    {
+        g_dhcpEventQueueHead = eventData;
+    }
+    g_dhcpEventQueueTail = eventData;
+
+    /* Start the worker thread on first use */
+    if (!g_dhcpEventWorkerRunning)
+    {
+        pthread_t workerThread;
+        if (pthread_create(&workerThread, NULL, WanMgr_DhcpEventQueueWorker, NULL) == 0)
+        {
+            g_dhcpEventWorkerRunning = 1;
+            CcspTraceInfo(("%s-%d : DHCP event queue worker thread started\n", __FUNCTION__, __LINE__));
+        }
+        else
+        {
+            CcspTraceError(("%s-%d : Failed to create DHCP event queue worker thread\n", __FUNCTION__, __LINE__));
+        }
+    }
+
+    /* Signal the worker that a new event is available */
+    pthread_cond_signal(&g_dhcpEventQueueCond);
+    pthread_mutex_unlock(&g_dhcpEventQueueMutex);
+}
+
 static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
 {
     (void)handle;
@@ -40,8 +132,6 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
         return;
     }
-
-    pthread_t dhcpEvent_thread;
 
     //CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
@@ -86,14 +176,8 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
             }
         }
 
-        if(pthread_create(&dhcpEvent_thread, NULL, WanMgr_DhcpClientEventsHandler_Thread, eventData) != 0)
-        {
-            CcspTraceError(("%s %d: Failed to create thread for DHCPv4 event\n", __FUNCTION__, __LINE__));
-            free(eventData);
-            return;
-        }
-        /* Adding sleep to make sure the thread locks the DhcpClientEvents_mutex */
-        usleep(10000);
+        /* Enqueue the event for ordered processing by the worker thread */
+        WanMgr_DhcpEventQueue_Enqueue(eventData);
     }
 }
 
@@ -106,7 +190,7 @@ void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to Subscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));
-        return NULL;
+        return;
     }
     
     CcspTraceInfo(("%s %d: Subscribed to %s  n", __FUNCTION__, __LINE__, eventName));
@@ -121,7 +205,7 @@ void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface)
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to UnSubscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));
-        return NULL;
+        return;
     }
     
     CcspTraceInfo(("%s %d: UnSubscribed to %s  n", __FUNCTION__, __LINE__, eventName));
