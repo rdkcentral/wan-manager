@@ -479,6 +479,7 @@ typedef struct _DML_WANIFACE_SUBSCRIBE
     UINT WanStatusSub;
     UINT WanLinkStatusSub;
     UINT WanEnableSub;
+    UINT AliasSub;
 } DML_WANIFACE_SUBSCRIBE;
 
 typedef enum

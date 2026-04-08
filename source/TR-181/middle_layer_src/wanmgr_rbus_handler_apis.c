@@ -320,6 +320,28 @@ rbusError_t wanMgrDmlPublishEventHandler(rbusHandle_t handle, rbusEventSubAction
                 CcspTraceInfo(("%s-%d : Selection Enable UnSub(%d) \n", __FUNCTION__, __LINE__, pWanDmlIface->Sub.WanEnableSub));
             }
         }
+     else if(strstr(name, WANMGR_INFACE_ALIASNAME_SUFFIX))
+        {
+            if (action == RBUS_EVENT_ACTION_SUBSCRIBE)
+            {
+                if (pWanDmlIface->Sub.AliasSub == 0)
+                {
+                    pWanDmlIface->Sub.AliasSub = 1;
+                }
+                else
+                {
+                    pWanDmlIface->Sub.AliasSub++;
+                }
+                CcspTraceInfo(("%s-%d : Alias Name Sub(%d) \n", __FUNCTION__, __LINE__, pWanDmlIface->Sub.AliasSub));
+            }
+            else
+            {
+                if (pWanDmlIface->Sub.AliasSub)
+                    pWanDmlIface->Sub.AliasSub--;
+                CcspTraceInfo(("%s-%d : Alias Name UnSub(%d) \n", __FUNCTION__, __LINE__, pWanDmlIface->Sub.AliasSub));
+            }
+        }
+
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
     }
     return RBUS_ERROR_SUCCESS;
@@ -581,6 +603,35 @@ rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop
                 ret = RBUS_ERROR_INVALID_INPUT;
             }
         }
+        else if(strstr(name, WANMGR_INFACE_ALIASNAME_SUFFIX))
+        {
+            if (type == RBUS_STRING)
+            {
+                char AliasName[64] = {0};
+                char param_name[256] = {0};
+                strncpy(AliasName, rbusValue_GetString(value, NULL), sizeof(AliasName)-1);
+                _ansc_sprintf(param_name, PSM_WANMANAGER_IF_ALIAS, index);
+                strncpy(pWanDmlIface->AliasName, AliasName, sizeof(pWanDmlIface->AliasName)-1);
+                WanMgr_RdkBus_SetParamValuesToDB(param_name, AliasName);
+                CcspTraceInfo(("%s-%d : Interface AliasName changed to %s\n", __FUNCTION__, __LINE__, AliasName));
+                if (pWanDmlIface->Sub.AliasSub)
+                {
+                    CcspTraceInfo(("%s-%d : Interface AliasName Publish Event, SubCount(%d)\n", __FUNCTION__, __LINE__, pWanDmlIface->Sub.AliasSub));
+                    WanMgr_Rbus_EventPublishHandler(name, AliasName, type);
+#if defined(WAN_MANAGER_UNIFICATION_ENABLED)
+                    char DmlNameV1[128] = {0};
+                    snprintf(DmlNameV1, sizeof(DmlNameV1), WANMGR_V1_INFACE_TABLE".%d"WANMGR_V1_INFACE_ALIASNAME_SUFFIX,index);
+                    CcspTraceInfo(("%s-%d : V1 DML Publish Event %s\n", __FUNCTION__, __LINE__,DmlNameV1 ));
+                    WanMgr_Rbus_EventPublishHandler(DmlNameV1, AliasName, type);
+#endif /** WAN_MANAGER_UNIFICATION_ENABLED */
+                }
+            }
+            else
+            {
+                ret = RBUS_ERROR_INVALID_INPUT;
+            }
+        }
+
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
     }
     return ret;
