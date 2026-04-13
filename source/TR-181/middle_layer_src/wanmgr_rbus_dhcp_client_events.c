@@ -32,31 +32,24 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
 {
     (void)handle;
     (void)subscription;
-    if ((event == NULL) || (event->name == NULL) || (event->data == NULL))
+    const char* eventName = event->name;
+    if((eventName == NULL))
     {
-        CcspTraceError(("%s: event data is NULL\n", __FUNCTION__));
+        CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
         return;
     }
-
-    const char* eventName = event->name;
     pthread_t dhcpEvent_thread;
 
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
     {
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
-        if (eventData == NULL)
-        {
-            CcspTraceError(("%s: failed to allocate event data\n", __FUNCTION__));
-            return;
-        }
-
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
         rbusValue_t value;
         value = rbusObject_GetValue(event->data, "IfName");
         if(value == NULL)
         {
-            CcspTraceError(("%s: failed to get IfName from event data\n", __FUNCTION__));
+            CcspTraceError(("%s %d: Failed to get IfName from event data\n", __FUNCTION__, __LINE__));
             free(eventData);
             return;
         }
@@ -66,7 +59,7 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         value = rbusObject_GetValue(event->data, "MsgType");
         if(value == NULL)
         {
-            CcspTraceError(("%s: failed to get MsgType from event data\n", __FUNCTION__));
+            CcspTraceError(("%s %d: Failed to get MsgType from event data\n", __FUNCTION__, __LINE__));
             free(eventData);
             return;
         }
@@ -119,10 +112,8 @@ void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
 
     snprintf(eventName, sizeof(eventName), "%s.Events", DhcpInterface);
     rbusEventSubscription_t subscription = {eventName, NULL, 0, 0, WanMgr_DhcpClientEventsHandler, NULL, NULL, NULL, true};
-    CcspTraceInfo(("%s %d:<<DEBUG>> Subscribing to %s  n", __FUNCTION__, __LINE__, eventName));
 
     rc = rbusEvent_SubscribeEx(rbusHandle, &subscription, 1, 60);
-    CcspTraceInfo(("%s %d:<<DEBUG>> Subscribed to %s  n", __FUNCTION__, __LINE__, eventName));
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to Subscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));
