@@ -53,11 +53,23 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         CcspTraceInfo(("%s %d:<<DEBUG>> DHCP version %s\n", __FUNCTION__, __LINE__, eventData->version == DHCPV4 ? "DHCPv4" : "DHCPv6"));
         rbusValue_t value;
         value = rbusObject_GetValue(event->data, "IfName");
+        if(value == NULL)
+        {
+            CcspTraceError(("%s %d:<<DEBUG>> Failed to get IfName from event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
         CcspTraceInfo(("%s %d:<<DEBUG>> 1\n", __FUNCTION__, __LINE__));
         strncpy(eventData->ifName , rbusValue_GetString(value, NULL), sizeof(eventData->ifName)-1);
         CcspTraceInfo(("%s-%d : DHCP client event %s received for  %s\n", __FUNCTION__, __LINE__, eventName, eventData->ifName));
 
         value = rbusObject_GetValue(event->data, "MsgType");
+        if(value == NULL)
+        {
+            CcspTraceError(("%s %d:<<DEBUG>> Failed to get MsgType from event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
         eventData->type = rbusValue_GetUInt32(value);
 
         if(eventData->type == DHCP_LEASE_UPDATE)
