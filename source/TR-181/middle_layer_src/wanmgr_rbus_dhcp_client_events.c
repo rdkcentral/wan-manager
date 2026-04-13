@@ -32,41 +32,41 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
 {
     (void)handle;
     (void)subscription;
-    CcspTraceInfo(("%s %d:<<DEBUG>> WanMgr_DhcpClientEventsHandler Enters \n", __FUNCTION__, __LINE__));
-    const char* eventName = event->name;
-    CcspTraceInfo(("%s %d:<<DEBUG>> A\n", __FUNCTION__, __LINE__));
-    if((eventName == NULL))
+    if ((event == NULL) || (event->name == NULL) || (event->data == NULL))
     {
-        CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
+        CcspTraceError(("%s: event data is NULL\n", __FUNCTION__));
         return;
     }
-    CcspTraceInfo(("%s %d:<<DEBUG>> Received event %s\n", __FUNCTION__, __LINE__, eventName));
+
+    const char* eventName = event->name;
     pthread_t dhcpEvent_thread;
 
-    //CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
     {
-        CcspTraceInfo(("%s %d:<<DEBUG>> Received DHCP client event %s\n", __FUNCTION__, __LINE__, eventName));
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
+        if (eventData == NULL)
+        {
+            CcspTraceError(("%s: failed to allocate event data\n", __FUNCTION__));
+            return;
+        }
+
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
-        CcspTraceInfo(("%s %d:<<DEBUG>> DHCP version %s\n", __FUNCTION__, __LINE__, eventData->version == DHCPV4 ? "DHCPv4" : "DHCPv6"));
         rbusValue_t value;
         value = rbusObject_GetValue(event->data, "IfName");
         if(value == NULL)
         {
-            CcspTraceError(("%s %d:<<DEBUG>> Failed to get IfName from event data\n", __FUNCTION__, __LINE__));
+            CcspTraceError(("%s: failed to get IfName from event data\n", __FUNCTION__));
             free(eventData);
             return;
         }
-        CcspTraceInfo(("%s %d:<<DEBUG>> 1\n", __FUNCTION__, __LINE__));
         strncpy(eventData->ifName , rbusValue_GetString(value, NULL), sizeof(eventData->ifName)-1);
         CcspTraceInfo(("%s-%d : DHCP client event %s received for  %s\n", __FUNCTION__, __LINE__, eventName, eventData->ifName));
 
         value = rbusObject_GetValue(event->data, "MsgType");
         if(value == NULL)
         {
-            CcspTraceError(("%s %d:<<DEBUG>> Failed to get MsgType from event data\n", __FUNCTION__, __LINE__));
+            CcspTraceError(("%s: failed to get MsgType from event data\n", __FUNCTION__));
             free(eventData);
             return;
         }
