@@ -3270,7 +3270,7 @@ static eWanState_t wan_transition_map_down(WanMgr_IfaceSM_Controller_t* pWanIfac
 	}
 
     //Reset MAPT configuration
-    memset(&(pVirtIf->MAP.dhcp6cMAPparameters), 0, sizeof(ipc_map_data_t));
+    memset(&(p_VirtIf->MAP.dhcp6cMAPparameters), 0, sizeof(ipc_map_data_t));
 
 
         /* Clear DHCPv4 client */
