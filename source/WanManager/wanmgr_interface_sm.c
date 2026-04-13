@@ -3269,6 +3269,10 @@ static eWanState_t wan_transition_map_down(WanMgr_IfaceSM_Controller_t* pWanIfac
 #endif
 	}
 
+    //Reset MAPT configuration
+    memset(&(pVirtIf->MAP.dhcp6cMAPparameters), 0, sizeof(ipc_map_data_t));
+
+
         /* Clear DHCPv4 client */
         WanManager_UpdateInterfaceStatus(p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
         memset(&(p_VirtIf->IP.Ipv4Data), 0, sizeof(WANMGR_IPV4_DATA));
