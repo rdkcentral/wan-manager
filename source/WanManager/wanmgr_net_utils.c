@@ -535,8 +535,18 @@ ANSC_STATUS WanManager_StopDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
-    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "false", ccsp_boolean, TRUE))
+    char dmlValue[16] = {0};
+    if(is_release_required == STOP_DHCP_WITH_RELEASE)
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.X_RDK_Release", pVirtIf->IP.DHCPv6Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "true");
+    }
+    else
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "false");
+    }
+    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, dmlValue, ccsp_boolean, TRUE))
     {
         CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
         pVirtIf->IP.Dhcp6cStatus = DHCPC_STOPPED;
@@ -641,8 +651,18 @@ ANSC_STATUS WanManager_StopDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
     CcspTraceInfo (("%s %d: Stopping dhcpv4 client for %s %s\n", __FUNCTION__, __LINE__, pVirtIf->Name, (IsReleaseNeeded==STOP_DHCP_WITH_RELEASE)? "With release": "."));
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
-    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "false", ccsp_boolean, TRUE))
+    char dmlValue[16] = {0};
+    if(IsReleaseNeeded == STOP_DHCP_WITH_RELEASE)
+    {        
+        snprintf( dmlName, sizeof(dmlName), "%s.X_RDK_Release", pVirtIf->IP.DHCPv4Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "true");
+    }
+    else
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "false");
+    }
+    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, dmlValue, ccsp_boolean, TRUE))
     {
         CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
         pVirtIf->IP.Dhcp4cStatus = DHCPC_STOPPED;
