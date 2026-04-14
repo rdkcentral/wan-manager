@@ -1664,6 +1664,7 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
 
     memset(cmdLine, 0, sizeof(cmdLine));
     snprintf(cmdLine, sizeof(cmdLine), COSA_DML_WANIface_ADDR_SYSEVENT_NAME , pIpv6DataNew->ifname);
+    CcspTraceInfo(("Setting sysevent: %s = %s\n", cmdLine, pIpv6DataNew->address));
     sysevent_set(sysevent_fd, sysevent_token, cmdLine, pIpv6DataNew->address, 0);
 
     return 0;
