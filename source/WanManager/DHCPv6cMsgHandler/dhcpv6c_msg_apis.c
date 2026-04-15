@@ -234,7 +234,7 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                          if ( uiSubOption == MAPT_OPTION_S46_PORT_PARAMS &&
                               uiSubOptionLen == 4 )
                          {
-                              pCurOption += uiSubOptionLen;
+                              pCurOption += sizeof(COSA_DML_MAPT_OPTION);
                               g_stMaptData.PsidOffset  = *pCurOption;
                               g_stMaptData.PsidLen     = *++pCurOption;
 
