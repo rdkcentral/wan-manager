@@ -259,6 +259,42 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                               MAPT_LOG_INFO("<<<TRACE>>> g_stMaptData.PsidLen    : %u", g_stMaptData.PsidLen);
                               MAPT_LOG_INFO("<<<TRACE>>> g_stMaptData.PsidOffset : %u", g_stMaptData.PsidOffset);
                               MAPT_LOG_INFO("<<<TRACE>>> g_stMaptData.Ratio      : %u", g_stMaptData.Ratio);
+
+                              /* ------------------------------------------------------------------ */
+                              /* Reserved Port Range Validation (0–1023) */
+                              /* ------------------------------------------------------------------ */
+                              {
+                                  UINT8 psidoffset  = g_stMaptData.PsidOffset;
+                                  UINT8 psidLen = g_stMaptData.PsidLen;
+                                  UINT16 psid   = g_stMaptData.Psid;
+
+                                  /* Validate MAP-T bit allocation: psidLen + offset must fit within 16-bit port space
+                                   * to avoid negative shifts (m = 16 - (psidLen + offset)) and undefined behavior. 
+	                              */
+                                  if (psidLen <= 16 && (psidLen + psidoffset) <= 16)
+                                  {
+                                      UINT8 m = 16 - (psidLen + psidoffset);
+
+                                      /* Lowest possible port for this CE */
+                                      UINT32 min_port = (psid << m);
+
+                                      /* Highest port in first block */
+                                      UINT32 max_first_block = min_port + ((1 << m) - 1);
+
+                                      if (min_port < 1024 || max_first_block < 1024)
+                                      {
+                                          MAPT_LOG_ERROR(
+                                              "MAP-T WARNING: Reserved port usage detected! psid=%u psidLen=%u offset=%u min_port=%u max_port=%u",
+                                              psid, psidLen, psidoffset, min_port, max_first_block
+                                          );
+                                      }
+                                  }
+                                  else
+                                  {
+                                      MAPT_LOG_WARNING("MAP-T WARNING: Invalid MAP parameters! psidLen=%u offset=%u", psidLen, offset);
+                                  }
+                              }
+                              /* ------------------------------------------------------------------ */
                               MAPT_LOG_INFO("Parsing OPTION_S46_PORT_PARAM Successful.");
                          }
                          else
