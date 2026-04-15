@@ -515,10 +515,10 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
+    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
 
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
 
@@ -634,10 +634,10 @@ int WanManager_StartDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, char* baseInterface
     }
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv4Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
+    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "true", ccsp_boolean, TRUE))
     {
