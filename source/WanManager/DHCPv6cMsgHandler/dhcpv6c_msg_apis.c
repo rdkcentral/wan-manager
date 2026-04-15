@@ -216,8 +216,7 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
 
                g_stMaptData.Ratio = 1 << (g_stMaptData.EaLen -
                                                     (BUFLEN_32 - g_stMaptData.RuleIPv4PrefixLen));
-               /* RFC default */
-               g_stMaptData.PsidOffset = 6;
+
                MAPT_LOG_INFO("<<<TRACE>>> g_stMaptData.Ratio             : %u", g_stMaptData.Ratio);
                MAPT_LOG_INFO("<<<TRACE>>> bytesLeftOut                   : %u", bytesLeftOut);
                if ( bytesLeftOut > 0 )
@@ -235,11 +234,17 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                          if ( uiSubOption == MAPT_OPTION_S46_PORT_PARAMS &&
                               uiSubOptionLen == 4 )
                          {
-                              g_stMaptData.PsidOffset  = (*(pCurOption += uiSubOptionLen))?
-                                                                 *pCurOption:6;
+                              pCurOption += uiSubOptionLen;
+                              g_stMaptData.PsidOffset  = *pCurOption;
                               g_stMaptData.PsidLen     = *++pCurOption;
 
-                              if ( !g_stMaptData.EaLen )
+                              // allowed PsidOffset values are 0 to 15
+                              if (g_stMaptData.PsidOffset > 15)
+							  {
+                                  MAPT_LOG_ERROR("Parsing OPTION_S46_PORT_PARAM: Received invalid PsidOffset :%d");
+                                  return STATUS_FAILURE;
+							  }
+							  if ( !g_stMaptData.EaLen )
                               {
                                    g_stMaptData.Ratio = 1 << g_stMaptData.PsidLen;
                               }
