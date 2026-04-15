@@ -291,7 +291,7 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                                   }
                                   else
                                   {
-                                      MAPT_LOG_WARNING("MAP-T WARNING: Invalid MAP parameters! psidLen=%u offset=%u", psidLen, offset);
+                                      MAPT_LOG_WARNING("MAP-T WARNING: Invalid MAP parameters! psidLen=%u offset=%u", psidLen, psidoffset);
                                   }
                               }
                               /* ------------------------------------------------------------------ */
