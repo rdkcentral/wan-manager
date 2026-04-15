@@ -517,6 +517,7 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     char dmlName[256] = {0};
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
+    CcspTraceInfo(("%s %d -<<DEBUG>> Setting %s => %s\n", __FUNCTION__, __LINE__, dmlName, pVirtIf->Name));
     memset(dmlName, 0, sizeof(dmlName));
     WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
 

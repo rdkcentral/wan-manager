@@ -125,15 +125,17 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
     (void)handle;
     (void)subscription;
     const char* eventName = event->name;
+    CcspTraceInfo(("%s %d:<<DEBUG>> Received event %s\n", __FUNCTION__, __LINE__, eventName));
     if((eventName == NULL))
     {
         CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
         return;
     }
   
-    //CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
+    CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
     {
+        CcspTraceInfo(("%s %d:<<DEBUG>> Processing DHCP client event %s\n", __FUNCTION__, __LINE__, eventName));
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
