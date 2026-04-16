@@ -141,7 +141,7 @@ extern token_t sysevent_token;
 #define CMAGENT_COMPONENT_NAME "eRT.com.cisco.spvtg.ccsp.cm"
 #define CMAGENT_COMP_NAME_WITHOUTSUBSYSTEM "com.cisco.spvtg.ccsp.cm"
 #define CMAGENT_COMPONENT_PATH "/com/cisco/spvtg/ccsp/cm"
-#define CMAGENT_PHY_STATUS_DM_SUFFIX             "CMStatus"
+#define CMAGENT_PHY_STATUS_DM_SUFFIX             ".CMStatus"
 
 //Cellular Manager
 #define CELLULAR_COMPONENT_NAME "eRT.com.cisco.spvtg.ccsp.cellularmanager"
