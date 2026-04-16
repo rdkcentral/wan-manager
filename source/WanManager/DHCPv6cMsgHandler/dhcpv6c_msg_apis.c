@@ -274,18 +274,17 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                                   if (psidLen <= 16 && (psidLen + psidoffset) <= 16)
                                   {
                                       UINT8 m = 16 - (psidLen + psidoffset);
+                                      UINT8 block_shift = 16 - offset;
+                                      UINT32 min_i = (offset == 0) ? 0 : 1;
 
                                       /* Lowest possible port for this CE */
-                                      UINT32 min_port = (psid << m);
+                                      UINT32 min_port = (min_i << block_shift) + (psid << m);
 
-                                      /* Highest port in first block */
-                                      UINT32 max_first_block = min_port + ((1 << m) - 1);
-
-                                      if (min_port < 1024 || max_first_block < 1024)
+                                      if (min_port < 1024)
                                       {
                                           MAPT_LOG_ERROR(
-                                              "MAP-T WARNING: Reserved port usage detected! psid=%u psidLen=%u offset=%u min_port=%u max_port=%u",
-                                              psid, psidLen, psidoffset, min_port, max_first_block
+                                              "MAP-T WARNING: Reserved port usage detected! psid=%u psidLen=%u offset=%u min_port=%u",
+                                              psid, psidLen, psidoffset, min_port
                                           );
                                       }
                                   }
