@@ -274,8 +274,8 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                                   if (psidLen <= 16 && (psidLen + psidoffset) <= 16)
                                   {
                                       UINT8 m = 16 - (psidLen + psidoffset);
-                                      UINT8 block_shift = 16 - offset;
-                                      UINT32 min_i = (offset == 0) ? 0 : 1;
+                                      UINT8 block_shift = 16 - psidoffset;
+                                      UINT32 min_i = (psidoffset == 0) ? 0 : 1;
 
                                       /* Lowest possible port for this CE */
                                       UINT32 min_port = (min_i << block_shift) + (psid << m);
