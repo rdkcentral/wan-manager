@@ -48,3 +48,7 @@ wanmanager_SOURCES += wanmgr_dhcp_event_handler.c
 else
 wanmanager_LDADD += -ldhcp_client_utils
 endif
+
+if ONESTACK_PRODUCT_REQ
+wanmanager_LDADD += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+endif
