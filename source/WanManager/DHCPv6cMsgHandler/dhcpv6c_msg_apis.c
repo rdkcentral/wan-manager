@@ -251,6 +251,14 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                                   MAPT_LOG_ERROR("Parsing OPTION_S46_PORT_PARAM: Received invalid PsidOffset :%u", g_stMaptData.PsidOffset);
                                   return STATUS_FAILURE;
                               }
+
+                              // allowed PsidOffset values are 0 to 16
+                              if (g_stMaptData.PsidLen > 16)
+                              {
+                                  MAPT_LOG_ERROR("Parsing OPTION_S46_PORT_PARAM: Received invalid PsidLen :%u", g_stMaptData.PsidLen);
+                                  return STATUS_FAILURE;
+                              }
+
                               if ( !g_stMaptData.EaLen )
                               {
                                    g_stMaptData.Ratio = 1 << g_stMaptData.PsidLen;
@@ -277,8 +285,12 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
 
                                   /* Validate MAP-T bit allocation: psidLen + offset must fit within 16-bit port space
                                    * to avoid negative shifts (m = 16 - (psidLen + offset)) and undefined behavior. 
+								   * Ideally the check should be 
+								   * "if (psidoffset < 16 && psidLen <= 16 && (psidoffset + psidLen)<= 16)"
+								   * but since we are already rejecting invalid psidLen / psidOffset earlier, 
+								   * we don't need to validate here.
 	                              */
-                                  if (psidLen <= 16 && (psidLen + psidoffset) <= 16)
+                                  if ((psidLen + psidoffset) <= 16)
                                   {
                                       UINT8 m = 16 - (psidLen + psidoffset);
                                       UINT8 block_shift = 16 - psidoffset;
@@ -289,8 +301,8 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
 
                                       if (min_port < 1024)
                                       {
-                                          MAPT_LOG_ERROR(
-                                              "MAP-T WARNING: Reserved port usage detected! psid=%u psidLen=%u offset=%u min_port=%u",
+                                          MAPT_LOG_WARNING(
+                                              "MAP-T WARNING: Privileged port usage detected! psid=%u psidLen=%u offset=%u min_port=%u",
                                               psid, psidLen, psidoffset, min_port
                                           );
                                       }
