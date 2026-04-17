@@ -482,6 +482,56 @@ int WanManager_RestartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceT
     return 0;
 }
 
+#if defined( FEATURE_RDKB_DHCP_MANAGER )
+/***************************************************************************
+ * @brief Check if a DHCP client (v4 or v6) is currently running via DHCP Manager
+ *        and stop it before a new start. This avoids duplicate client instances.
+ * @param pVirtIf  Pointer to the virtual interface structure
+ * @param isIPv4   TRUE to check DHCPv4 client, FALSE to check DHCPv6 client
+ * @return ANSC_STATUS_SUCCESS if the client was not running or was stopped
+ *         successfully, ANSC_STATUS_FAILURE on error.
+ ****************************************************************************/
+ANSC_STATUS WanManager_StopDhcpClientIfRunning(DML_VIRTUAL_IFACE* pVirtIf, BOOL isIPv4)
+{
+    if (pVirtIf == NULL)
+    {
+        CcspTraceError(("%s %d: Invalid args\n", __FUNCTION__, __LINE__));
+        return ANSC_STATUS_FAILURE;
+    }
+
+    char dmlStatus[256] = {0};
+    char statusValue[64] = {0};
+    const char *dhcpIface = isIPv4 ? pVirtIf->IP.DHCPv4Iface : pVirtIf->IP.DHCPv6Iface;
+
+    /* Build the Status DML path, e.g. Device.DHCPv4.Client.1.Status */
+    snprintf(dmlStatus, sizeof(dmlStatus), "%s.Status", dhcpIface);
+
+    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_GetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlStatus, statusValue))
+    {
+        CcspTraceInfo(("%s %d: %s current status = %s\n", __FUNCTION__, __LINE__, dmlStatus, statusValue));
+        if (strncasecmp(statusValue, "Enabled", 7) == 0)
+        {
+            CcspTraceInfo(("%s %d: %s client is already running on %s, stopping it first\n",
+                           __FUNCTION__, __LINE__, isIPv4 ? "DHCPv4" : "DHCPv6", pVirtIf->Name));
+            if (isIPv4)
+            {
+                WanManager_StopDhcpv4Client(pVirtIf, STOP_DHCP_WITHOUT_RELEASE);
+            }
+            else
+            {
+                WanManager_StopDhcpv6Client(pVirtIf, STOP_DHCP_WITHOUT_RELEASE);
+            }
+        }
+    }
+    else
+    {
+        CcspTraceWarning(("%s %d: Failed to get status for %s, proceeding with start\n", __FUNCTION__, __LINE__, dmlStatus));
+    }
+
+    return ANSC_STATUS_SUCCESS;
+}
+#endif /* FEATURE_RDKB_DHCP_MANAGER */
+
 int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceType)
 {
     if (pVirtIf == NULL)
@@ -514,6 +564,9 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     }
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
+    /* Stop DHCPv6 client if it is already running */
+    WanManager_StopDhcpClientIfRunning(pVirtIf, FALSE);
+
     char dmlName[256] = {0};
     WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
@@ -633,6 +686,9 @@ int WanManager_StartDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, char* baseInterface
         return 0;
     }
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
+    /* Stop DHCPv4 client if it is already running */
+    WanManager_StopDhcpClientIfRunning(pVirtIf, TRUE);
+
     char dmlName[256] = {0};
     WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv4Iface );
