@@ -217,6 +217,13 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                g_stMaptData.Ratio = 1 << (g_stMaptData.EaLen -
                                                     (BUFLEN_32 - g_stMaptData.RuleIPv4PrefixLen));
 
+               /*
+                * RFC default for PSID offset applies when the optional
+                * S46 Port Params suboption is not present. Keep the default
+                * here and let the suboption parser overwrite it with the
+                * received value, including 0 when that is explicitly encoded.
+                */
+               g_stMaptData.PsidOffset = 6;
                MAPT_LOG_INFO("<<<TRACE>>> g_stMaptData.Ratio             : %u", g_stMaptData.Ratio);
                MAPT_LOG_INFO("<<<TRACE>>> bytesLeftOut                   : %u", bytesLeftOut);
                if ( bytesLeftOut > 0 )
