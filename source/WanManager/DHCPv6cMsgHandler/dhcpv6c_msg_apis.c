@@ -248,7 +248,7 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                               // allowed PsidOffset values are 0 to 15
                               if (g_stMaptData.PsidOffset > 15)
                               {
-                                  MAPT_LOG_ERROR("Parsing OPTION_S46_PORT_PARAM: Received invalid PsidOffset :%d");
+                                  MAPT_LOG_ERROR("Parsing OPTION_S46_PORT_PARAM: Received invalid PsidOffset :%u", g_stMaptData.PsidOffset);
                                   return STATUS_FAILURE;
                               }
                               if ( !g_stMaptData.EaLen )
