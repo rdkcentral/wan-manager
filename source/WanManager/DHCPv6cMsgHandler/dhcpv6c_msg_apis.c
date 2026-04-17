@@ -252,7 +252,7 @@ MAPT_LOG_INFO("<<<TRACE>>> Start : %p | End : %p", pStartBuf,pEndBuf);
                                   return STATUS_FAILURE;
                               }
 
-                              // allowed PsidOffset values are 0 to 16
+                              // allowed PsidLen values are 0 to 16
                               if (g_stMaptData.PsidLen > 16)
                               {
                                   MAPT_LOG_ERROR("Parsing OPTION_S46_PORT_PARAM: Received invalid PsidLen :%u", g_stMaptData.PsidLen);
