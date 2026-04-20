@@ -198,23 +198,15 @@ ANSC_STATUS wanmgr_set_Ipv4Sysevent(const WANMGR_IPV4_DATA* dhcp4Info, DEVICE_NE
     char ipv6_status[BUFLEN_16] = {0};
     char ifaceMacAddress[BUFLEN_128] = {0};
 
-    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, name, sizeof(name));
-    if (DeviceNwMode == GATEWAY_MODE)
-    {
+       sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, name, sizeof(name));
+    
+    
         if (((strlen(name) == 0) || (strcmp(name, dhcp4Info->ifname) != 0)) && (strlen(dhcp4Info->ifname) > 0))
         {
             sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, dhcp4Info->ifname, 0);
         }
         snprintf(name, sizeof(name), SYSEVENT_IPV4_IP_ADDRESS, dhcp4Info->ifname);
-    }
-    else 
-    {
-        if ((strlen(name) == 0) || (strcmp(name, MESH_IFNAME) != 0))
-        {
-            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, MESH_IFNAME, 0);
-        }
-        snprintf(name, sizeof(name), SYSEVENT_IPV4_IP_ADDRESS, MESH_IFNAME);
-    }
+    
     sysevent_set(sysevent_fd, sysevent_token,name, dhcp4Info->ip, 0);
 
 #if (!defined (_XB6_PRODUCT_REQ_) && !defined (_CBR2_PRODUCT_REQ_)) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) //parodus uses cmac for xb platforms
