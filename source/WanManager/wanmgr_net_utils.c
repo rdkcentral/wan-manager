@@ -1859,9 +1859,36 @@ int WanManager_DelDefaultGatewayRoute(DEVICE_NETWORKING_MODE DeviceNwMode, BOOL 
 
     if (ModeConfigToDelete == GATEWAY_MODE)
     {
-        /* delete default gateway first before add  */
-        snprintf(cmd, sizeof(cmd), "route del default 2>/dev/null");
-        WanManager_DoSystemAction("SetUpDefaultSystemGateway:", cmd);
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
+        char routing_table[BUFLEN_128]={0};
+        int retPsmGet = CCSP_SUCCESS;
+        snprintf(cmd, sizeof(cmd) , PSM_WANMANAGER_ROUTE_TABLE_NAME);
+        /* Delete default route from main/custom routing table and releated rules
+         * if PSM_WANMANAGER_ROUTE_TABLE_NAME entry value exists*/
+        retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(cmd, routing_table, sizeof(routing_table));
+        if(retPsmGet == CCSP_SUCCESS && strlen(routing_table) > 0)
+	     {
+            /* Delete default routes and related rules in custom routing table */
+            char prev_ip[BUFLEN_48] = {0};
+            snprintf(cmd, sizeof(cmd), "ip rule del iif %s lookup all_lans", pIpv4Info->ifname);
+            WanManager_DoSystemAction("DeleteLookUpRule:", cmd);
+            snprintf(cmd, sizeof(cmd), "ip rule del oif %s lookup %s", pIpv4Info->ifname, routing_table);
+            WanManager_DoSystemAction("DeleteLookUpRule:", cmd);
+            sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IPADDR, prev_ip, sizeof(prev_ip));
+            snprintf(cmd, sizeof(cmd), "ip rule del from %s lookup %s", prev_ip, routing_table);
+            WanManager_DoSystemAction("DeleteLookUpRule:", cmd);
+            snprintf(cmd, sizeof(cmd), "ip route del default via %s dev %s table %s", pIpv4Info->gateway, pIpv4Info->ifname, routing_table);
+            WanManager_DoSystemAction("DeleteDefaultSystemGateway:", cmd);
+            CcspTraceInfo(("%s %d: Remove lookup for all_lans and %s %s interface with %s \n", __FUNCTION__, __LINE__, routing_table, pIpv4Info->ifname, prev_ip));
+
+	    }
+	    else
+#endif
+	    {
+                /* delete default gateway first before add  */
+                snprintf(cmd, sizeof(cmd), "route del default 2>/dev/null");
+                WanManager_DoSystemAction("SetUpDefaultSystemGateway:", cmd);
+       }
     }
     else
     {
@@ -1890,8 +1917,49 @@ int WanManager_AddDefaultGatewayRoute(DEVICE_NETWORKING_MODE DeviceNwMode, const
         /* For IPoE, always use gw IP address. */
         if (IsValidIpv4Address(pIpv4Info->gateway) && !(IsZeroIpvxAddress(AF_SELECT_IPV4, pIpv4Info->gateway)))
         {
-            snprintf(cmd, sizeof(cmd), "route add default gw %s dev %s", pIpv4Info->gateway, pIpv4Info->ifname);
-            WanManager_DoSystemAction("SetUpDefaultSystemGateway:", cmd);
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
+            char routing_table[BUFLEN_128]={0};
+            int retPsmGet = CCSP_SUCCESS;
+            /* Add default route to main/custom routing table and related rule
+             * if PSM_WANMANAGER_ROUTE_TABLE_NAME entry value exits */
+            snprintf(cmd, sizeof(cmd) , PSM_WANMANAGER_ROUTE_TABLE_NAME);
+            retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(cmd, routing_table, sizeof(routing_table));
+            if (retPsmGet == CCSP_SUCCESS && strlen(routing_table) > 0)
+            {
+                if (strcmp(pIpv4Info->dhcpState, "renew") == 0)
+                {
+                    /* In case of dhcp renew, update the WANIP address in IP rule if it's changed */
+                    char prev_ip[BUFLEN_48] = {0};
+                    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IPADDR, prev_ip, sizeof(prev_ip));
+                    if (( strcmp(prev_ip, "0.0.0.0") != 0) && (strcmp(prev_ip, pIpv4Info->gateway ) != 0))
+                    {
+                        CcspTraceInfo(("%s %d: removing ip rule based on prev_ip: %s and adding the new ip: %s\n", __FUNCTION__, __LINE__, prev_ip, pIpv4Info->gateway ));
+                        snprintf(cmd, sizeof(cmd), "ip rule del from %s lookup %s", prev_ip, routing_table);
+                        WanManager_DoSystemAction("DeleteLookUpRule:", cmd);
+                        snprintf(cmd, sizeof(cmd), "ip rule add from %s lookup %s", pIpv4Info->ip, routing_table);
+                        WanManager_DoSystemAction("AddLookUpRule:", cmd);
+                    }
+                }
+                else
+                {
+                    /* Add default route to custom routing table and related ip rule */
+                    CcspTraceInfo(("%s %d: Add lookup for all_lans and %s %s interface with %s \n", __FUNCTION__, __LINE__, routing_table, pIpv4Info->ifname, pIpv4Info->ip));
+                    snprintf(cmd, sizeof(cmd), "ip rule add iif %s lookup all_lans", pIpv4Info->ifname);
+                    WanManager_DoSystemAction("AddLookUpRule:", cmd);
+                    snprintf(cmd, sizeof(cmd), "ip rule add oif %s lookup %s", pIpv4Info->ifname, routing_table);
+                    WanManager_DoSystemAction("AddLookUpRule:", cmd);
+                    snprintf(cmd, sizeof(cmd), "ip rule add from %s lookup %s", pIpv4Info->ip, routing_table);
+                    WanManager_DoSystemAction("AddLookUpRule:", cmd);
+                }
+                snprintf(cmd, sizeof(cmd), "ip route add default via %s dev %s table %s", pIpv4Info->gateway, pIpv4Info->ifname, routing_table);
+                WanManager_DoSystemAction("SetUpDefaultSystemGateway:", cmd);
+            }
+            else
+#endif
+            {
+                snprintf(cmd, sizeof(cmd), "route add default gw %s dev %s", pIpv4Info->gateway, pIpv4Info->ifname);
+                WanManager_DoSystemAction("SetUpDefaultSystemGateway:", cmd);
+            }
             CcspTraceInfo(("%s %d - The default gateway route entries set!, cmd(%s)\n",__FUNCTION__,__LINE__, cmd));
         }
     }
