@@ -2007,7 +2007,6 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
             MaptInfo("--------- Got an event in Wanmanager for MAPT_STOP ---------");
 #endif
             // reset MAP-T parameters
-            memset(&(pVirtIf->MAP.dhcp6cMAPparameters), 0, sizeof(ipc_map_data_t));
             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPT_STOP);
         }
     }
