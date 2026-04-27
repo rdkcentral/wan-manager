@@ -1403,7 +1403,6 @@ WanMgr_DmlDhcpv6Remove(ANSC_HANDLE hContext)
     return;
 }
 
-#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
 /**
 @brief  Generates a full IPv6 address in EUI-64 format from a delegated prefix.
 @param prefix The delegated IPv6 prefix.
@@ -1522,7 +1521,6 @@ static int WanMgr_create_eui64_ipv6_address(char * prefix, char * intfName, char
     /* This IP should be unique. If not I have no idea. */
     return 0;
 }
-#endif
 
 static ANSC_STATUS wanmgr_dchpv6_get_ipc_msg_info(WANMGR_IPV6_DATA* pDhcpv6Data, ipc_dhcpv6_data_t* pIpcIpv6Data)
 {
@@ -1579,27 +1577,40 @@ static int WanMgr_CopyPreviousPrefix(WANMGR_IPV6_DATA* pOld, WANMGR_IPV6_DATA* p
 #endif
 
 /**
- * @brief Constructs a dedicated WAN IPv6 address from the received IAPD (IA Prefix Delegation).
+ * @brief Constructs a WAN IPv6 address from the received IAPD (IA Prefix Delegation).
  *
- * This function extracts the IPv6 prefix and its length from the given IAPD data. It then uses
- * the provided prefix to construct a unique WAN IPv6 address by using the next available /64 subnet.
- * The first /64 subnet of the IAPD is reserved for LAN, while the next /64 is used for the WAN address.
- * The constructed WAN address is assigned to the specified WAN interface.
+ * This function derives a /128 host address for the WAN interface from the first /64 subnet
+ * of the delegated prefix — the same /64 used by LAN clients. This is compliant with:
  *
- * @param[in] pIpv6DataNew Pointer to the WANMGR_IPV6_DATA structure.
+ *   - RFC 7084 Section 4.2 WAA-7: CE router MUST create a global IPv6 address from its
+ *     delegated prefix(es) if no address is acquired via SLAAC or DHCPv6.
+ *   - RFC 9096 Section 3.3 & 3.5: Addresses derived from delegated prefixes should follow
+ *     prefix lifetime management; using the same /64 avoids wasting subnets and aligns with
+ *     the renumbering expectations defined in RFC 9096.
+ *   - RFC 4862 Section 5.4: Duplicate Address Detection (DAD) is mandatory for all unicast
+ *     addresses, providing a protocol-level safeguard against any theoretical collision.
  *
- * @return 
+ * The WAN /128 host address does not conflict with LAN clients because:
+ *   - In EUI-64 mode: the IID is derived from the WAN interface MAC, which is unique per interface.
+ *   - In non-EUI-64 mode: the well-known suffix ::1 is used. SLAAC EUI-64 clients cannot
+ *     generate ::1 (derived from their own MACs), and the LAN-side DHCPv6 server can exclude
+ *     this address from its assignable pool.
+ *
+ * @param[in] pIpv6DataNew Pointer to the WANMGR_IPV6_DATA structure containing IAPD info.
+ *
+ * @return
  * - 0 on success.
- * - -1 on failure (e.g., invalid prefix format, prefix length >= 64, or system command failure).
- *
- * @note The function assumes that if the prefix length is less than 64, there are sufficient bits available
- *       to split the IAPD into multiple /64 subnets. If the prefix length is 64 or greater, it logs an error 
- *       and returns -1 since further subnetting is not possible.
+ * - -1 on failure (e.g., invalid prefix format, prefix length > 64, or system command failure).
  *
  * ### Example:
- * Given an IAPD of "2a06:5906:13:d000::/56", the function may construct the following addresses:
- * - LAN IPv6 Address Range: "2a06:5906:13:d000::/64"
- * - WAN IPv6 Address: "2a06:5906:13:d001::1/128"
+ * Given an IAPD of "2a06:5906:13:d000::/56":
+ * - LAN IPv6 Range:  "2a06:5906:13:d000::/64"
+ * - WAN IPv6 (EUI-64): "2a06:5906:13:d000:a8bb:ccff:fedd:eeff/128" (from WAN MAC)
+ * - WAN IPv6 (suffix):  "2a06:5906:13:d000::1/128"
+ *
+ * Given an IAPD of "2a06:5906:13:d000::/64" (single /64 delegation):
+ * - LAN + WAN share the same /64
+ * - WAN IPv6 (suffix):  "2a06:5906:13:d000::1/128"
  */
 #define WAN_SUFFIX 1
 int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
@@ -1612,9 +1623,9 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
         return -1; // Parsing failed
     }
 
-    if ( prefix_length >= 64) 
+    if ( prefix_length > 64) 
     {
-        CcspTraceError(("%s %d Prefix length is >= 64. Can't split to multiple /64 networks\n", __FUNCTION__, __LINE__));        
+        CcspTraceError(("%s %d Prefix length is > 64. Cannot derive a /64 subnet for address assignment\n", __FUNCTION__, __LINE__));
         return -1;
     }
 
@@ -1622,12 +1633,15 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
     // Convert prefix to binary format
     if (inet_pton(AF_INET6, iapd_prefix, &prefix) != 1) 
     {
-
         CcspTraceError(("%s %d Failed to convert prefix to in6_addr\n", __FUNCTION__, __LINE__));        
         return -1;
     }
 
-    prefix.s6_addr[7] += 0x01; // Use next subnet for WAN. First /64 will be used for LAN.
+    /* Use the first /64 subnet directly for WAN address (same /64 as LAN).
+     * RFC 7084 WAA-7 mandates deriving an address from the delegated prefix.
+     * RFC 9096 Section 3.3 expects addresses to track prefix lifetimes.
+     * A /128 host address on a separate interface (WAN) does not claim the /64;
+     * DAD (RFC 4862 Section 5.4) provides collision protection at zero cost. */
 
     WanMgr_Config_Data_t    *pWanConfigData = WanMgr_GetConfigData_locked();
     unsigned char           IPv6EUI64FormatSupport = TRUE;
@@ -1639,24 +1653,28 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
     
     if(IPv6EUI64FormatSupport)
     {
-        char newPref[128] = {0};
-        inet_ntop(AF_INET6, &prefix, newPref, sizeof(newPref));
-        CcspTraceInfo(("%s %d EUI64 format is enabled using new prefix %s \n", __FUNCTION__, __LINE__, newPref));    
-        snprintf(cmdLine, sizeof(cmdLine), "%s/%d", newPref, prefix_length);    
+        /* EUI-64: IID derived from WAN interface MAC — deterministically unique per interface.
+         * No collision possible with LAN clients (different MACs produce different IIDs). */
+        char prefStr[128] = {0};
+        inet_ntop(AF_INET6, &prefix, prefStr, sizeof(prefStr));
+        CcspTraceInfo(("%s %d EUI64 format is enabled, using prefix %s for WAN address\n", __FUNCTION__, __LINE__, prefStr));
+        snprintf(cmdLine, sizeof(cmdLine), "%s/%d", prefStr, prefix_length);
         WanMgr_create_eui64_ipv6_address(cmdLine, pIpv6DataNew->ifname, pIpv6DataNew->address);
     }
     else
     {
-        CcspTraceInfo(("%s %d EUI64 format is not enabled using WAN SUFFIX %d \n", __FUNCTION__, __LINE__, WAN_SUFFIX));    
-        prefix.s6_addr[15] = WAN_SUFFIX; // Setting the last byte for WAN address
+        /* Non-EUI-64: Use well-known suffix ::1 (mirrors IPv4 gateway convention).
+         * SLAAC EUI-64 clients never generate ::1; DHCPv6 server should exclude ::1 from pool. */
+        CcspTraceInfo(("%s %d EUI64 format is not enabled, using WAN_SUFFIX %d\n", __FUNCTION__, __LINE__, WAN_SUFFIX));
+        prefix.s6_addr[15] = WAN_SUFFIX;
         inet_ntop(AF_INET6, &prefix, pIpv6DataNew->address, sizeof(pIpv6DataNew->address));
     }
     
     pIpv6DataNew->addrAssigned = true;
     pIpv6DataNew->addrCmd = IFADDRCONF_ADD;
 
-    CcspTraceInfo(("%s %d Calculated WAN network IP %s/128 \n", __FUNCTION__, __LINE__, pIpv6DataNew->address));        
-    //Since this address calculated by us, it will be assigned by the DHCPv6c client. Assign the address on the Wan interface
+    CcspTraceInfo(("%s %d Calculated WAN address %s/128\n", __FUNCTION__, __LINE__, pIpv6DataNew->address));
+    // Assign the /128 host address on the WAN interface
     memset(cmdLine, 0, sizeof(cmdLine));
     snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s", pIpv6DataNew->address, pIpv6DataNew->ifname);
     if (WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine) != 0)
