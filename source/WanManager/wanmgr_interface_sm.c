@@ -1207,13 +1207,15 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
  * @brief Removes IPv6 default route and global addresses from interface
  * 
  * @param ifaceName Interface name (e.g., "eth0", "erouter0")
+ * @param ipv6Address The IPv6 address to remove NDP proxy for (can be NULL or empty)
  * @return RETURN_OK on success, RETURN_ERR on failure
  * 
  * @note This API performs the following operations:
  *       1. Deletes IPv6 default route for the interface
  *       2. Flushes all global scope IPv6 addresses from the interface
+ *       3. Removes the NDP proxy entry for the WAN address from the LAN bridge
  */
-static int WanMgr_RemoveIPv6RouteAndAddress(const char* ifaceName)
+static int WanMgr_RemoveIPv6RouteAndAddress(const char* ifaceName, const char* ipv6Address)
 {
     if (ifaceName == NULL || strlen(ifaceName) == 0)
     {
@@ -1243,6 +1245,16 @@ static int WanMgr_RemoveIPv6RouteAndAddress(const char* ifaceName)
     {
         CcspTraceError(("%s %d - Failed to run cmd: %s\n", __FUNCTION__, __LINE__, acCmdLine));
         ret = RETURN_ERR;
+    }
+
+    /* Remove the specific NDP proxy entry for the WAN address from the LAN bridge.
+     * This was added by wanmgr_construct_wan_address_from_IAPD() to proxy the
+     * WAN /128 address on brlan0 for DAD protection and reachability. */
+    if (ipv6Address != NULL && ipv6Address[0] != '\0')
+    {
+        memset(acCmdLine, 0, sizeof(acCmdLine));
+        snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 neigh del proxy %s dev %s", ipv6Address, COSA_DML_DHCPV6_SERVER_IFNAME);
+        WanManager_DoSystemActionWithStatus(__FUNCTION__, acCmdLine);
     }
 
     return ret;
@@ -1737,7 +1749,7 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     /* Remove IPv6 default route and global addresses */
-    if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name) != RETURN_OK)
+    if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address) != RETURN_OK)
     {
         CcspTraceError(("%s %d - Failed to remove IPv6 route and address for '%s'\n", 
                        __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -2942,7 +2954,7 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     if (WanMgr_IsVoiceInterface(p_VirtIf))
     {
         /* Clean up IPv6 routes and addresses only */
-        WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name);
+        WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address);
         
         CcspTraceInfo(("%s %d - Voice interface '%s' IPv6 down - removing routes/addresses only\n", 
                       __FUNCTION__, __LINE__, p_VirtIf->Alias));
@@ -2975,7 +2987,7 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     else
     {
         /* Remove IPv6 default route and global addresses */
-        if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name) != RETURN_OK)
+        if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address) != RETURN_OK)
         {
             CcspTraceError(("%s %d - Failed to remove IPv6 route and address for '%s'\n", 
                            __FUNCTION__, __LINE__, p_VirtIf->Name));

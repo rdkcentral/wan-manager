@@ -1680,6 +1680,24 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
     if (WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine) != 0)
         CcspTraceError(("failed to run cmd: %s", cmdLine));
 
+    /* Enable NDP proxy on the LAN bridge so the kernel responds to Neighbor Solicitations
+     * for the WAN address on brlan0. This ensures:
+     *  - LAN clients performing DAD for this address will get a Neighbor Advertisement back,
+     *    causing their DAD to fail (preventing them from using the WAN address). */
+    memset(cmdLine, 0, sizeof(cmdLine));
+    snprintf(cmdLine, sizeof(cmdLine), "sysctl -w net.ipv6.conf.%s.proxy_ndp=1", COSA_DML_DHCPV6_SERVER_IFNAME);
+    WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine);
+
+    /* Add NDP proxy entry for the WAN address on the LAN bridge.
+     * This makes the kernel respond to Neighbor Solicitations for our WAN address
+     * on brlan0, which:
+     *  1. Enables upstream routing to reach the WAN address via the LAN bridge if needed.
+     *  2. Causes DAD to fail for any LAN client that tries to use this address. */
+    memset(cmdLine, 0, sizeof(cmdLine));
+    snprintf(cmdLine, sizeof(cmdLine), "ip -6 neigh add proxy %s dev %s", pIpv6DataNew->address, COSA_DML_DHCPV6_SERVER_IFNAME);
+    if (WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine) != 0)
+        CcspTraceError(("%s %d failed to add NDP proxy entry on %s for %s\n", __FUNCTION__, __LINE__, COSA_DML_DHCPV6_SERVER_IFNAME, pIpv6DataNew->address));
+
     memset(cmdLine, 0, sizeof(cmdLine));
     snprintf(cmdLine, sizeof(cmdLine), COSA_DML_WANIface_ADDR_SYSEVENT_NAME , pIpv6DataNew->ifname);
     CcspTraceInfo(("Setting sysevent: %s = %s\n", cmdLine, pIpv6DataNew->address));
