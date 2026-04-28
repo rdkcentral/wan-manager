@@ -39,64 +39,6 @@ static pthread_mutex_t      g_dhcpEventQueueMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t       g_dhcpEventQueueCond  = PTHREAD_COND_INITIALIZER;
 static int                  g_dhcpEventWorkerRunning = 0;
 
-static BOOL WanMgr_DhcpEvents_ResolveIfName(const char *eventName, char *ifNameBuf, size_t ifNameBufLen)
-{
-    const char *suffix = ".Events";
-    size_t eventNameLen = 0;
-    size_t suffixLen = strlen(suffix);
-    char dhcpIfacePath[128] = {0};
-    UINT totalIfaces = 0;
-
-    if (eventName == NULL || ifNameBuf == NULL || ifNameBufLen == 0)
-    {
-        return FALSE;
-    }
-
-    eventNameLen = strlen(eventName);
-    if (eventNameLen <= suffixLen || strcmp(eventName + (eventNameLen - suffixLen), suffix) != 0)
-    {
-        return FALSE;
-    }
-
-    if ((eventNameLen - suffixLen) >= sizeof(dhcpIfacePath))
-    {
-        return FALSE;
-    }
-
-    strncpy(dhcpIfacePath, eventName, eventNameLen - suffixLen);
-    dhcpIfacePath[eventNameLen - suffixLen] = '\0';
-
-    totalIfaces = WanMgr_IfaceData_GetTotalWanIface();
-    for (UINT ifaceIndex = 0; ifaceIndex < totalIfaces; ifaceIndex++)
-    {
-        WanMgr_Iface_Data_t *pWanDmlIfaceData = WanMgr_GetIfaceData_locked(ifaceIndex);
-        if (pWanDmlIfaceData == NULL)
-        {
-            continue;
-        }
-
-        DML_WAN_IFACE *pWanDmlIface = &(pWanDmlIfaceData->data);
-        DML_VIRTUAL_IFACE *pVirtIf = pWanDmlIface->VirtIfList;
-
-        while (pVirtIf != NULL)
-        {
-            if ((strcmp(pVirtIf->IP.DHCPv4Iface, dhcpIfacePath) == 0) ||
-                (strcmp(pVirtIf->IP.DHCPv6Iface, dhcpIfacePath) == 0))
-            {
-                strncpy(ifNameBuf, pVirtIf->Name, ifNameBufLen - 1);
-                ifNameBuf[ifNameBufLen - 1] = '\0';
-                WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
-                return TRUE;
-            }
-            pVirtIf = pVirtIf->next;
-        }
-
-        WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
-    }
-
-    return FALSE;
-}
-
 /* Worker thread: drains the queue in strict FIFO order. */
 static void* WanMgr_DhcpEventQueueWorker(void *arg)
 {
@@ -182,26 +124,12 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
 {
     (void)handle;
     (void)subscription;
-    rbusObject_t dataObj = NULL;
-    rbusValue_t wrappedValue = NULL;
     const char* eventName = event->name;
     CcspTraceInfo(("%s %d:<<DEBUG>> Received event %s\n", __FUNCTION__, __LINE__, eventName));
-    if((event == NULL) || (eventName == NULL) || (event->data == NULL))
+    if((eventName == NULL))
     {
         CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
         return;
-    }
-
-    dataObj = event->data;
-    wrappedValue = rbusObject_GetValue(event->data, "value");
-    if ((wrappedValue != NULL) && (rbusValue_GetType(wrappedValue) == RBUS_OBJECT))
-    {
-        rbusObject_t nestedObj = rbusValue_GetObject(wrappedValue);
-        if (nestedObj != NULL)
-        {
-            dataObj = nestedObj;
-            CcspTraceInfo(("%s %d: Unwrapped auto-publish payload from value object\n", __FUNCTION__, __LINE__));
-        }
     }
   
     CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
@@ -212,37 +140,17 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
         rbusValue_t value;
-        value = rbusObject_GetValue(dataObj, "IfName");
+        value = rbusObject_GetValue(event->data, "IfName");
         if(value == NULL)
         {
-            if (WanMgr_DhcpEvents_ResolveIfName(eventName, eventData->ifName, sizeof(eventData->ifName)))
-            {
-                CcspTraceInfo(("%s %d: IfName missing in payload, resolved from event name %s -> %s\n",
-                                __FUNCTION__, __LINE__, eventName, eventData->ifName));
-            }
-            else
-            {
-                CcspTraceError(("%s %d: Failed to get IfName from event data and failed to resolve from %s\n",
-                                __FUNCTION__, __LINE__, eventName));
-                free(eventData);
-                return;
-            }
+            CcspTraceError(("%s %d: Failed to get IfName from event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
         }
-
-        if (value != NULL)
-        {
-            const char *ifName = rbusValue_GetString(value, NULL);
-            if (ifName == NULL || ifName[0] == '\0')
-            {
-                CcspTraceError(("%s %d: IfName value is empty\n", __FUNCTION__, __LINE__));
-                free(eventData);
-                return;
-            }
-            strncpy(eventData->ifName , ifName, sizeof(eventData->ifName)-1);
-        }
+        strncpy(eventData->ifName , rbusValue_GetString(value, NULL), sizeof(eventData->ifName)-1);
         CcspTraceInfo(("%s-%d : DHCP client event %s received for  %s\n", __FUNCTION__, __LINE__, eventName, eventData->ifName));
 
-        value = rbusObject_GetValue(dataObj, "MsgType");
+        value = rbusObject_GetValue(event->data, "MsgType");
         if(value == NULL)
         {
             CcspTraceError(("%s %d: Failed to get MsgType from event data\n", __FUNCTION__, __LINE__));
@@ -254,7 +162,7 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         if(eventData->type == DHCP_LEASE_UPDATE)
         {
             int bytes_len=0;
-            value = rbusObject_GetValue(dataObj, "LeaseInfo");
+            value = rbusObject_GetValue(event->data, "LeaseInfo");
             uint8_t const* ptr = rbusValue_GetBytes(value, &bytes_len);
             if(eventData->version == DHCPV4)
             {
