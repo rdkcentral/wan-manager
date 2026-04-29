@@ -142,6 +142,7 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
 
         /* Dump full event->data object for diagnostics */
         {
+            CcspTraceInfo(("%s %d: event type=%d\n", __FUNCTION__, __LINE__, (int)event->type));
             char *dumpBuf = NULL;
             size_t dumpSize = 0;
             FILE *dumpStream = open_memstream(&dumpBuf, &dumpSize);
