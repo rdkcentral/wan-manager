@@ -125,7 +125,6 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
     (void)handle;
     (void)subscription;
     const char* eventName = event->name;
-    CcspTraceInfo(("%s %d:<<DEBUG>> Received event %s\n", __FUNCTION__, __LINE__, eventName));
     if((eventName == NULL))
     {
         CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
@@ -135,25 +134,9 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
     CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
     {
-        CcspTraceInfo(("%s %d:<<DEBUG>> Processing DHCP client event %s\n", __FUNCTION__, __LINE__, eventName));
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
-
-        /* Dump full event->data object for diagnostics */
-        {
-            CcspTraceInfo(("%s %d: event type=%d\n", __FUNCTION__, __LINE__, (int)event->type));
-            char *dumpBuf = NULL;
-            size_t dumpSize = 0;
-            FILE *dumpStream = open_memstream(&dumpBuf, &dumpSize);
-            if (dumpStream != NULL)
-            {
-                rbusObject_fwrite(event->data, 1, dumpStream);
-                fclose(dumpStream);
-                CcspTraceInfo(("%s %d: event->data dump:\n%s\n", __FUNCTION__, __LINE__, dumpBuf));
-                free(dumpBuf);
-            }
-        }
 
         /* Resolve the object that holds IfName/MsgType/LeaseInfo.
          * RBUS wraps the payload under "initialValue" for subscribe-GET
