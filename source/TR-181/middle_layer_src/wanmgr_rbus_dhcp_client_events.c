@@ -139,6 +139,21 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
+
+        /* Dump full event->data object for diagnostics */
+        {
+            char *dumpBuf = NULL;
+            size_t dumpSize = 0;
+            FILE *dumpStream = open_memstream(&dumpBuf, &dumpSize);
+            if (dumpStream != NULL)
+            {
+                rbusObject_fwrite(event->data, 1, dumpStream);
+                fclose(dumpStream);
+                CcspTraceInfo(("%s %d: event->data dump:\n%s\n", __FUNCTION__, __LINE__, dumpBuf));
+                free(dumpBuf);
+            }
+        }
+
         rbusValue_t value;
         value = rbusObject_GetValue(event->data, "IfName");
         if(value == NULL)
