@@ -347,7 +347,7 @@ int WanManager_Ipv6PrefixUtil(char *ifname, Ipv6OperType opr, int preflft, int v
             CcspTraceError(("%s-%d: bridge_mode sysevent get failed. \n", __FUNCTION__, __LINE__));
         }
         BridgeMode = atoi(Output);
-
+    }
     /*TODO:
      *Below Code should be removed once V6 Prefix/IP is assigned on erouter0 Instead of brlan0 for sky Devices. 
      */
