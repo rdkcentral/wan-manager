@@ -124,7 +124,9 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
 {
     (void)handle;
     (void)subscription;
+
     const char* eventName = event->name;
+
     if((eventName == NULL))
     {
         CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
