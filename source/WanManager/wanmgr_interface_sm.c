@@ -3961,6 +3961,12 @@ static eWanState_t wan_state_standby(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
                 ret = wan_transition_ipv6_up(pWanIfaceCtrl);
                 CcspTraceInfo((" %s %d - IPv6 Address Assigned to Bridge Yet.\n", __FUNCTION__, __LINE__));
             }
+            else
+            {
+                /* IPv6 address not ready yet, stay in standby to retry */
+                CcspTraceInfo((" %s %d - IPv6 address not ready, waiting...\n", __FUNCTION__, __LINE__));
+                return WAN_STATE_STANDBY;
+            }
         }
         if (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
         {

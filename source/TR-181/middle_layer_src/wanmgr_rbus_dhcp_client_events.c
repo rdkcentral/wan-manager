@@ -132,25 +132,66 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
         return;
     }
-
-    //CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
+  
+    CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
     {
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
+
+        /* Resolve the object that holds IfName/MsgType/LeaseInfo.
+         * RBUS wraps the payload under "initialValue" for subscribe-GET
+         * responses; fall back to "value" for other auto-publish shapes. */
+        rbusObject_t dataObj = event->data;
+        rbusValue_t wrappedVal = rbusObject_GetValue(event->data, "initialValue");
+        if ((wrappedVal != NULL) && (rbusValue_GetType(wrappedVal) == RBUS_OBJECT))
+        {
+            rbusObject_t nestedObj = rbusValue_GetObject(wrappedVal);
+            if (nestedObj != NULL)
+            {
+                dataObj = nestedObj;
+                CcspTraceInfo(("%s %d: Unwrapped payload from initialValue\n", __FUNCTION__, __LINE__));
+            }
+        }
+        else
+        {
+            wrappedVal = rbusObject_GetValue(event->data, "value");
+            if ((wrappedVal != NULL) && (rbusValue_GetType(wrappedVal) == RBUS_OBJECT))
+            {
+                rbusObject_t nestedObj = rbusValue_GetObject(wrappedVal);
+                if (nestedObj != NULL)
+                {
+                    dataObj = nestedObj;
+                    CcspTraceInfo(("%s %d: Unwrapped payload from value\n", __FUNCTION__, __LINE__));
+                }
+            }
+        }
+
         rbusValue_t value;
-        value = rbusObject_GetValue(event->data, "IfName");
+        value = rbusObject_GetValue(dataObj, "IfName");
+        if(value == NULL)
+        {
+            CcspTraceError(("%s %d: Failed to get IfName from event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
         strncpy(eventData->ifName , rbusValue_GetString(value, NULL), sizeof(eventData->ifName)-1);
         CcspTraceInfo(("%s-%d : DHCP client event %s received for  %s\n", __FUNCTION__, __LINE__, eventName, eventData->ifName));
 
-        value = rbusObject_GetValue(event->data, "MsgType");
+        value = rbusObject_GetValue(dataObj, "MsgType");
+        if(value == NULL)
+        {
+            CcspTraceError(("%s %d: Failed to get MsgType from event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
         eventData->type = rbusValue_GetUInt32(value);
 
         if(eventData->type == DHCP_LEASE_UPDATE)
         {
             int bytes_len=0;
-            value = rbusObject_GetValue(event->data, "LeaseInfo");
+            value = rbusObject_GetValue(dataObj, "LeaseInfo");
             uint8_t const* ptr = rbusValue_GetBytes(value, &bytes_len);
             if(eventData->version == DHCPV4)
             {
@@ -185,8 +226,11 @@ void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     char eventName[64] = {0};
+
     snprintf(eventName, sizeof(eventName), "%s.Events", DhcpInterface);
-    rc = rbusEvent_Subscribe(rbusHandle, eventName, WanMgr_DhcpClientEventsHandler, NULL, 60);
+    rbusEventSubscription_t subscription = {eventName, NULL, 0, 0, WanMgr_DhcpClientEventsHandler, NULL, NULL, NULL, true};
+
+    rc = rbusEvent_SubscribeEx(rbusHandle, &subscription, 1, 60);
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to Subscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));

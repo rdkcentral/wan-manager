@@ -347,9 +347,7 @@ int WanManager_Ipv6PrefixUtil(char *ifname, Ipv6OperType opr, int preflft, int v
             CcspTraceError(("%s-%d: bridge_mode sysevent get failed. \n", __FUNCTION__, __LINE__));
         }
         BridgeMode = atoi(Output);
-        CcspTraceInfo(("%s-%d: <<DEBUG>> bridge_mode sysevent value set to =%d \n", __FUNCTION__, __LINE__,  BridgeMode));
     }
-
     /*TODO:
      *Below Code should be removed once V6 Prefix/IP is assigned on erouter0 Instead of brlan0 for sky Devices. 
      */
@@ -515,10 +513,11 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
+    CcspTraceInfo(("%s %d -<<DEBUG>> Setting %s => %s\n", __FUNCTION__, __LINE__, dmlName, pVirtIf->Name));
     memset(dmlName, 0, sizeof(dmlName));
+    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
 
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
 
@@ -634,10 +633,10 @@ int WanManager_StartDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, char* baseInterface
     }
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv4Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
+    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "true", ccsp_boolean, TRUE))
     {
