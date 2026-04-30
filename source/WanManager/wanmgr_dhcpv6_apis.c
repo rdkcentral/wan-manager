@@ -1954,6 +1954,7 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
 
 int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
 {
+    CcspTraceInfo(("%s - Entering function \n", __FUNCTION__));
     if (pVirtIf == NULL)
     {
         CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
@@ -2129,6 +2130,7 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
     sysevent_set(sysevent_fd, sysevent_token, "dhcpv6-restart", NULL, 0);
 
 #else
+    CcspTraceWarning(("%s:%d triggering sysevent zebra-restart\n", __FUNCTION__, __LINE__));
     sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", NULL, 0);
     CcspTraceWarning(("Restart lan%s:%d\n", __func__,__LINE__));
     /* This is for IP.Interface.1. use */
