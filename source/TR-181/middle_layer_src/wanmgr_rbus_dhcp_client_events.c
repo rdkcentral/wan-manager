@@ -137,6 +137,11 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
     {
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
+        if(eventData == NULL)
+        {
+            CcspTraceError(("%s %d: Failed to allocate memory for DHCP event data\n", __FUNCTION__, __LINE__));
+            return;
+        }
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
 
@@ -176,7 +181,16 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
             free(eventData);
             return;
         }
-        strncpy(eventData->ifName , rbusValue_GetString(value, NULL), sizeof(eventData->ifName)-1);
+
+        const char* ifName = rbusValue_GetString(value, NULL);
+        if (ifName == NULL)
+        {
+            CcspTraceError(("%s %d: IfName string is NULL in event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
+
+        strncpy(eventData->ifName , ifName, sizeof(eventData->ifName)-1);
         CcspTraceInfo(("%s-%d : DHCP client event %s received for  %s\n", __FUNCTION__, __LINE__, eventName, eventData->ifName));
 
         value = rbusObject_GetValue(dataObj, "MsgType");
@@ -192,6 +206,12 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         {
             int bytes_len=0;
             value = rbusObject_GetValue(dataObj, "LeaseInfo");
+            if(value == NULL)
+            {
+                CcspTraceError(("%s %d: Failed to get LeaseInfo from event data\n", __FUNCTION__, __LINE__));
+                free(eventData);
+                return;
+            }
             uint8_t const* ptr = rbusValue_GetBytes(value, &bytes_len);
             if(eventData->version == DHCPV4)
             {
