@@ -261,7 +261,6 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                         {
                             CcspTraceInfo(("--------- Got an event in Wanmanager for MAP_STOP ---------"));
                             // reset MAP-T parameters
-                            memset(&(pVirtIf->MAP.dhcp6cMAPparameters), 0, sizeof(ipc_map_data_t));
                             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPT_STOP);
                             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPE_STOP);
                         }
