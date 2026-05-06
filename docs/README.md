@@ -1,9 +1,8 @@
-# WAN Manager Documentation
+# WAN Manager
 
-WAN Manager is the RDK-B middleware component that manages WAN connectivity across various network interfaces, including DOCSIS, Ethernet, Cellular, DSL, and PON. It coordinates interface selection, configuration, and failover to maintain reliable internet connectivity for CPE devices. Acting as a centralized control plane, WAN Manager interacts with multiple Interface Managers (DOCSIS, Cellular, Ethernet, etc.) to manage link and IP layer configurations using policy-based selection algorithms. It provides unified WAN management that abstracts the complexity of diverse WAN technologies from upper-layer applications and services. It integrates with the RDK-B TR-181 data model to offer standardized configuration and monitoring interfaces and supports modern RBus communication paradigms.
+WAN Manager is the RDK-B middleware component that manages WAN connectivity across various network interfaces, including DOCSIS, Ethernet, Cellular, DSL, and PON. It coordinates interface selection, configuration, and failover to maintain reliable internet connectivity for CPE devices. Acting as a centralized control plane, WAN Manager interacts with multiple Interface Managers (DOCSIS, Cellular, Ethernet, etc.) to manage link and IP layer configurations using policy-based selection algorithms. It provides unified WAN management that abstracts the complexity of diverse WAN technologies from upper-layer applications and services. It integrates with the RDK-B TR-181 data model to offer standardized configuration and monitoring interfaces and supports modern R-BUS communication paradigms.
 
 At the module level, WAN Manager delivers key services such as WAN interface state management, policy-based selection, DHCP client coordination, network validation, telemetry reporting, and integration with other RDK-B components through defined IPC mechanisms.
-
 
 ```mermaid
 graph LR
@@ -66,7 +65,7 @@ graph LR
     class HAL,Linux system;
 ```
 
-**Key Features & Responsibilities**: 
+**Key Features & Responsibilities**:
 
 - **Multi-Interface WAN Management**: Manages multiple WAN interface types (DOCSIS, Cellular, Ethernet, DSL, PON) through unified policy-based selection algorithms ensuring optimal connectivity based on availability, priority, and validation status
 - **Policy-Based Interface Selection**: Implements seven distinct selection policies (Fixed Mode, Primary Priority, AutoWAN, Parallel Scan, and their variants) providing flexible interface selection strategies based on deployment requirements and network conditions
@@ -78,14 +77,13 @@ graph LR
 
 ## Design
 
-WAN Manager's architecture is built around a modular, event-driven design that separates functionality between interface management, policy implementation, and state machine control. The core design principle emphasizes centralized WAN management while maintaining communications  with Interface Managers through well-defined IPC boundaries. The component employs a layered architecture where the Policy Controller manages high-level interface selection decisions, the Interface State Machine handles low-level configuration details, and the Data Management layer provides thread-safe access to configuration and runtime state. The design handles the complexity of multiple WAN technologies by abstracting interface-specific details into dedicated Interface Managers while centralizing common networking logic within WAN Manager itself. This separation allows Interface Managers to focus on physical layer bring-up and technology-specific configuration while WAN Manager orchestrates link layer setup, IP configuration, routing, and validation. The component's state-driven approach ensures predictable behavior during interface transitions, failures, and recovery scenarios.
+WAN Manager's architecture is built around a modular, event-driven design that separates functionality between interface management, policy implementation, and state machine control. The core design principle emphasizes centralized WAN management while maintaining communications with Interface Managers through well-defined IPC boundaries. The component employs a layered architecture where the Policy Controller manages high-level interface selection decisions, the Interface State Machine handles low-level configuration details, and the Data Management layer provides thread-safe access to configuration and runtime state. The design handles the complexity of multiple WAN technologies by abstracting interface-specific details into dedicated Interface Managers while centralizing common networking logic within WAN Manager itself. This separation allows Interface Managers to focus on physical layer bring-up and technology-specific configuration while WAN Manager orchestrates link layer setup, IP configuration, routing, and validation. The component's state-driven approach ensures predictable behavior during interface transitions, failures, and recovery scenarios.
 
-The north-bound interface design integrates seamlessly with RDK-B's configuration management ecosystem through TR-181 parameter exposure, and RBus messaging. The south-bound interface leverages both HAL abstraction for hardware interaction and direct Linux system calls for network configuration, providing flexibility while maintaining portability. The design incorporates comprehensive error handling, logging, and telemetry capabilities to support troubleshooting and performance monitoring in production environments.
+The north-bound interface design integrates seamlessly with RDK-B's configuration management ecosystem through TR-181 parameter exposure, and R-BUS messaging. The south-bound interface leverages both HAL abstraction for hardware interaction and direct Linux system calls for network configuration, providing flexibility while maintaining portability. The design incorporates comprehensive error handling, logging, and telemetry capabilities to support troubleshooting and performance monitoring in production environments.
 
-IPC mechanisms are carefully designed around RBus, with message-based communication ensuring loose coupling between WAN Manager and Interface Managers. The design supports both synchronous and asynchronous communication patterns, enabling responsive interface management while preventing blocking operations that could impact overall system performance.
+IPC mechanisms are carefully designed around R-BUS, with message-based communication ensuring loose coupling between WAN Manager and Interface Managers. The design supports both synchronous and asynchronous communication patterns, enabling responsive interface management while preventing blocking operations that could impact overall system performance.
 
 Data persistence and configuration management are handled through a combination of PSM (Persistent Storage Manager) integration for TR-181 parameters, syscfg for device-specific settings, and sysevent for real-time system state communication. This multi-tiered approach ensures configuration persistence across reboots while providing efficient runtime state management.
-
 
 ```mermaid
 flowchart TD
@@ -94,26 +92,26 @@ flowchart TD
             Controller["WAN Controller"]
             PolicyEngine["Policy Engine"]
         end
-        
+
         subgraph PolicyLayer ["Policy Implementations"]
             AutoWAN["AutoWAN<br>Policy"]
             FixedMode["Fixed Mode<br>Policy"]
             ParallelScan["Parallel Scan<br>Policy"]
             PrimaryPriority["Primary Priority<br>Policy"]
         end
-        
+
         subgraph StateLayer ["State Management"]
             InterfaceSM["Interface<br>State Machine"]
             DataManager["Wan Manager Data Base"]
             ValidationEngine["Validation Engine"]
         end
-        
+
         subgraph NetworkLayer ["Network Services"]
             NetworkUtils["Network Utils"]
             DHCPv4["DHCPv4 Client"]
             DHCPv6["DHCPv6 Client"]
         end
-        
+
         subgraph IntegrationLayer ["Integration Services"]
             TR181["TR-181 Interface"]
             rdkbComponents["Other RDK-B Components"]
@@ -135,7 +133,7 @@ flowchart TD
 
     %% Config data read
     PSM --> PolicyEngine
-    
+
     %% State management
     PolicyEngine --> InterfaceSM
     InterfaceSM --> DataManager
@@ -146,53 +144,51 @@ flowchart TD
     Controller --> rdkbComponents
     DataManager --> WebConfig
     DataManager --> Telemetry
-    
+
     %% Network operations
     InterfaceSM --> NetworkUtils
     InterfaceSM --> DHCPv4
     InterfaceSM --> DHCPv6
-
 ```
 
 ### Prerequisites and Dependencies
 
 **Build-Time DISTRO Features and Flags:**
 
-| DISTRO Feature | Purpose | Impact | Recipe Usage |
-|----------------|---------|---------|--------------|
-| `ipoe_health_check` | IPoE health monitoring | Adds `FEATURE_IPOE_HEALTH_CHECK` compile flag | IPoE connection health validation |
-| `feature_mapt` or `unified_mapt` | MAP-T tunneling support | Adds `FEATURE_MAPT`, `FEATURE_MAPT_DEBUG`, `NAT46_KERNEL_SUPPORT` flags | IPv4/IPv6 transition technology |
-| `dhcp_manager` | DHCP Manager integration | Adds `FEATURE_RDKB_DHCP_MANAGER` XML define and configure flag | Enhanced DHCP management |
-
+| DISTRO Feature                   | Purpose                  | Impact                                                                  | Recipe Usage                      |
+| -------------------------------- | ------------------------ | ----------------------------------------------------------------------- | --------------------------------- |
+| `ipoe_health_check`              | IPoE health monitoring   | Adds `FEATURE_IPOE_HEALTH_CHECK` compile flag                           | IPoE connection health validation |
+| `feature_mapt` or `unified_mapt` | MAP-T tunneling support  | Adds `FEATURE_MAPT`, `FEATURE_MAPT_DEBUG`, `NAT46_KERNEL_SUPPORT` flags | IPv4/IPv6 transition technology   |
+| `dhcp_manager`                   | DHCP Manager integration | Adds `FEATURE_RDKB_DHCP_MANAGER` XML define and configure flag          | Enhanced DHCP management          |
 
 **XML Configuration Files (Runtime Selection):**
 
-| Configuration File | Selection Logic | Purpose |
-|--------------------|-----------------|---------|
+| Configuration File     | Selection Logic                                                   | Purpose                               |
+| ---------------------- | ----------------------------------------------------------------- | ------------------------------------- |
 | `RdkWanManager_v2.xml` | Used when `WanManagerUnificationEnable` DISTRO feature is enabled | Unified WAN Manager TR-181 data model |
 
 **RDK-B Platform and Integration Requirements:**
 
 - **RDK-B Components**: PSM (Persistent Storage Manager), SystemD service manager, DHCP Manager, Network Monitor
-- **HAL Dependencies**: Platform HAL, WiFi HAL (for interface status monitoring)
+- **HAL Dependencies**: Platform HAL
 - **Systemd Services**: `rbus.service`, `psm.service`, `systemd-networkd.service` must be active before WAN Manager starts
-- **Message Bus**: RBus registration under `Device.X_RDK_WanManager.*` namespace
+- **R-BUS**: R-BUS registration under `Device.X_RDK_WanManager.*` namespace
 - **TR-181 Data Model**: `Device.X_RDK_WanManager.*` parameter tree implementation, Interface Manager TR-181 objects for status reporting
 - **Configuration Files**: `PSM DB files`, `syscfg.db` for persistent configuration storage
 - **Startup Order**: Interface Managers → WAN Manager → Network Services → Upper Layer Applications initialization sequence
 
 <br>
 
-**Threading Model:** 
+**Threading Model:**
 
 WAN Manager employs a multi-threaded architecture designed to handle concurrent WAN interface management, policy execution, and system integration without blocking operations. The threading model separates control plane operations from data plane configuration to ensure responsive system behavior during interface transitions and network events.
 
 - **Threading Architecture**: Multi-threaded with specialized worker threads for different functional areas
-- **Main Thread**: Handles component initialization, TR-181 parameter registration, RBus message processing, and coordinates overall component lifecycle
-- **Main Worker Threads**: 
-    - **Policy Controller Thread**: Executes WAN selection policies, manages interface priority, and coordinates failover decisions with 500ms iteration cycles
-    - **Interface State Machine Threads**: One thread per WAN interface handling VLAN configuration, PPP setup, DHCP client management, and validation processes with 50ms state machine intervals
-    - **Validation Thread**: Performs DNS connectivity checks, internet validation, and network health monitoring without blocking interface operations
+- **Main Thread**: Handles component initialization, TR-181 parameter registration, R-BUS message processing, and coordinates overall component lifecycle
+- **Main Worker Threads**:
+  - **Policy Controller Thread**: Executes WAN selection policies, manages interface priority, and coordinates failover decisions with 500ms iteration cycles
+  - **Interface State Machine Threads**: One thread per WAN interface handling VLAN configuration, PPP setup, DHCP client management, and validation processes with 50ms state machine intervals
+  - **Validation Thread**: Performs DNS connectivity checks, internet validation, and network health monitoring without blocking interface operations
 - **Synchronization**: Thread-safe data access using mutex locks around shared data structures, condition variables for thread coordination, and lock-free queues for high-frequency event processing
 
 ### Component State Flow
@@ -223,11 +219,11 @@ sequenceDiagram
     DependencyManager->>TR181: PSM/SystemD Ready →<br> RegisteringTR181
 
     TR181->>IPC: TR-181 Objects Created →<br> InitializingIPC
-    IPC->>Threads: RBus Connected →<br> StartingThreads
+    IPC->>Threads: R-BUS Connected →<br> StartingThreads
     Threads->>Interfaces: Worker Threads Active →<br> WaitingInterfaces
 
     Interfaces->>System: Interface Managers Ready →<br> Active
-    Note right of System: Process TR-181<br>Handle RBus<br>Run policies<br>Monitor health<br>Telemetry data
+    Note right of System: Process TR-181<br>Handle R-BUS<br>Run policies<br>Monitor health<br>Telemetry data
 
     System->>PolicyEngine: WAN Enable = true →<br> PolicyExecution
     PolicyEngine->>Interfaces: Policy Selected →<br> InterfaceManagement
@@ -263,15 +259,15 @@ sequenceDiagram
     participant Init as SystemD
     participant WM as WAN Manager
     participant PSM as PSM Service
-    participant RBus as RBus Daemon
+    participant R-Bus as R-BUS Daemon
     participant IM as Interface Managers
 
     Init->>WM: Start Service
     WM->>WM: Initialize Core Components
     WM->>PSM: Connect & Load Parameters
     PSM-->>WM: Configuration Data
-    WM->>RBus: Register TR-181 Objects
-    RBus-->>WM: Registration Complete
+    WM->>R-Bus: Register TR-181 Objects
+    R-Bus-->>WM: Registration Complete
     WM->>WM: Start Worker Threads
     WM->>IM: Subscribe to Interface Events
     IM-->>WM: Subscription Acknowledged
@@ -311,7 +307,7 @@ WAN Manager implements a comprehensive TR-181 data model under the `Device.X_RDK
 Device.
 └── X_RDK_WanManager.
     ├── Enable (boolean, R/W)
-    ├── Policy (string, R/W) 
+    ├── Policy (string, R/W)
     ├── Data (string, R/W)
     ├── ResetActiveInterface (boolean, R/W)
     ├── AllowRemoteInterfaces (boolean, R/W)
@@ -368,23 +364,23 @@ Device.
 
 **Core Parameters:**
 
-| Parameter Path | Data Type | Access | Default Value | Description | BBF Compliance |
-|----------------|-----------|--------|---------------|-------------|----------------|
-| `Device.X_RDK_WanManager.Enable` | boolean | R/W | `true` | Master enable/disable control for WAN Manager component. When disabled, all WAN interface management operations are suspended and existing connections are maintained in current state. | Custom Extension |
-| `Device.X_RDK_WanManager.Policy` | string | R/W | `"AUTOWAN_MODE"` | WAN interface selection policy defining algorithm used for interface selection. Enumerated values: FIXED_MODE_ON_BOOTUP, FIXED_MODE, PRIMARY_PRIORITY_ON_BOOTUP, PRIMARY_PRIORITY, MULTIWAN_MODE, AUTOWAN_MODE, PARALLEL_SCAN. | Custom Extension |
-| `Device.X_RDK_WanManager.Data` | string | R/W | `""` | JSON-encoded configuration data for advanced policy parameters, interface priorities, and custom validation settings. Used for WebConfig integration and bulk configuration updates. | Custom Extension |
-| `Device.X_RDK_WanManager.RestorationDelay` | unsignedInt | R/W | `60` | Time in seconds to wait before attempting to restore primary interface after failover event. Prevents rapid interface flapping during unstable network conditions. | Custom Extension |
-| `Device.X_RDK_WanManager.CPEInterface.{i}.Name` | string | R/W | `"erouter0"` | Logical interface name used for WAN interface identification within RDK-B middleware. Must be unique across all WAN interfaces in the system. | Custom Extension |
-| `Device.X_RDK_WanManager.CPEInterface.{i}.Phy.Status` | string | R/W | `"Down"` | Physical interface status reported by Interface Manager. Enumerated values: Down, Initializing, Up. Reflects actual hardware interface state. | Custom Extension |
-| `Device.X_RDK_WanManager.CPEInterface.{i}.Wan.Type` | string | R/W | `"DOCSIS"` | WAN technology type for interface classification. Enumerated values: DOCSIS, ETHERNET, CELLULAR, DSL, PON, REMOTE. Used for policy selection and interface prioritization. | Custom Extension |
-| `Device.X_RDK_WanManager.CPEInterface.{i}.Wan.Priority` | unsignedInt | R/W | `1` | Interface selection priority within policy group. Lower numerical values indicate higher priority. Range 1-255 where 1 is highest priority. | Custom Extension |
-| `Device.X_RDK_WanManager.CPEInterface.{i}.VirtualInterface.{i}.IP.Mode` | string | R/W | `"DHCP"` | IP address assignment method for virtual interface. Enumerated values: DHCP, Static, None. Determines IPv4/IPv6 configuration strategy. | TR-181 Derived |
+| Parameter Path                                                          | Data Type   | Access | Default Value    | Description                                                                                                                                                                                                                    | BBF Compliance   |
+| ----------------------------------------------------------------------- | ----------- | ------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| `Device.X_RDK_WanManager.Enable`                                        | boolean     | R/W    | `true`           | Master enable/disable control for WAN Manager component. When disabled, all WAN interface management operations are suspended and existing connections are maintained in current state.                                        | Custom Extension |
+| `Device.X_RDK_WanManager.Policy`                                        | string      | R/W    | `"AUTOWAN_MODE"` | WAN interface selection policy defining algorithm used for interface selection. Enumerated values: FIXED_MODE_ON_BOOTUP, FIXED_MODE, PRIMARY_PRIORITY_ON_BOOTUP, PRIMARY_PRIORITY, MULTIWAN_MODE, AUTOWAN_MODE, PARALLEL_SCAN. | Custom Extension |
+| `Device.X_RDK_WanManager.Data`                                          | string      | R/W    | `""`             | JSON-encoded configuration data for advanced policy parameters, interface priorities, and custom validation settings. Used for WebConfig integration and bulk configuration updates.                                           | Custom Extension |
+| `Device.X_RDK_WanManager.RestorationDelay`                              | unsignedInt | R/W    | `60`             | Time in seconds to wait before attempting to restore primary interface after failover event. Prevents rapid interface flapping during unstable network conditions.                                                             | Custom Extension |
+| `Device.X_RDK_WanManager.CPEInterface.{i}.Name`                         | string      | R/W    | `"erouter0"`     | Logical interface name used for WAN interface identification within RDK-B middleware. Must be unique across all WAN interfaces in the system.                                                                                  | Custom Extension |
+| `Device.X_RDK_WanManager.CPEInterface.{i}.Phy.Status`                   | string      | R/W    | `"Down"`         | Physical interface status reported by Interface Manager. Enumerated values: Down, Initializing, Up. Reflects actual hardware interface state.                                                                                  | Custom Extension |
+| `Device.X_RDK_WanManager.CPEInterface.{i}.Wan.Type`                     | string      | R/W    | `"DOCSIS"`       | WAN technology type for interface classification. Enumerated values: DOCSIS, ETHERNET, CELLULAR, DSL, PON, REMOTE. Used for policy selection and interface prioritization.                                                     | Custom Extension |
+| `Device.X_RDK_WanManager.CPEInterface.{i}.Wan.Priority`                 | unsignedInt | R/W    | `1`              | Interface selection priority within policy group. Lower numerical values indicate higher priority. Range 1-255 where 1 is highest priority.                                                                                    | Custom Extension |
+| `Device.X_RDK_WanManager.CPEInterface.{i}.VirtualInterface.{i}.IP.Mode` | string      | R/W    | `"DHCP"`         | IP address assignment method for virtual interface. Enumerated values: DHCP, Static, None. Determines IPv4/IPv6 configuration strategy.                                                                                        | TR-181 Derived   |
 
 ### Parameter Registration and Access
 
 - **Implemented Parameters**: All parameters listed above are implemented with validation, persistence, and event notification support through WAN Manager's TR-181 handler
-- **Parameter Registration**: Parameters are registered during component initialization through RBus data model provider interface with automatic PSM persistence and sysevent notification integration
-- **Access Mechanism**: External components access parameters via RBus method calls using standard TR-181 get/set operations with full parameter validation and change notification support
+- **Parameter Registration**: Parameters are registered during component initialization through R-BUS data model provider interface with automatic PSM persistence and sysevent notification integration
+- **Access Mechanism**: External components access parameters via R-BUS method calls using standard TR-181 get/set operations with full parameter validation and change notification support
 - **Validation Rules**: Parameter values are validated against enumerated value sets, range constraints, and interdependency rules. Invalid configurations are rejected with appropriate error codes returned to calling applications
 
 ## WAN Selection Policies
@@ -416,32 +412,31 @@ Simultaneously evaluates all available WAN interfaces in parallel, selecting the
 
 ### Policy Selection Matrix
 
-| Policy Type | Boot Behavior | Runtime Switching | Validation Required | Multi-Interface | Use Case |
-|------------|---------------|-------------------|-------------------|-----------------|----------|
-| FIXED_MODE_ON_BOOTUP | First Available | None | No | No | Simple deployments |
-| FIXED_MODE | Configured | Manual Only | No | No | Managed networks, predictable routing |
-| PRIMARY_PRIORITY_ON_BOOTUP | Highest Priority | Failover Only | No | Sequential | Reliable primary/backup scenarios |
-| PRIMARY_PRIORITY | Highest Priority | Auto-Restoration | No | Sequential | Dynamic priority-based selection |
-| MULTIWAN_MODE | All Available | Load Balance | Optional | Yes | High availability, load distribution |
-| AUTOWAN_MODE | First Validated | Validation-Based | Yes | Sequential | Unreliable WAN environments |
-| PARALLEL_SCAN | Fastest Validated | Performance-Based | Yes | Concurrent | Low-latency requirements |
+| Policy Type                | Boot Behavior     | Runtime Switching | Validation Required | Multi-Interface | Use Case                              |
+| -------------------------- | ----------------- | ----------------- | ------------------- | --------------- | ------------------------------------- |
+| FIXED_MODE_ON_BOOTUP       | First Available   | None              | No                  | No              | Simple deployments                    |
+| FIXED_MODE                 | Configured        | Manual Only       | No                  | No              | Managed networks, predictable routing |
+| PRIMARY_PRIORITY_ON_BOOTUP | Highest Priority  | Failover Only     | No                  | Sequential      | Reliable primary/backup scenarios     |
+| PRIMARY_PRIORITY           | Highest Priority  | Auto-Restoration  | No                  | Sequential      | Dynamic priority-based selection      |
+| MULTIWAN_MODE              | All Available     | Load Balance      | Optional            | Yes             | High availability, load distribution  |
+| AUTOWAN_MODE               | First Validated   | Validation-Based  | Yes                 | Sequential      | Unreliable WAN environments           |
+| PARALLEL_SCAN              | Fastest Validated | Performance-Based | Yes                 | Concurrent      | Low-latency requirements              |
 
 ## Internal Modules
 
 WAN Manager's modular architecture separates functional responsibilities across specialized modules, each handling specific aspects of WAN interface management while maintaining clear interfaces and dependencies between components.
 
-| Module/Class | Description | Key Files |
-|-------------|------------|-----------|
-| **WAN Controller** | Main orchestration engine coordinating policy execution, interface state machine management, and system integration. Implements the primary control loop and event dispatch mechanisms. | `wanmgr_controller.c`, `wanmgr_controller.h` |
-| **Policy Implementations** | Seven distinct policy algorithm implementations providing different interface selection strategies. Each policy operates as an independent state machine with specific selection logic. | `wanmgr_policy_*.c` (autowan, fm, fmob, parallel_scan, pp, ppob, auto) |
-| **Interface State Machine** | Per-interface state machine managing VLAN configuration, PPP setup, IP address acquisition, validation, and teardown processes. Handles complete interface lifecycle management. | `wanmgr_interface_sm.c`, `wanmgr_interface_sm.h` |
-| **Data Manager** | Thread-safe data access layer providing centralized configuration and runtime state management with mutex protection and change notification mechanisms. | `wanmgr_data.c`, `wanmgr_data.h` |
-| **TR-181 Interface Layer** | Complete TR-181 data model implementation with parameter validation, persistence integration, and change notification support for external component integration. | `wanmgr_dml_*.c`, `wanmgr_apis.h` |
-| **Network Utilities** | Low-level networking operations including route management, interface configuration, DNS validation, and system integration functions for Linux networking stack. | `wanmgr_net_utils.c`, `wanmgr_net_utils.h` |
-| **DHCP Client Management** | DHCPv4 and DHCPv6 client coordination including lease management, option handling, and integration with WAN interface state machines for IP configuration. | `wanmgr_dhcpv4_*.c`, `wanmgr_dhcpv6_*.c` |
-| **IPC Communication** | RBus integration handling message routing, event subscription, and communication with Interface Managers and other RDK-B components. | `wanmgr_ssp_messagebus_interface.c`, `wanmgr_ipc.c` |
-| **Telemetry Integration** | T2 telemetry framework integration providing metrics collection, performance monitoring, and diagnostic data reporting for operational visibility. | `wanmgr_telemetry.c`, `wanmgr_t2_telemetry.c` |
-
+| Module/Class                | Description                                                                                                                                                                             | Key Files                                                              |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **WAN Controller**          | Main orchestration engine coordinating policy execution, interface state machine management, and system integration. Implements the primary control loop and event dispatch mechanisms. | `wanmgr_controller.c`, `wanmgr_controller.h`                           |
+| **Policy Implementations**  | Seven distinct policy algorithm implementations providing different interface selection strategies. Each policy operates as an independent state machine with specific selection logic. | `wanmgr_policy_*.c` (autowan, fm, fmob, parallel_scan, pp, ppob, auto) |
+| **Interface State Machine** | Per-interface state machine managing VLAN configuration, PPP setup, IP address acquisition, validation, and teardown processes. Handles complete interface lifecycle management.        | `wanmgr_interface_sm.c`, `wanmgr_interface_sm.h`                       |
+| **Data Manager**            | Thread-safe data access layer providing centralized configuration and runtime state management with mutex protection and change notification mechanisms.                                | `wanmgr_data.c`, `wanmgr_data.h`                                       |
+| **TR-181 Interface Layer**  | Complete TR-181 data model implementation with parameter validation, persistence integration, and change notification support for external component integration.                       | `wanmgr_dml_*.c`, `wanmgr_apis.h`                                      |
+| **Network Utilities**       | Low-level networking operations including route management, interface configuration, DNS validation, and system integration functions for Linux networking stack.                       | `wanmgr_net_utils.c`, `wanmgr_net_utils.h`                             |
+| **DHCP Client Management**  | DHCPv4 and DHCPv6 client coordination including lease management, option handling, and integration with WAN interface state machines for IP configuration.                              | `wanmgr_dhcpv4_*.c`, `wanmgr_dhcpv6_*.c`                               |
+| **IPC Communication**       | R-BUS integration handling message routing, event subscription, and communication with Interface Managers and other RDK-B components.                                                    | `wanmgr_ssp_messagebus_interface.c`, `wanmgr_ipc.c`                    |
+| **Telemetry Integration**   | T2 telemetry framework integration providing metrics collection, performance monitoring, and diagnostic data reporting for operational visibility.                                      | `wanmgr_telemetry.c`, `wanmgr_t2_telemetry.c`                          |
 
 ## Component Interactions
 
@@ -449,30 +444,30 @@ WAN Manager serves as a central coordination point within the RDK-B architecture
 
 ### Interaction Matrix
 
-| Target Component/Layer | Interaction Purpose | Key APIs/Endpoints |
-|------------------------|---------------------|--------------------|
+| Target Component/Layer          | Interaction Purpose                                            | Key APIs/Endpoints                                               |
+| ------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------- |
 | **RDK-B Middleware Components** |
-| DOCSIS Manager | DOCSIS interface status monitoring, configuration coordination | `Device.X_RDKCENTRAL-COM_DOCSIS.`, `wanmgr.interface.status` |
-| Cellular Manager | Cellular interface control, signal quality monitoring | `Device.Cellular.Interface.`, `wanmgr.cellular.events` |
-| Ethernet Manager | Ethernet port management, link status monitoring | `Device.Ethernet.Interface.`, `wanmgr.ethernet.status` |
-| DHCP Manager | IP lease coordination, DHCP option configuration | `/var/lib/dhcp/dhclient.leases`, `udhcpc` process control |
-| VLAN Manager | VLAN interface creation, VLAN ID management | `Device.Ethernet.VLANTermination.`, `ip link` commands |
-| RBus Daemon | Real-time event publication and component discovery | `rbus_open()`, `rbusEvent_Publish()`, `rbusMethod_InvokeAsync()` |
-| **System & HAL Layers** |
-| PSM Service | TR-181 parameter persistence, configuration storage | `getRecordNames()`, `setRecordValue()`, `getRecordValue()` |
-| System Events | Real-time system state communication | `sysevent_set()`, `sysevent_get()`, event subscriptions |
-| Network Stack | Interface configuration, routing, DNS setup | `ioctl()`, `netlink`, `/proc/net/route`, `resolv.conf` |
+| DOCSIS Manager                  | DOCSIS interface status monitoring, configuration coordination | `Device.X_RDKCENTRAL-COM_DOCSIS.`, `wanmgr.interface.status`     |
+| Cellular Manager                | Cellular interface control, signal quality monitoring          | `Device.Cellular.Interface.`, `wanmgr.cellular.events`           |
+| Ethernet Manager                | Ethernet port management, link status monitoring               | `Device.Ethernet.Interface.`, `wanmgr.ethernet.status`           |
+| DHCP Manager                    | IP lease coordination, DHCP option configuration               | `/var/lib/dhcp/dhclient.leases`, `udhcpc` process control        |
+| VLAN Manager                    | VLAN interface creation, VLAN ID management                    | `Device.Ethernet.VLANTermination.`, `ip link` commands           |
+| R-BUS Daemon                     | Real-time event publication and component discovery            | `rbus_open()`, `rbusEvent_Publish()`, `rbusMethod_InvokeAsync()` |
+| **System & HAL Layers**         |
+| PSM Service                     | TR-181 parameter persistence, configuration storage            | `getRecordNames()`, `setRecordValue()`, `getRecordValue()`       |
+| System Events                   | Real-time system state communication                           | `sysevent_set()`, `sysevent_get()`, event subscriptions          |
+| Network Stack                   | Interface configuration, routing, DNS setup                    | `ioctl()`, `netlink`, `/proc/net/route`, `resolv.conf`           |
 
 <br>
 
 **Major Events Published by WAN Manager:**
 
-| Event Name | Event Topic/Path | Trigger Condition | Subscriber Components |
-|-------------|------------------|-------------------|-----------------------|
-| `wan_interface_active` | `wanmgr.interface.active` | WAN interface successfully validated and activated | Firewall Manager, Bridge Manager, Network Monitor |
-| `wan_interface_down` | `wanmgr.interface.down` | WAN interface failure or administrative shutdown | DHCP Manager, DNS Resolver |
-| `wan_policy_change` | `wanmgr.policy.change` | WAN selection policy modification or update | Management Agents, Telemetry Service |
-| `wan_failover_event` | `wanmgr.failover.event` | Automatic failover between WAN interfaces | Network Monitor, Telemetry Service, Management Systems |
+| Event Name             | Event Topic/Path          | Trigger Condition                                  | Subscriber Components                                  |
+| ---------------------- | ------------------------- | -------------------------------------------------- | ------------------------------------------------------ |
+| `wan_interface_active` | `wanmgr.interface.active` | WAN interface successfully validated and activated | Firewall Manager, Bridge Manager, Network Monitor      |
+| `wan_interface_down`   | `wanmgr.interface.down`   | WAN interface failure or administrative shutdown   | DHCP Manager, DNS Resolver                             |
+| `wan_policy_change`    | `wanmgr.policy.change`    | WAN selection policy modification or update        | Management Agents, Telemetry Service                   |
+| `wan_failover_event`   | `wanmgr.failover.event`   | Automatic failover between WAN interfaces          | Network Monitor, Telemetry Service, Management Systems |
 
 ### IPC Flow Patterns
 
@@ -509,7 +504,7 @@ sequenceDiagram
     participant Subscribers as Event Subscribers
 
     HAL->>InterfaceMgr: Physical Interface Event
-    InterfaceMgr->>WM: RBus Status Update
+    InterfaceMgr->>WM: R-BUS Status Update
     WM->>WM: Update Interface State Machine
     WM->>NetworkServices: Configuration Change Request
     NetworkServices-->>WM: Configuration Applied
@@ -525,13 +520,12 @@ WAN Manager integrates with Platform HAL primarily through Interface Manager com
 
 **Core HAL APIs:**
 
-| HAL API | Purpose | Implementation File |
-|----------|----------|---------------------|
-| `platform_hal_GetHardware_MemUsed` | Memory usage monitoring for resource management | `wanmgr_utils.c` |
-| `platform_hal_GetDeviceProperties` | Hardware capability detection for interface support | `wanmgr_core.c` |
-| `platform_hal_SetSNMPEnable` | SNMP service coordination during interface changes | `wanmgr_interface_sm.c` |
-| `platform_hal_GetFanSpeed` | System thermal monitoring during high network load | `wanmgr_telemetry.c` |
-
+| HAL API                            | Purpose                                             | Implementation File     |
+| ---------------------------------- | --------------------------------------------------- | ----------------------- |
+| `platform_hal_GetHardware_MemUsed` | Memory usage monitoring for resource management     | `wanmgr_utils.c`        |
+| `platform_hal_GetDeviceProperties` | Hardware capability detection for interface support | `wanmgr_core.c`         |
+| `platform_hal_SetSNMPEnable`       | SNMP service coordination during interface changes  | `wanmgr_interface_sm.c` |
+| `platform_hal_GetFanSpeed`         | System thermal monitoring during high network load  | `wanmgr_telemetry.c`    |
 
 ### Key Implementation Logic
 
@@ -539,8 +533,8 @@ WAN Manager integrates with Platform HAL primarily through Interface Manager com
 
   State machine progression: STANDBY → VLAN_CONFIGURING → PPP_CONFIGURING → OBTAINING_IP_ADDRESSES → VALIDATING_WAN → [IPV4_LEASED/IPV6_LEASED/DUAL_STACK_ACTIVE] → REFRESHING_WAN → DECONFIGURING_WAN → EXIT
 
-- **Event Processing**: Hardware and network events processed through multi-threaded event handling system with separate threads for Interface Manager events, DHCP client notifications, and system events. Event processing includes filtering, queuing, and prioritization to ensure critical interface events receive immediate attention while maintaining system responsiveness. RBus event subscriptions for Interface Manager status updates, DHCP lease notifications, and system configuration changes. Asynchronous event processing prevents blocking operations that could delay interface state transitions
+- **Event Processing**: Hardware and network events processed through multi-threaded event handling system with separate threads for Interface Manager events, DHCP client notifications, and system events. Event processing includes filtering, queuing, and prioritization to ensure critical interface events receive immediate attention while maintaining system responsiveness. R-BUS event subscriptions for Interface Manager status updates, DHCP lease notifications, and system configuration changes. Asynchronous event processing prevents blocking operations that could delay interface state transitions
 
 - **Error Handling Strategy**: Comprehensive error detection through interface validation, network connectivity testing, and HAL operation result checking. Errors trigger appropriate recovery actions including interface reset, policy re-evaluation, or component restart. Error classification system differentiates between recoverable failures and permanent conditions requiring administrative intervention. Multi-level retry logic with exponential backoff for transient failures are present. Timeout handling & retry logic implemented for DHCP operations, DNS validation, and interface configuration with configurable parameters
 
-- **Logging & Debugging**: Structured logging using CCSP trace framework with categorized log levels (INFO, WARN, ERROR, DEBUG) and component-specific prefixes. Logging includes interface state transitions, policy decisions, validation results, and system integration events to support troubleshooting and performance analysis.  Debug logging for policy execution decisions, interface state machine transitions, and network validation processes and debug hooks for troubleshooting connectivity issues including packet capture integration and detailed validation logging are available
+- **Logging & Debugging**: Structured logging using CCSP trace framework with categorized log levels (INFO, WARN, ERROR, DEBUG) and component-specific prefixes. Logging includes interface state transitions, policy decisions, validation results, and system integration events to support troubleshooting and performance analysis. Debug logging for policy execution decisions, interface state machine transitions, and network validation processes and debug hooks for troubleshooting connectivity issues including packet capture integration and detailed validation logging are available
