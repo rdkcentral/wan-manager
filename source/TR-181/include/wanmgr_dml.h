@@ -467,6 +467,7 @@ typedef struct
     BOOL mapeAssigned;     /**< Have we been assigned mape config ? */
     BOOL maptAssigned;     /**< Have we been assigned mapt config ? */
     BOOL isFMR;
+    BOOL isPSIDComputed;
 }MaptData_t;
 
 typedef struct _WANMGR_MAPT_CONFIG_DATA_

@@ -871,6 +871,7 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody
         MaptInfo("Using psidLen value from dhcp6c options : %d", MaptConfig->psidLen);
         MaptInfo("Using psidOffset value from dhcp6c options : %d", dhcp6cMAPTMsgBody->psidOffset);
 #endif
+        MaptConfig->isPSIDComputed = FALSE;
     }
     else
     {
@@ -891,12 +892,7 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody
         MaptInfo("mapt: PSID Value: %d, ipv4IndexValue: %d", MaptConfig->psidValue, ipv4IndexValue);
         MaptInfo("mapt: PSID Length: %d", MaptConfig->psidLen);
 #endif
-        /* Since the Device.MAP.Domain DM uses the rule data structure to return values, 
-         * we need to update the structure with the calculated values 
-         * so that it returns the correct values
-        */
-        dhcp6cMAPTMsgBody->psid = MaptConfig->psidValue;
-        dhcp6cMAPTMsgBody->psidLen = MaptConfig->psidLen;
+        MaptConfig->isPSIDComputed = TRUE;
     }
 
     inet_pton(AF_INET, dhcp6cMAPTMsgBody->ruleIPv4Prefix, &(result));
