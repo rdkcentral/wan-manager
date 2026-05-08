@@ -767,6 +767,13 @@ WanDmlMapDomGetRule_Data
         pMapRule->PSIDOffset = pVirtIf->MAP.dhcp6cMAPparameters.psidOffset;
         pMapRule->PSIDLength = pVirtIf->MAP.dhcp6cMAPparameters.psidLen;
         pMapRule->PSID = pVirtIf->MAP.dhcp6cMAPparameters.psid;
+#ifdef FEATURE_MAPT
+        if (pVirtIf->MAP.MaptConfig.isPSIDComputed)
+        {
+            pMapRule->PSIDLength = pVirtIf->MAP.MaptConfig.psidLen;
+            pMapRule->PSID = pVirtIf->MAP.MaptConfig.psid;
+        }
+#endif
         pMapRule->Ratio = pVirtIf->MAP.dhcp6cMAPparameters.ratio;
         pMapRule->IncludeSystemPorts = FALSE;
     }
