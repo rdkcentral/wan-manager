@@ -918,22 +918,28 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody
     {
         ret = WanManager_CalculatePsidAndV4Index(dhcp6cMAPTMsgBody->pdIPv6Prefix, dhcp6cMAPTMsgBody->v6Len, dhcp6cMAPTMsgBody->iapdPrefixLen,
                 dhcp6cMAPTMsgBody->v4Len, &(MaptConfig->psidValue), &ipv4IndexValue, &(MaptConfig->psidLen));
-    }
 
-    if (ret != RETURN_OK)
-    {
-        CcspTraceError(("Error in calculating MAPT PSID value \n"));
+        if (ret != RETURN_OK)
+        {
+            CcspTraceError(("Error in calculating MAPT PSID value \n"));
 #ifdef FEATURE_MAPT_DEBUG
-        MaptInfo("Exiting MAPT configuration, MAPT will not be configured, error found in getting PSID value");
+            MaptInfo("Exiting MAPT configuration, MAPT will not be configured, error found in getting PSID value");
 #endif
-        CcspTraceNotice(("FEATURE_MAPT: MAP-T configuration failed\n"));
-        return ANSC_STATUS_FAILURE;
+            CcspTraceNotice(("FEATURE_MAPT: MAP-T configuration failed\n"));
+            return ANSC_STATUS_FAILURE;
+        }
+#ifdef FEATURE_MAPT_DEBUG
+        MaptInfo("--- MAP-T Computed Values - START ---");
+        MaptInfo("mapt: PSID Value: %d, ipv4IndexValue: %d", MaptConfig->psidValue, ipv4IndexValue);
+        MaptInfo("mapt: PSID Length: %d", MaptConfig->psidLen);
+#endif
+        /* Since the Device.MAP.Domain DM uses the rule data structure to return values, 
+         * we need to update the structure with the calculated values 
+         * so that it returns the correct values
+        */
+        dhcp6cMAPTMsgBody->psid = MaptConfig->psidValue;
+        dhcp6cMAPTMsgBody->psidLen = MaptConfig->psidLen;
     }
-#ifdef FEATURE_MAPT_DEBUG
-    MaptInfo("--- MAP-T Computed Values - START ---");
-    MaptInfo("mapt: PSID Value: %d, ipv4IndexValue: %d", MaptConfig->psidValue, ipv4IndexValue);
-    MaptInfo("mapt: PSID Length: %d", MaptConfig->psidLen);
-#endif
 
     inet_pton(AF_INET, dhcp6cMAPTMsgBody->ruleIPv4Prefix, &(result));
 

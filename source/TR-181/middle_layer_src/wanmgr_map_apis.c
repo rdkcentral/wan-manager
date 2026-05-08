@@ -765,29 +765,8 @@ WanDmlMapDomGetRule_Data
         pMapRule->EABitsLength = pVirtIf->MAP.dhcp6cMAPparameters.eaLen;
         pMapRule->IsFMR = pVirtIf->MAP.dhcp6cMAPparameters.isFMR;
         pMapRule->PSIDOffset = pVirtIf->MAP.dhcp6cMAPparameters.psidOffset;
-
-        /*
-         * MAP-E computes and stores PSID/PSIDLength in dhcp6cMAPparameters even
-         * when EA bits are present.
-         * Use explicit PSID values from DHCPv6 only when psidLen is present and eaLen is 0;
-         * otherwise use the locally computed MAP-T PSID values from PD EA-bits, or 0 when unavailable.
-        */
-        if ((pVirtIf->MAP.MapeStatus && (pVirtIf->MAP.dhcp6cMAPparameters.psidLen > 0)) || 
-            ((pVirtIf->MAP.dhcp6cMAPparameters.psidLen > 0) && (pVirtIf->MAP.dhcp6cMAPparameters.eaLen == 0)))
-        {
-            pMapRule->PSIDLength = pVirtIf->MAP.dhcp6cMAPparameters.psidLen;
-            pMapRule->PSID = pVirtIf->MAP.dhcp6cMAPparameters.psid;
-        }
-        else
-        {
-#ifdef FEATURE_MAPT
-            pMapRule->PSIDLength = pVirtIf->MAP.MaptConfig.psidLen;
-            pMapRule->PSID = pVirtIf->MAP.MaptConfig.psidValue;
-#else
-            pMapRule->PSIDLength = 0;
-            pMapRule->PSID = 0;
-#endif
-        }
+        pMapRule->PSIDLength = pVirtIf->MAP.dhcp6cMAPparameters.psidLen;
+        pMapRule->PSID = pVirtIf->MAP.dhcp6cMAPparameters.psid;
         pMapRule->Ratio = pVirtIf->MAP.dhcp6cMAPparameters.ratio;
         pMapRule->IncludeSystemPorts = FALSE;
     }
