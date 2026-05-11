@@ -3148,6 +3148,13 @@ static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             WanMgr_ProcessTelemetryMarker(WanMgr_getVirtualIfaceById( pInterface->VirtIfList,0),WAN_ERROR_MAPT_STATUS_FAILED);	
         }
 
+        //Stop DHCP client if running as MAP-T doesn't support DHCPv4
+        if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+        {
+            CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
+            WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
+        }
+
         if(p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
         {
             wan_transition_ipv4_down(pWanIfaceCtrl);
@@ -3203,18 +3210,19 @@ static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             CcspTraceWarning(("%s %d : Failed to configure MAP-E!", __FUNCTION__, __LINE__));
             return WAN_STATE_OBTAINING_IP_ADDRESSES;
         }
+
+        //Stop DHCP client if running as MAP-E doesn't support DHCPv4
+        if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+        {
+            CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
+            WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
+        }
 #endif
     }
     else
     {
         CcspTraceError(("%s %d - Invalid MAP Type\n", __FUNCTION__, __LINE__));
         return ANSC_STATUS_FAILURE;
-    }
-
-    if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
-    {
-        CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
-        WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
     }
 
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION WAN_STATE_MAP_ACTIVE\n", __FUNCTION__, __LINE__, pInterface->Name));
