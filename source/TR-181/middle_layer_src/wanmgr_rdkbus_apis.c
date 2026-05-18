@@ -2051,11 +2051,8 @@ ANSC_STATUS Update_Interface_Status()
                     snprintf(CurrentWanStatus,sizeof(CurrentWanStatus), "%s", (p_VirtIf->Status == WAN_IFACE_STATUS_UP)?"Up":"Down");
 #endif
 #if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
-                    if (devMode == GATEWAY_MODE)
-                    {
                         /* Update Only for Gateway mode. Wan IP Interface entry not added in PAM for MODEM_MODE */
                         WanMgr_RdkBus_setWanIpInterfaceData(p_VirtIf);
-                    }
 #endif
                 }
                 else if(pWanIfaceData->Selection.Status == WAN_IFACE_SELECTED)
