@@ -354,27 +354,25 @@ void _get_shell_output(FILE *fp, char * out, int len);
 int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf);
 
 /**
- * @brief Constructs a dedicated WAN IPv6 address from the received IAPD (IA Prefix Delegation).
+ * @brief Constructs a WAN IPv6 address from the received IAPD (IA Prefix Delegation).
  *
- * This function extracts the IPv6 prefix and its length from the given IAPD data. It then uses
- * the provided prefix to construct a unique WAN IPv6 address by using the next available /64 subnet.
- * The first /64 subnet of the IAPD is reserved for LAN, while the next /64 is used for the WAN address.
- * The constructed WAN address is assigned to the specified WAN interface.
+ * This function extracts the IPv6 prefix and its length from the given IAPD data. It then derives
+ * a WAN IPv6 /128 address from the first available /64 within the delegated prefix and assigns the
+ * constructed WAN address to the specified WAN interface.
  *
  * @param[in] pIpv6DataNew Pointer to the WANMGR_IPV6_DATA structure.
  *
- * @return 
+ * @return
  * - 0 on success.
  * - -1 on failure (e.g., invalid prefix format, prefix length >= 64, or system command failure).
  *
- * @note The function assumes that if the prefix length is less than 64, there are sufficient bits available
- *       to split the IAPD into multiple /64 subnets. If the prefix length is 64 or greater, it logs an error 
- *       and returns -1 since further subnetting is not possible.
+ * @note The function requires a delegated prefix length of less than 64 so that a /64 can be derived
+ *       from the IAPD. If the prefix length is 64 or greater, it logs an error and returns -1.
  *
  * ### Example:
  * Given an IAPD of "2a06:5906:13:d000::/56", the function may construct the following addresses:
- * - LAN IPv6 Address Range: "2a06:5906:13:d000::/64"
- * - WAN IPv6 Address: "2a06:5906:13:d001::1/128"
+ * - First /64 derived from the IAPD: "2a06:5906:13:d000::/64"
+ * - WAN IPv6 Address: "2a06:5906:13:d000::1/128"
  */
 int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew);
 

@@ -1517,7 +1517,7 @@ static int WanMgr_create_eui64_ipv6_address(char * prefix, char * intfName, char
     globalIP[i-1] = '\0';
 
     CcspTraceInfo(("The generated Ip v6 address for interface %s is:%s\n",intfName, globalIP));
-    _ansc_strncpy(ipAddr, globalIP, sizeof(globalIP) - 1);
+    snprintf(ipAddr, BUFLEN_48, "%s", globalIP);
     /* This IP should be unique. If not I have no idea. */
     return 0;
 }
@@ -1792,12 +1792,21 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
     {
         /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
          * We can use the received IAPD to construct a Ipv6 /128 address which can be used for managerment and voice ...
-         * If we reach this point, only IAPD has been received. Canculate Wan Ipv6 address 
+         * If we reach this point, only IAPD has been received. Calculate Wan Ipv6 address 
          */
 
         CcspTraceInfo(("IANA is not assigned by DHCPV6. Constructing WAN address from the IAPD for Wan Interface \n"));
-        wanmgr_construct_wan_address_from_IAPD(&Ipv6DataNew);
-        pNewIpcMsg->addrAssigned = true;
+        /* Construct WAN IPv6 address from the delegated prefix only if possible. */
+        if (wanmgr_construct_wan_address_from_IAPD(&Ipv6DataNew) == 0)
+        {
+            Ipv6DataNew.addrAssigned = true;
+            pNewIpcMsg->addrAssigned = true;
+        }
+        else
+        {
+            CcspTraceError(("%s %d Failed to construct WAN IPv6 address from IAPD. IPv6 address will not be marked as assigned.\n",
+                            __FUNCTION__, __LINE__));
+        }
     }
 
 
@@ -2060,10 +2069,11 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
 } /* End of ProcessDhcp6cStateChanged() */
 
 /**
- * @brief Sets up the IPv6 /128 address for the LAN bridge.
- * This function creates an IPv6 /128 address for the LAN bridge, 
- * configures all necessary system events for the IPv6 LAN, 
- * and restarts the DHCPv6 server and RA server if required.
+ * @brief Sets up IPv6-related configuration for the LAN bridge.
+ * This function derives the LAN IPv6 prefix from the delegated prefix,
+ * configures the relevant system events and IPv6 settings needed for
+ * LAN IPv6 operation, and allows other components (such as the DHCPv6
+ * and RA servers) to react to those changes as needed.
  * @param pVirtIf Pointer to the virtual interface structure.
  * @return int 0 on success, non-zero on failure.
  */

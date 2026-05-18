@@ -1036,8 +1036,9 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
 /**
  * @brief Checks if the IPv6 address is ready to use.
  *
- * This function checks the tentative address, detects Duplicate Address Detection (DAD) failure, and verifies the default route. 
- * If DAD fails, it also triggers a Router Solicitation.
+ * This function checks the tentative address, detects Duplicate Address Detection (DAD)
+ * failure, and verifies that a default route is present.
+ * If the default route is missing, it triggers a Router Solicitation.
  *
  * @param p_VirtIf Pointer to the virtual interface structure.
  * @return int 0 on success, negative value on failure.
@@ -1776,7 +1777,7 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
 
 //RBUS_WAN_IP
-//TODO : **************************** Check this ************************
+// TODO: Verify that the RBUS_WAN_IP IPv6 sysevent keys cleared below are correct for all product variants when WAN IPv6 goes down.
 #if defined (RBUS_WAN_IP)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     unsigned char ConfigureWANIPv6OnLANBridgeSupport = FALSE;
@@ -2942,7 +2943,7 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Prefix",  p_VirtIf->baseIfIdx+1, p_VirtIf->VirIfIdx+1);
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
 
-    //Disable accept_ra
+    // Disable accept_ra
     WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
 
     /* 

@@ -107,7 +107,7 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     if(!pDhcpv6Data->addrAssigned && pDhcpv6Data->prefixAssigned)
     {
         /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
-         * We can use the received IAPD to construct a Ipv6 /128 address which can be used for managerment and voice ...
+         * We can use the received IAPD to construct a Ipv6 /128 address which can be used for management and voice ...
          * If we reach this point, only IAPD has been received. Calculate Wan Ipv6 address 
          */
 
