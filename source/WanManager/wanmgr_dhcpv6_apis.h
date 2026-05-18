@@ -364,10 +364,10 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf);
  *
  * @return
  * - 0 on success.
- * - -1 on failure (e.g., invalid prefix format, prefix length >= 64, or system command failure).
+ * - -1 on failure (e.g., invalid prefix format, prefix length > 64, or system command failure).
  *
- * @note The function requires a delegated prefix length of less than 64 so that a /64 can be derived
- *       from the IAPD. If the prefix length is 64 or greater, it logs an error and returns -1.
+ * @note The function requires a delegated prefix length of 64 or less so that a /64 can be used or
+ *       derived from the IAPD. If the prefix length is greater than 64, it logs an error and returns -1.
  *
  * ### Example:
  * Given an IAPD of "2a06:5906:13:d000::/56", the function may construct the following addresses:
