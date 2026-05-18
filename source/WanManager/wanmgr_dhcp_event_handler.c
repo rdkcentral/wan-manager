@@ -23,6 +23,7 @@
 #include "wanmgr_interface_sm.h"
 #include "wanmgr_dhcp_client_events.h"
 #include "wanmgr_net_utils.h"
+#include "wanmgr_dhcpv6_apis.h"
 #ifdef FEATURE_MAPE
 #include "wanmgr_map_apis.h"
 #endif
