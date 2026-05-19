@@ -2255,8 +2255,6 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
     /* This is for IP.Interface.1. use */
     sysevent_set(sysevent_fd, sysevent_token, COSA_DML_DHCPV6S_ADDR_SYSEVENT_NAME, globalIP, 0);
 
-    CcspTraceWarning(("%s: setting lan-restart\n", __FUNCTION__));
-    sysevent_set(sysevent_fd, sysevent_token, "lan-restart", "1", 0);
 #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && ! defined(DHCPV6_PREFIX_FIX) 
     CcspTraceWarning(("%s: setting dhcpv6_server-restart\n", __FUNCTION__));
     sysevent_set(sysevent_fd, sysevent_token, "dhcpv6_server-restart", "", 0);
