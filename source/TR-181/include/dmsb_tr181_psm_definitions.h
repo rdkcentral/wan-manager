@@ -65,6 +65,7 @@
 #define PSM_WANMANAGER_IF_VIRIF_IP_PREFERREDMODE            "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.PreferredMode"
 #define PSM_WANMANAGER_IF_VIRIF_IP_MODE_FORCE_ENABLE        "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.ModeForceEnable"
 #define PSM_WANMANAGER_CONNECTIVITY_CHECK_TYPE              "dmsb.wanmanager.if.%d.VirtualInterface.%d.IP.ConnectivityCheckType"
+#define PSM_WANMANAGER_ROUTE_TABLE_NAME                     "dmsb.wanmanager.RoutingTableName"
 
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED)
 #define PSM_WANMANAGER_IF_SELECTION_ENABLE                  "dmsb.wanmanager.if.%d.Selection.Enable"
