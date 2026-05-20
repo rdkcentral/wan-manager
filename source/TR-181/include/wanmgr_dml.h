@@ -366,14 +366,12 @@ typedef struct _WANMGR_IPV6_DATA
    uint32_t prefixVltime;
    char sitePrefixOld[BUFLEN_48]; /**< add support for RFC7084 requirement L-13 */
     uint32_t ipv6_TimeOffset;
-   #if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
    /* Params to store the IPv6 IPC message */
-   bool addrAssigned;
+   bool addrAssigned;           /**< Have we been assigned an IPv6 address ? */
    uint32_t addrCmd;
-   bool prefixAssigned;  /**< Have we been assigned a site prefix ? */
+   bool prefixAssigned;         /**< Have we been assigned a site prefix ? */
    uint32_t prefixCmd;
    bool domainNameAssigned;     /**< Have we been assigned dns server addresses ? */
-   #endif
 } WANMGR_IPV6_DATA;
 
 typedef struct _WANMGR_IPV6_RA_DATA 
