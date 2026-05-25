@@ -2927,7 +2927,6 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     }
     else
     {
-
         if(p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)
         {
             /* Start DHCPv6 Client */
