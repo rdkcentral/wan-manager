@@ -2927,23 +2927,10 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     }
     else
     {
-        /*
-         * Fix race condition: The "DHCPv6 client stopped" event may not yet be
-         * processed by the DHCP event queue worker when this transition runs.
-         * In that case, Dhcp6cStatus is still DHCPC_STARTED even though the
-         * actual dibbler-client process has already exited.
-         *
-         * Self-heal conditions - restart DHCPv6 client if ANY of:
-         * 1. Status is not DHCPC_STARTED (event was processed, client confirmed stopped)
-         * 2. PID is <= 1 (invalid/placeholder - PID 1 is init, not dhcp6c)
-         * 3. PID > 1 but process is no longer running (confirmed dead)
-         */
-        if(p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED ||
-           p_VirtIf->IP.Dhcp6cPid <= 1 ||
-           WanMgr_IsPIDRunning(p_VirtIf->IP.Dhcp6cPid) != TRUE)
+        if(p_VirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)
         {
             /* Start DHCPv6 Client */
-            CcspTraceInfo(("%s %d - Starting dibbler-client on interface %s (Dhcp6cStatus=%d, Pid=%d)\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Dhcp6cStatus, p_VirtIf->IP.Dhcp6cPid));
+            CcspTraceInfo(("%s %d - Starting dibbler-client on interface %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
             WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
             CcspTraceInfo(("%s %d - SELFHEAL - Started dibbler-client on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         }

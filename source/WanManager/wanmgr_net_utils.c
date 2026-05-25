@@ -546,17 +546,22 @@ ANSC_STATUS WanManager_StopDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
         snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
         snprintf( dmlValue, sizeof(dmlValue), "%s", "false");
     }
+    /* Set status to STOPPED before issuing the stop request to eliminate the
+     * race where the STOPPED event arrives (and the worker thread processes it)
+     * before WanMgr_RdkBus_SetParamValues returns. Without this, the event
+     * handler would see Dhcp6cStatus==STARTED and trigger a spurious self-heal
+     * restart for an intentional stop. */
+    pVirtIf->IP.Dhcp6cStatus = DHCPC_STOPPED;
+    pVirtIf->IP.Dhcp6cPid = 0;
+    WanMgr_UnSubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, dmlValue, ccsp_boolean, TRUE))
     {
         CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
-        pVirtIf->IP.Dhcp6cStatus = DHCPC_STOPPED;
-        pVirtIf->IP.Dhcp6cPid = 0; 
     }
     else
     {
         CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
     }
-    WanMgr_UnSubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
     return ANSC_STATUS_SUCCESS;
 #else
     if (is_release_required == STOP_DHCP_WITH_RELEASE)
@@ -662,17 +667,22 @@ ANSC_STATUS WanManager_StopDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
         snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
         snprintf( dmlValue, sizeof(dmlValue), "%s", "false");
     }
+    /* Set status to STOPPED before issuing the stop request to eliminate the
+     * race where the STOPPED event arrives (and the worker thread processes it)
+     * before WanMgr_RdkBus_SetParamValues returns. Without this, the event
+     * handler would see Dhcp4cStatus==STARTED and trigger a spurious self-heal
+     * restart for an intentional stop. */
+    pVirtIf->IP.Dhcp4cStatus = DHCPC_STOPPED;
+    pVirtIf->IP.Dhcp4cPid = 0;
+    WanMgr_UnSubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, dmlValue, ccsp_boolean, TRUE))
     {
         CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
-        pVirtIf->IP.Dhcp4cStatus = DHCPC_STOPPED;
-        pVirtIf->IP.Dhcp4cPid = 0;
     }
     else
     {
         CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
     }
-    WanMgr_UnSubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     if (IsReleaseNeeded == STOP_DHCP_WITH_RELEASE)
     {
         //TODO: sleep added to allow dhcpv4 client to send release before interface deconfig. This should be handled by dhcpmanager itself.
