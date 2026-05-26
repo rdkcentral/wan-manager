@@ -73,7 +73,7 @@ ANSC_STATUS WanMgr_Core_Start(void)
     WanMgr_WanIfaceMarkingInit();
 #endif /* * FEATURE_802_1P_COS_MARKING */
     //Initialise Policy State Machine
-    WanController_Init_StateMachine();
+    //WanController_Init_StateMachine();
 
     return retStatus;
 }
