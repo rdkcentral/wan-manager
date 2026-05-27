@@ -73,7 +73,7 @@ static void WanMgr_RecordWanFailureStart(void)
     {
         clock_gettime(CLOCK_MONOTONIC_RAW, &gWanFailureStartTime);
         gWanFailureTimerActive = true;
-        CcspTraceInfo(("%s %d - WAN_FAILURE_TIME: failure timer started at %ld\n",
+        CcspTraceInfo(("%s %d - WAN failure timer started at %ld\n",
                        __FUNCTION__, __LINE__, gWanFailureStartTime.tv_sec));
     }
 }
@@ -87,8 +87,8 @@ static void WanMgr_PrintWanFailureTimeMarker(const char *ifaceName)
     struct timespec now = {0};
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     long duration = now.tv_sec - gWanFailureStartTime.tv_sec;
-    char durStr[64] = {0};
-    snprintf(durStr, sizeof(durStr), "%ldsecs", duration);
+    char durStr[128] = {0};
+    snprintf(durStr, sizeof(durStr), "%s|%ldsecs", (ifaceName ? ifaceName : "unknown"), duration);
 
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
     t2_event_s("WAN_FAILURE_TIME_split", durStr);
@@ -2176,9 +2176,20 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     }
 
     /*If WanManger restarted, get the status of existing VLAN, PPP inetrfaces.*/
-    if(WanMgr_RestartFindExistingLink(pWanIfaceCtrl) == TRUE)
+    BOOL bExistingLinkFound = WanMgr_RestartFindExistingLink(pWanIfaceCtrl);
+    if(bExistingLinkFound == TRUE)
     {
         CcspTraceInfo(("%s %d - Already WAN interface %s created\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+    }
+    else
+    {
+        /* Boot-up WAN down: WAN was never up, so teardown functions never fire and
+         * the failure timer never gets started via the normal dynamic path.
+         * Record the start time here so the duration from boot (WAN unavailable)
+         * to failover activation is captured correctly.
+         * The guard inside WanMgr_RecordWanFailureStart() ensures the timer is
+         * set only once — by whichever interface SM enters this path first. */
+        WanMgr_RecordWanFailureStart();
     }
 
     /*Should Update available status */
