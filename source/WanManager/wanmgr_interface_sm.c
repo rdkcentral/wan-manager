@@ -62,7 +62,7 @@
 /* ── WAN Failure Time tracking ─────────────────────────────────────────────
  * Records how long WAN was down (wan-status: stopped → started) when HOTSPOT
  * (non-primary interface) becomes the active failover.
- * Prints telemetry marker: WAN_FAILURE_TIME:<N>secs
+ * Prints telemetry marker: WAN_FAILURE_TIME:recovered by-<AliasName>,<N>secs
  * ──────────────────────────────────────────────────────────────────────── */
 static struct timespec gWanFailureStartTime = {0};
 static bool           gWanFailureTimerActive = false;
@@ -88,13 +88,12 @@ static void WanMgr_PrintWanFailureTimeMarker(const char *ifaceName)
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     long duration = now.tv_sec - gWanFailureStartTime.tv_sec;
     char durStr[128] = {0};
-    snprintf(durStr, sizeof(durStr), "%s|%ldsecs", (ifaceName ? ifaceName : "unknown"), duration);
+    snprintf(durStr, sizeof(durStr), "%s|%ld", (ifaceName ? ifaceName : "unknown"), duration);
 
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-    t2_event_s("WAN_FAILURE_TIME_split", durStr);
+    t2_event_s("WAN_DOWN_DURATION", durStr);
 #endif
-    CcspTraceInfo(("%s %d - WAN_FAILURE_TIME:%s (failover iface: %s)\n",
-                   __FUNCTION__, __LINE__, durStr, ifaceName ? ifaceName : "unknown"));
+    CcspTraceInfo(("%s %d - WAN_DOWN_DURATION:%s\n",__FUNCTION__, __LINE__, durStr));
 
     gWanFailureTimerActive = false;
     memset(&gWanFailureStartTime, 0, sizeof(gWanFailureStartTime));
@@ -1473,17 +1472,6 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_STATUS, WAN_STATUS_STARTED, 0);
         CcspTraceInfo(("%s %d - wan-status event set to started \n", __FUNCTION__, __LINE__));
 
-        /* WAN failure time marker: print duration if HOTSPOT (non-primary) took over,
-         * or silently reset the timer if the primary WAN recovered. */
-        if (pInterface->IfaceConnectionType != WAN_IFACE_CONN_TYPE_PRIMARY)
-        {
-            WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
-        }
-        else
-        {
-            WanMgr_ResetWanFailureTimer();
-        }
-
         if(p_VirtIf->IP.Ipv4Data.ifname[0] != '\0' && pInterface->IfaceType != REMOTE_IFACE && (WAN_IFACE_CONN_TYPE_COLD_STANDBY != pInterface->IfaceConnectionType))
         {
             syscfg_set_commit(NULL, SYSCFG_WAN_INTERFACE_NAME, p_VirtIf->IP.Ipv4Data.ifname);
@@ -1494,6 +1482,23 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         LOG_CONSOLE("%s [tid=%ld] v4: Wan_init_complete for interface index %d at %d\n", buffer, syscall(SYS_gettid), pWanIfaceCtrl->interfaceIdx, uptime);
 
         WanManager_PrintBootEvents (WAN_INIT_COMPLETE);
+    }
+
+    /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
+     * non-primary (HOT_STANDBY) and REMOTE interfaces are covered — these
+     * interface types bypass the WAN-STATUS sysevent block above and would
+     * otherwise never trigger the marker.
+     *   HOT_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
+     *                           (time from WAN failure/boot to this recovery).
+     *   All other types        → primary WAN recovered: discard the timer
+     *                           so a stale duration is never reported later. */
+    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_HOT_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
+    {
+        WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
+    }
+    else
+    {
+        WanMgr_ResetWanFailureTimer();
     }
 
 #if defined(_DT_WAN_Manager_Enable_)
@@ -1712,17 +1717,6 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 
         CcspTraceInfo(("%s %d - wan-status event set to started \n", __FUNCTION__, __LINE__));
 
-        /* WAN failure time marker: print duration if HOTSPOT (non-primary) took over,
-         * or silently reset the timer if the primary WAN recovered. */
-        if (pInterface->IfaceConnectionType != WAN_IFACE_CONN_TYPE_PRIMARY)
-        {
-            WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
-        }
-        else
-        {
-            WanMgr_ResetWanFailureTimer();
-        }
-
         /* Set the current WAN Interface name */
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, p_VirtIf->IP.Ipv6Data.ifname, 0);
         if(p_VirtIf->IP.Ipv6Data.ifname[0] != '\0' && pInterface->IfaceType != REMOTE_IFACE && (WAN_IFACE_CONN_TYPE_COLD_STANDBY != pInterface->IfaceConnectionType) )
@@ -1754,7 +1748,24 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 #endif
     }
-  
+
+    /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
+     * non-primary (HOT_STANDBY) and REMOTE interfaces are covered — these
+     * interface types bypass the WAN-STATUS sysevent block above and would
+     * otherwise never trigger the marker.
+     *   HOT_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
+     *                           (time from WAN failure/boot to this recovery).
+     *   All other types        → primary WAN recovered: discard the timer
+     *                           so a stale duration is never reported later. */
+    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_HOT_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
+    {
+        WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
+    }
+    else
+    {
+        WanMgr_ResetWanFailureTimer();
+    }
+
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
     return ret;
 }
