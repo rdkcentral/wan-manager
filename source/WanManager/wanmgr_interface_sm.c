@@ -1485,14 +1485,14 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
-     * non-primary (HOT_STANDBY) and REMOTE interfaces are covered — these
+     * non-primary (COLD_STANDBY) and REMOTE interfaces are covered — these
      * interface types bypass the WAN-STATUS sysevent block above and would
      * otherwise never trigger the marker.
-     *   HOT_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
+     *   COLD_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
      *                           (time from WAN failure/boot to this recovery).
      *   All other types        → primary WAN recovered: discard the timer
      *                           so a stale duration is never reported later. */
-    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_HOT_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
+    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_COLD_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
     {
         WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
     }
@@ -1750,14 +1750,14 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
-     * non-primary (HOT_STANDBY) and REMOTE interfaces are covered — these
+     * non-primary (COLD_STANDBY) and REMOTE interfaces are covered — these
      * interface types bypass the WAN-STATUS sysevent block above and would
      * otherwise never trigger the marker.
-     *   HOT_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
+     *   COLD_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
      *                           (time from WAN failure/boot to this recovery).
      *   All other types        → primary WAN recovered: discard the timer
      *                           so a stale duration is never reported later. */
-    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_HOT_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
+    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_COLD_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
     {
         WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
     }
