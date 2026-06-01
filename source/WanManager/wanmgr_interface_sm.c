@@ -62,7 +62,9 @@
 /* ── WAN Failure Time tracking ─────────────────────────────────────────────
  * Records how long WAN was down (wan-status: stopped → started) when HOTSPOT
  * (non-primary interface) becomes the active failover.
- * Prints telemetry marker: WAN_FAILURE_TIME:recovered by-<AliasName>,<N>secs
+ * Records how long the customer had no internet service from the moment a WAN
+ * outage is detected until service resumes via a non-primary (failover) interface.
+ * Telemetry marker (T2): t2_event_s("WAN_DOWN_DURATION", "<Recovered by Interface-Alias-Name>|<N Seconds of Downtime>") 
  * ──────────────────────────────────────────────────────────────────────── */
 static struct timespec gWanFailureStartTime = {0};
 static bool           gWanFailureTimerActive = false;
@@ -78,7 +80,7 @@ static void WanMgr_RecordWanFailureStart(void)
     }
 }
 
-static void WanMgr_PrintWanFailureTimeMarker(const char *ifaceName)
+static void WanMgr_PrintWanFailureTimeMarker(const char *ifaceAlias)
 {
     if (!gWanFailureTimerActive)
     {
@@ -88,7 +90,7 @@ static void WanMgr_PrintWanFailureTimeMarker(const char *ifaceName)
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     long duration = now.tv_sec - gWanFailureStartTime.tv_sec;
     char durStr[128] = {0};
-    snprintf(durStr, sizeof(durStr), "%s|%ld", (ifaceName ? ifaceName : "unknown"), duration);
+    snprintf(durStr, sizeof(durStr), "%s|%ld", (ifaceAlias ? ifaceAlias : "unknown"), duration);
 
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
     t2_event_s("WAN_DOWN_DURATION", durStr);
@@ -1494,7 +1496,7 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
      *                           so a stale duration is never reported later. */
     if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_COLD_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
     {
-        WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
+        WanMgr_PrintWanFailureTimeMarker(pInterface->AliasName);
     }
     else
     {
@@ -1759,7 +1761,7 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
      *                           so a stale duration is never reported later. */
     if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_COLD_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
     {
-        WanMgr_PrintWanFailureTimeMarker(pInterface->Name);
+        WanMgr_PrintWanFailureTimeMarker(pInterface->AliasName);
     }
     else
     {
