@@ -59,6 +59,7 @@
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
 
+
 #if defined(FEATURE_464XLAT)
 typedef enum
 {
@@ -1438,7 +1439,6 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         WanManager_PrintBootEvents (WAN_INIT_COMPLETE);
     }
 
-    /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
 #if defined(_DT_WAN_Manager_Enable_)
     wanmgr_setSharedCGNAddress(p_VirtIf->IP.Ipv4Data.ip);
 #endif
@@ -1684,7 +1684,6 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 #endif
     }
 
-    /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
     return ret;
 }
@@ -2103,13 +2102,9 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     }
 
     /*If WanManger restarted, get the status of existing VLAN, PPP inetrfaces.*/
-    BOOL bExistingLinkFound = WanMgr_RestartFindExistingLink(pWanIfaceCtrl);
-    if(bExistingLinkFound == TRUE)
+    if(WanMgr_RestartFindExistingLink(pWanIfaceCtrl) == TRUE)
     {
         CcspTraceInfo(("%s %d - Already WAN interface %s created\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
-    }
-    else
-    {
     }
 
     /*Should Update available status */
