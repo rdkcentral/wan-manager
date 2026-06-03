@@ -1964,9 +1964,9 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
  *   t2_event_s("WAN_DOWN_DURATION",
  *              "<Recovered-by-Interface-VirtIf-Name>|<Seconds-of-Downtime>")
  *
- * Ownership: Update_Interface_Status() — driven purely by comparing the
- * previous vs. newly-computed CurrentActiveInterface on every status poll,
- * without any per-state-machine hooks in wanmgr_interface_sm.c.
+ * Ownership: Update_Interface_Status() — driven by PHY/link status and
+ * VirtIf.Status on every poll cycle, without any per-state-machine hooks
+ * in wanmgr_interface_sm.c.
  * ─────────────────────────────────────────────────────────────────────────── */
 static struct timespec gWanFailureStartTime  = {0};
 static bool            gWanFailureTimerActive = false;
@@ -2043,11 +2043,17 @@ ANSC_STATUS Update_Interface_Status()
     CHAR    prevCurrentActiveDNS[BUFLEN_256] = {0};
 
     /*
-     * activeIfaceAlias : AliasName of the WAN interface that currently owns
-     *   CurrentActiveInterface.  Populated in the iface loop and used by the
-     *   WAN failure timer to decide print-vs-reset on recovery.
+     * activeIfaceAlias   : AliasName of the WAN interface that is ACTIVE+UP
+     *   this poll cycle.  Used by the WAN failure timer to decide
+     *   print-vs-reset on recovery.
+     * hasFullyActiveIface : true if any non-voice interface currently has
+     *   Selection.Status == WAN_IFACE_ACTIVE  AND  VirtIf.Status == UP.
+     * activeIfacePhyDown  : true if the ACTIVE interface has
+     *   BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_DOWN this cycle.
      */
     CHAR    activeIfaceAlias[BUFLEN_64] = {0};
+    bool    hasFullyActiveIface = false;
+    bool    activeIfacePhyDown  = false;
 
 #ifdef RBUS_BUILD_FLAG_ENABLE
     CHAR    CurrentWanStatus[BUFLEN_16] = "Down";
@@ -2088,12 +2094,20 @@ ANSC_STATUS Update_Interface_Status()
                     continue;
                 }
 
-                /* Capture the alias of the interface that is currently ACTIVE,
-                 * so the WAN failure timer can identify it as backup or primary. */
+                /* Capture alias and PHY/link state of the ACTIVE interface for
+                 * the WAN failure timer decision (backup vs. primary recovery). */
                 if (pWanIfaceData->Selection.Status == WAN_IFACE_ACTIVE)
                 {
                     snprintf(activeIfaceAlias, sizeof(activeIfaceAlias), "%s",
                              pWanIfaceData->AliasName);
+
+                    /* VirtIf UP means WAN service is fully established */
+                    if (p_VirtIf->Status == WAN_IFACE_STATUS_UP)
+                        hasFullyActiveIface = true;
+
+                    /* PHY_DOWN while still ACTIVE means physical link lost */
+                    if (pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_DOWN)
+                        activeIfacePhyDown = true;
                 }
 
                 struct IFACE_INFO *newIface = calloc(1, sizeof( struct IFACE_INFO));
@@ -2199,15 +2213,6 @@ ANSC_STATUS Update_Interface_Status()
     if (pWanConfigData != NULL)
     {
         DML_WANMGR_CONFIG* pWanDmlData = &(pWanConfigData->data);
-
-        /*
-         * Snapshot the current active interface BEFORE any field updates.
-         * The WAN failure timer logic compares this (old) value against the
-         * freshly-computed CurrentActiveInterface to detect transitions.
-         */
-        CHAR prevActiveForTimer[BUFLEN_64] = {0};
-        strncpy(prevActiveForTimer, pWanDmlData->CurrentActiveInterface,
-                sizeof(prevActiveForTimer) - 1);
 
         if(strcmp(pWanDmlData->InterfaceAvailableStatus,InterfaceAvailableStatus) != 0)
         {
@@ -2326,48 +2331,53 @@ ANSC_STATUS Update_Interface_Status()
 
         /* ── WAN Failure Time Tracking ──────────────────────────────────────────
          *
-         * Timer start (run-time): the active interface is gone
-         *               (CurrentActiveInterface empty, timer not yet running).
+         * Timer start : WAN service is lost.  Triggered when no interface is
+         *               fully active (ACTIVE + VirtIf UP), OR the currently
+         *               ACTIVE interface has PHY_STATUS_DOWN (physical link lost
+         *               before the selection state has been updated).
          *               Boot-up start is handled by WanMgr_FailureTimer_Init()
-         *               called from wanmgr_main.c — the guard !gWanFailureTimerActive
-         *               prevents a double-start here.
+         *               called from wanmgr_main.c; the !gWanFailureTimerActive
+         *               guard prevents a double-start.
          *
-         * Timer stop  : an interface just became active (CurrentActiveInterface
-         *               non-empty and changed from prev).
-         *   - If the newly-active interface alias contains "HOTSPOT" or "REMOTE"
-         *     it is a backup/failover interface → emit WAN_DOWN_DURATION telemetry.
-         *   - Otherwise it is a primary interface recovering → reset silently.
+         * Timer stop  : a fully-active interface (ACTIVE + VirtIf UP) exists
+         *               while the timer is running.  This covers both the case
+         *               where a new interface took over and the case where the
+         *               same interface recovered from PHY/link loss.
+         *   - Alias contains "HOTSPOT" or "REMOTE_LTE" → backup took over,
+         *     emit WAN_DOWN_DURATION telemetry marker.
+         *   - Otherwise the primary recovered → reset the timer silently.
          * ─────────────────────────────────────────────────────────────────────── */
-        if (CurrentActiveInterface[0] == '\0' && !gWanFailureTimerActive)
+        bool wanServiceLost = !hasFullyActiveIface || activeIfacePhyDown;
+
+        if (wanServiceLost && !gWanFailureTimerActive)
         {
-            /* No active WAN interface (boot-up or run-time loss) — start outage timer */
-            CcspTraceInfo(("%s %d - No active WAN interface (prev='%s'),"
-                           " starting failure timer\n",
-                           __FUNCTION__, __LINE__, prevActiveForTimer));
+            CcspTraceInfo(("%s %d - WAN service lost (hasFullyActive=%d phyDown=%d)"
+                           " — starting failure timer\n",
+                           __FUNCTION__, __LINE__,
+                           hasFullyActiveIface, activeIfacePhyDown));
             WanMgr_RecordWanFailureStart();
         }
-        else if (CurrentActiveInterface[0] != '\0' &&
-                 strcmp(prevActiveForTimer, CurrentActiveInterface) != 0 &&
-                 gWanFailureTimerActive)
+        else if (!wanServiceLost && gWanFailureTimerActive)
         {
-            /* An interface became active while the outage timer was running */
+            /* WAN service restored while outage timer was running */
             bool isBackup = (strstr(activeIfaceAlias, "HOTSPOT") != NULL ||
                              strstr(activeIfaceAlias, "REMOTE_LTE")  != NULL);
             if (isBackup)
             {
-                /* Backup/failover took over — emit downtime duration */
+                /* Backup/failover interface carried the traffic — emit duration */
                 CcspTraceInfo(("%s %d - Backup interface '%s' (alias '%s') became"
-                               " active, emitting WAN_DOWN_DURATION\n",
+                               " fully active, emitting WAN_DOWN_DURATION\n",
                                __FUNCTION__, __LINE__,
                                CurrentActiveInterface, activeIfaceAlias));
                 WanMgr_PrintWanFailureTimeMarker(activeIfaceAlias);
             }
             else
             {
-                /* Primary recovered — discard timer silently */
-                CcspTraceInfo(("%s %d - Primary interface '%s' recovered,"
-                               " resetting failure timer\n",
-                               __FUNCTION__, __LINE__, CurrentActiveInterface));
+                /* Primary interface recovered — discard timer silently */
+                CcspTraceInfo(("%s %d - Primary interface '%s' (alias '%s') fully"
+                               " recovered, resetting failure timer\n",
+                               __FUNCTION__, __LINE__,
+                               CurrentActiveInterface, activeIfaceAlias));
                 WanMgr_ResetWanFailureTimer();
             }
         }
