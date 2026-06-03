@@ -1683,7 +1683,7 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 #endif
     }
-	
+  
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
     return ret;
 }
