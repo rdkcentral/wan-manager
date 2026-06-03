@@ -59,54 +59,6 @@
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
 
-/* ── WAN Failure Time tracking ─────────────────────────────────────────────
- * Records how long WAN was down (wan-status: stopped → started) when HOTSPOT
- * (non-primary interface) becomes the active failover.
- * Records how long the customer had no internet service from the moment a WAN
- * outage is detected until service resumes via a non-primary (failover) interface.
- * Telemetry marker (T2): t2_event_s("WAN_DOWN_DURATION", "<Recovered by Interface-Alias-Name>|<N Seconds of Downtime>") 
- * ──────────────────────────────────────────────────────────────────────── */
-static struct timespec gWanFailureStartTime = {0};
-static bool           gWanFailureTimerActive = false;
-
-static void WanMgr_RecordWanFailureStart(void)
-{
-    if (!gWanFailureTimerActive)
-    {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &gWanFailureStartTime);
-        gWanFailureTimerActive = true;
-        CcspTraceInfo(("%s %d - WAN failure timer started at %ld\n",
-                       __FUNCTION__, __LINE__, gWanFailureStartTime.tv_sec));
-    }
-}
-
-static void WanMgr_PrintWanFailureTimeMarker(const char *ifaceAlias)
-{
-    if (!gWanFailureTimerActive)
-    {
-        return; /* no failure was recorded, nothing to print */
-    }
-    struct timespec now = {0};
-    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-    long duration = now.tv_sec - gWanFailureStartTime.tv_sec;
-    char durStr[128] = {0};
-    snprintf(durStr, sizeof(durStr), "%s|%ld", (ifaceAlias ? ifaceAlias : "unknown"), duration);
-
-#ifdef ENABLE_FEATURE_TELEMETRY2_0
-    t2_event_s("WAN_DOWN_DURATION", durStr);
-#endif
-    CcspTraceInfo(("%s %d - WAN_DOWN_DURATION:%s\n",__FUNCTION__, __LINE__, durStr));
-
-    gWanFailureTimerActive = false;
-    memset(&gWanFailureStartTime, 0, sizeof(gWanFailureStartTime));
-}
-
-static void WanMgr_ResetWanFailureTimer(void)
-{
-    gWanFailureTimerActive = false;
-    memset(&gWanFailureStartTime, 0, sizeof(gWanFailureStartTime));
-}
-
 #if defined(FEATURE_464XLAT)
 typedef enum
 {
@@ -1487,22 +1439,6 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
-     * non-primary (COLD_STANDBY) and REMOTE interfaces are covered — these
-     * interface types bypass the WAN-STATUS sysevent block above and would
-     * otherwise never trigger the marker.
-     *   COLD_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
-     *                           (time from WAN failure/boot to this recovery).
-     *   All other types        → primary WAN recovered: discard the timer
-     *                           so a stale duration is never reported later. */
-    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_COLD_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
-    {
-        WanMgr_PrintWanFailureTimeMarker(pInterface->AliasName);
-    }
-    else
-    {
-        WanMgr_ResetWanFailureTimer();
-    }
-
 #if defined(_DT_WAN_Manager_Enable_)
     wanmgr_setSharedCGNAddress(p_VirtIf->IP.Ipv4Data.ip);
 #endif
@@ -1594,9 +1530,6 @@ static int wan_tearDownIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_STATUS, WAN_STATUS_STOPPED, 0);
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_SERVICE_STATUS, WAN_STATUS_STOPPED, 0);
         CcspTraceInfo(("%s %d - wan-status event set to stopped \n", __FUNCTION__, __LINE__));
-
-        /* WAN failure timer: record the moment WAN went down (IPv4 teardown path) */
-        WanMgr_RecordWanFailureStart();
     }
 
     return ret;
@@ -1752,22 +1685,6 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     /* WAN_DOWN_DURATION telemetry: evaluated unconditionally so that both
-     * non-primary (COLD_STANDBY) and REMOTE interfaces are covered — these
-     * interface types bypass the WAN-STATUS sysevent block above and would
-     * otherwise never trigger the marker.
-     *   COLD_STANDBY / REMOTE  → failover is active: emit WAN_DOWN_DURATION
-     *                           (time from WAN failure/boot to this recovery).
-     *   All other types        → primary WAN recovered: discard the timer
-     *                           so a stale duration is never reported later. */
-    if (pInterface->IfaceConnectionType == WAN_IFACE_CONN_TYPE_COLD_STANDBY || pInterface->IfaceType == REMOTE_IFACE)
-    {
-        WanMgr_PrintWanFailureTimeMarker(pInterface->AliasName);
-    }
-    else
-    {
-        WanMgr_ResetWanFailureTimer();
-    }
-
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
     return ret;
 }
@@ -1895,9 +1812,6 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_STATUS, WAN_STATUS_STOPPED, 0);
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_SERVICE_STATUS, WAN_STATUS_STOPPED, 0);
         CcspTraceInfo(("%s %d - wan-status , wan_service-status event set to stopped \n", __FUNCTION__, __LINE__));
-
-        /* WAN failure timer: record the moment WAN went down (IPv6 teardown path) */
-        WanMgr_RecordWanFailureStart();
     }
 
     return ret;
@@ -2196,13 +2110,6 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     }
     else
     {
-        /* Boot-up WAN down: WAN was never up, so teardown functions never fire and
-         * the failure timer never gets started via the normal dynamic path.
-         * Record the start time here so the duration from boot (WAN unavailable)
-         * to failover activation is captured correctly.
-         * The guard inside WanMgr_RecordWanFailureStart() ensures the timer is
-         * set only once — by whichever interface SM enters this path first. */
-        WanMgr_RecordWanFailureStart();
     }
 
     /*Should Update available status */
