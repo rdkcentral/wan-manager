@@ -27,7 +27,7 @@
 #include "wanmgr_interface_sm.h"
 
 #ifdef FEATURE_IPOE_HEALTH_CHECK
-ANSC_STATUS WanMgr_SendMsgToIHC (ipoe_msg_type_t msgType, char *ifName);
+ANSC_STATUS WanMgr_SendMsgToIHC (ipoe_msg_type_t msgType, DML_VIRTUAL_IFACE *p_VirtIf);
 #endif
 
 
