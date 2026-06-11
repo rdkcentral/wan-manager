@@ -84,7 +84,7 @@ BOOL DSLite_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamName, BOOL bVa
         {
 #ifndef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
             UINT deviceMode = 0;
-
+            /* TODO: Use PSM for DSLite related configuration */
             WanMgr_SysCfgGetUint("last_erouter_mode", &deviceMode);
             if (bValue && (DML_WAN_DEVICE_MODE)(deviceMode + 1) != DML_WAN_DEVICE_MODE_Ipv6) // last_erouter_mode is zero based
             {
@@ -94,6 +94,7 @@ BOOL DSLite_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamName, BOOL bVa
             else
 #endif
             {
+                /* TODO: Use PSM for DSLite related configuration */
                 if (WanMgr_SysCfgSetUint("dslite_enable", bValue ? 1 : 0) != ANSC_STATUS_SUCCESS)
                 {
                     CcspTraceError(("%s: Failed to set dslite_enable in syscfg\n", __FUNCTION__));
@@ -300,7 +301,7 @@ BOOL InterfaceSetting4_SetParamBoolValue(ANSC_HANDLE hInsContext, char *ParamNam
 
 #ifndef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
     UINT deviceMode = 0;
-
+    /* TODO: Use PSM for DSLite related configuration */
     WanMgr_SysCfgGetUint("last_erouter_mode", &deviceMode);
     if ((DML_WAN_DEVICE_MODE)(deviceMode + 1) != DML_WAN_DEVICE_MODE_Ipv6) // last_erouter_mode is zero based
     {

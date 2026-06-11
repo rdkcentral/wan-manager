@@ -218,14 +218,15 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
  * This API calls the HAL routine to Enable DSLite.
  * @return RETURN_OK upon success else ERROR code returned
  **************************************************************************************/
-static int wan_setUpDslite(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl);
+static int wan_setUpDSLite(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl);
 
 /*************************************************************************************
  * @brief Disable DSLite configuration on the interface.
  * This API calls the HAL routine to disable DSLite.
  * @return RETURN_OK upon success else ERROR code returned
  **************************************************************************************/
-static int wan_tearDownDslite(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl);
+static int wan_tearDownDSLite(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl);
+
 #endif
 
 #ifdef FEATURE_MAPE
@@ -4447,7 +4448,7 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     {
         if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_DOWN)
         {
-            if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
             {
                 return wan_transition_dslite_up(pWanIfaceCtrl);
             }
@@ -4602,7 +4603,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
     {
         if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_DOWN)
         {
-            if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
             {
                 return wan_transition_dslite_up(pWanIfaceCtrl);
             }
@@ -4843,18 +4844,7 @@ static eWanState_t wan_state_dslite_active(WanMgr_IfaceSM_Controller_t *pWanIfac
     WanMgr_MonitorDhcpApps(pWanIfaceCtrl);
 
     WanMgr_CheckDefaultRA(p_VirtIf);
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-    if (lanState == LAN_STATE_STOPPED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6, FALSE);
-        lanState = LAN_STATE_RESET;
-    }
-    else if (lanState == LAN_STATE_STARTED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6, TRUE);
-        lanState = LAN_STATE_RESET;
-    }
-#endif
+
     return WAN_STATE_DSLITE_ACTIVE;
 }
 #endif // FEATURE_DSLITE_V2

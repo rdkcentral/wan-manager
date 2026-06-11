@@ -1522,4 +1522,3 @@ void wanmgr_get_wan_interface(char *wanInterface)
     }
 }
 #endif
-

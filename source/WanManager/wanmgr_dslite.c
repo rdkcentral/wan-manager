@@ -175,7 +175,6 @@ static ANSC_STATUS Dslite_ResolveEndpointFqdn(const char *fqdn,
 /* Check if DNS TTL has expired, re-resolve, and determine if tunnel needs restart */
 BOOL WanMgr_DSLite_CheckAndHandleTtlExpiration(DML_VIRTUAL_IFACE *pVirtIf)
 {
-    time_t now;
     time_t elapsed;
     DML_DSLITE_LIST *entry = NULL;
     DML_DSLITE_CONFIG *cfg = NULL;
@@ -184,7 +183,6 @@ BOOL WanMgr_DSLite_CheckAndHandleTtlExpiration(DML_VIRTUAL_IFACE *pVirtIf)
     char new_addr[BUFLEN_256] = {0};
     char dns_list[2][BUFLEN_256] = {0};
     int dns_count = 0;
-    struct in6_addr *resolved = NULL;
     unsigned int new_ttl = 0;
     BOOL address_changed = FALSE;
 
@@ -218,11 +216,8 @@ BOOL WanMgr_DSLite_CheckAndHandleTtlExpiration(DML_VIRTUAL_IFACE *pVirtIf)
                    __FUNCTION__, pVirtIf->Name, elapsed, cfg->DnsTtl));
 
     // Get the endpoint FQDN to re-resolve
-    if (cfg->Mode == DSLITE_ENDPOINT_DHCPV6)
-    {
-        strncpy(endpoint_fqdn, cfg->EndpointName, sizeof(endpoint_fqdn) - 1);
-    }
-    else if (cfg->Mode == DSLITE_ENDPOINT_STATIC && cfg->Type == DSLITE_ENDPOINT_FQDN)
+    if ((cfg->Mode == DSLITE_ENDPOINT_DHCPV6) ||
+        (cfg->Mode == DSLITE_ENDPOINT_STATIC && cfg->Type == DSLITE_ENDPOINT_FQDN))
     {
         strncpy(endpoint_fqdn, cfg->EndpointName, sizeof(endpoint_fqdn) - 1);
     }
@@ -705,7 +700,8 @@ ANSC_STATUS WanMgr_DSLite_DeleteEntryConfig(ULONG inst)
         "dslite_mss_clamping_enable_%lu",
         "dslite_tcpmss_%lu",
         "dslite_ipv6_frag_enable_%lu",
-        "dslite_tunnel_v4addr_%lu"
+        "dslite_tunnel_v4addr_%lu",
+        "dslite_tunnel_interface_%lu",
     };
 
     for (size_t i = 0; i < sizeof(fields)/sizeof(fields[0]); i++)
