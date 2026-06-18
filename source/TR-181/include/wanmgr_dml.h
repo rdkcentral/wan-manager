@@ -475,6 +475,7 @@ typedef struct _WANMGR_MAPT_CONFIG_DATA_
     char ipAddressString[BUFLEN_32];
     char ipLANAddressString[BUFLEN_32];
     int psidLen;
+    BOOL isPSIDComputed;
 }WANMGR_MAPT_CONFIG_DATA;
 
 #endif
