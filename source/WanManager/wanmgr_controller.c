@@ -54,6 +54,7 @@ ANSC_STATUS WanController_Init_StateMachine(void)
         {
             continue;
         }
+#if 0
 #if (defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)) && !defined(WAN_MANAGER_UNIFICATION_ENABLED)
         CcspTraceInfo(("%s %d Starting Comcast WanMgr_Policy_AutoWan \n", __FUNCTION__, __LINE__));
         WanMgr_Policy_AutoWan();
@@ -61,7 +62,7 @@ ANSC_STATUS WanController_Init_StateMachine(void)
         /* Start Fail Over */
         WanMgr_FailOverThread();
 #endif
-
+#endif
 
     }
     return ANSC_STATUS_SUCCESS;
