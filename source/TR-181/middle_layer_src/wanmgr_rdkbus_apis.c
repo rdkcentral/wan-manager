@@ -1954,20 +1954,6 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     return RETURN_OK;
 }
 
-/* ── WAN Failure Time Tracking ────────────────────────────────────────────────
- * Measures the duration of service outage experienced by the customer:
- *   start  : the primary WAN interface loses its ACTIVE status
- *   stop   : a non-primary (backup/failover) interface becomes ACTIVE
- *   reset  : the primary interface recovers without backup involvement
- *
- * Telemetry marker (T2):
- *   t2_event_s("WAN_DOWN_DURATION",
- *              "<Recovered-by-Interface-VirtIf-Name>|<Seconds-of-Downtime>")
- *
- * Ownership: Update_Interface_Status() — driven by PHY/link status and
- * VirtIf.Status on every poll cycle, without any per-state-machine hooks
- * in wanmgr_interface_sm.c.
- * ─────────────────────────────────────────────────────────────────────────── */
 static struct timespec gWanFailureStartTime  = {0};
 static bool            gWanFailureTimerActive = false;
 static char            gPrevActiveIfaceAlias[BUFLEN_64] = {0};
@@ -2053,15 +2039,6 @@ ANSC_STATUS Update_Interface_Status()
     CHAR    prevCurrentStandbyInterface[BUFLEN_64] = {0};
     CHAR    prevCurrentActiveDNS[BUFLEN_256] = {0};
 
-    /*
-     * activeIfaceAlias   : AliasName of the WAN interface that is ACTIVE+UP
-     *   this poll cycle.  Used by the WAN failure timer to decide
-     *   print-vs-reset on recovery.
-     * hasFullyActiveIface : true if any non-voice interface currently has
-     *   Selection.Status == WAN_IFACE_ACTIVE  AND  VirtIf.Status == UP.
-     * activeIfacePhyDown  : true if the ACTIVE interface has
-     *   BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_DOWN this cycle.
-     */
     CHAR    activeIfaceAlias[BUFLEN_64] = {0};
     bool    bIsInterfaceActive = false;
     bool    bIsActiveIfaceWanDown  = false;
@@ -2340,24 +2317,6 @@ ANSC_STATUS Update_Interface_Status()
 #endif //RBUS_BUILD_FLAG_ENABLE
         }
 
-        /* ── WAN Failure Time Tracking ──────────────────────────────────────────
-         *
-         * Timer start : WAN service is lost.  Triggered when no interface is
-         *               fully active (ACTIVE + VirtIf UP), OR the currently
-         *               ACTIVE interface has PHY_STATUS_DOWN (physical link lost
-         *               before the selection state has been updated).
-         *               Boot-up start is handled by WanMgr_FailureTimer_Init()
-         *               called from wanmgr_main.c; the !gWanFailureTimerActive
-         *               guard prevents a double-start.
-         *
-         * Timer stop  : a fully-active interface (ACTIVE + VirtIf UP) exists
-         *               while the timer is running.  This covers both the case
-         *               where a new interface took over and the case where the
-         *               same interface recovered from PHY/link loss.
-         *   - Alias contains "HOTSPOT" or "REMOTE_LTE" → backup took over,
-         *     emit WAN_DOWN_DURATION telemetry marker.
-         *   - Otherwise the primary recovered → reset the timer silently.
-         * ─────────────────────────────────────────────────────────────────────── */
         bool wanServiceLost = !bIsInterfaceActive || bIsActiveIfaceWanDown;
 
         if (wanServiceLost && !gWanFailureTimerActive)
