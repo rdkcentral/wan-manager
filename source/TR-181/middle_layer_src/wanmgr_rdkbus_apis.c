@@ -1957,6 +1957,12 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
 static struct timespec gWanFailureStartTime  = {0};
 static bool            gWanFailureTimerActive = false;
 static char            gPrevActiveIfaceAlias[BUFLEN_64] = {0};
+/* Sticky: records the alias of the last interface that was ACTIVE+VirtIf-UP.
+ * Updated on every poll cycle where WAN service is fully established.  Never
+ * cleared by the timer — survives across failover events so that if the SM
+ * has already deactivated an interface by the time the poll cycle runs, the
+ * correct "previously active" alias is still available for the marker. */
+static char            gLastKnownActiveAlias[BUFLEN_64] = {0};
 
 static void WanMgr_RecordWanFailureStart(const char *prevAlias)
 {
@@ -2319,13 +2325,23 @@ ANSC_STATUS Update_Interface_Status()
 
         bool wanServiceLost = !bIsInterfaceActive || bIsActiveIfaceWanDown;
 
+        /* Keep gLastKnownActiveAlias current while WAN service is healthy.
+         * Do this before the timer logic so the alias is already recorded
+         * if wanServiceLost flips true in the same poll cycle. */
+        if (bIsInterfaceActive && activeIfaceAlias[0] != '\0')
+        {
+            snprintf(gLastKnownActiveAlias, sizeof(gLastKnownActiveAlias),
+                     "%s", activeIfaceAlias);
+        }
+
         if (wanServiceLost && !gWanFailureTimerActive)
         {
             CcspTraceInfo(("%s %d - WAN service lost (IsIfaceActive=%d wanDown=%d)"
-                           " — starting failure timer\n",
+                           " — starting failure timer (last known active: %s)\n",
                            __FUNCTION__, __LINE__,
-                           bIsInterfaceActive, bIsActiveIfaceWanDown));
-            WanMgr_RecordWanFailureStart(activeIfaceAlias[0] ? activeIfaceAlias : NULL);
+                           bIsInterfaceActive, bIsActiveIfaceWanDown,
+                           gLastKnownActiveAlias[0] ? gLastKnownActiveAlias : "NONE"));
+            WanMgr_RecordWanFailureStart(gLastKnownActiveAlias[0] ? gLastKnownActiveAlias : NULL);
         }
         else if (!wanServiceLost && gWanFailureTimerActive)
         {
