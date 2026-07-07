@@ -771,7 +771,7 @@ WanDmlMapDomGetRule_Data
         if (pVirtIf->MAP.MaptConfig.isPSIDComputed)
         {
             pMapRule->PSIDLength = pVirtIf->MAP.MaptConfig.psidLen;
-            pMapRule->PSID = pVirtIf->MAP.MaptConfig.psid;
+            pMapRule->PSID = pVirtIf->MAP.MaptConfig.psidValue;
         }
 #endif
         pMapRule->Ratio = pVirtIf->MAP.dhcp6cMAPparameters.ratio;
