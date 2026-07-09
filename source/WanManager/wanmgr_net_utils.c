@@ -871,27 +871,29 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody
         MaptInfo("Using psidLen value from dhcp6c options : %d", MaptConfig->psidLen);
         MaptInfo("Using psidOffset value from dhcp6c options : %d", dhcp6cMAPTMsgBody->psidOffset);
 #endif
+        MaptConfig->isPSIDComputed = FALSE;
     }
     else
     {
         ret = WanManager_CalculatePsidAndV4Index(dhcp6cMAPTMsgBody->pdIPv6Prefix, dhcp6cMAPTMsgBody->v6Len, dhcp6cMAPTMsgBody->iapdPrefixLen,
                 dhcp6cMAPTMsgBody->v4Len, &(MaptConfig->psidValue), &ipv4IndexValue, &(MaptConfig->psidLen));
-    }
 
-    if (ret != RETURN_OK)
-    {
-        CcspTraceError(("Error in calculating MAPT PSID value \n"));
+        if (ret != RETURN_OK)
+        {
+            CcspTraceError(("Error in calculating MAPT PSID value \n"));
 #ifdef FEATURE_MAPT_DEBUG
-        MaptInfo("Exiting MAPT configuration, MAPT will not be configured, error found in getting PSID value");
+            MaptInfo("Exiting MAPT configuration, MAPT will not be configured, error found in getting PSID value");
 #endif
-        CcspTraceNotice(("FEATURE_MAPT: MAP-T configuration failed\n"));
-        return ANSC_STATUS_FAILURE;
+            CcspTraceNotice(("FEATURE_MAPT: MAP-T configuration failed\n"));
+            return ANSC_STATUS_FAILURE;
+        }
+#ifdef FEATURE_MAPT_DEBUG
+        MaptInfo("--- MAP-T Computed Values - START ---");
+        MaptInfo("mapt: PSID Value: %d, ipv4IndexValue: %d", MaptConfig->psidValue, ipv4IndexValue);
+        MaptInfo("mapt: PSID Length: %d", MaptConfig->psidLen);
+#endif
+        MaptConfig->isPSIDComputed = TRUE;
     }
-#ifdef FEATURE_MAPT_DEBUG
-    MaptInfo("--- MAP-T Computed Values - START ---");
-    MaptInfo("mapt: PSID Value: %d, ipv4IndexValue: %d", MaptConfig->psidValue, ipv4IndexValue);
-    MaptInfo("mapt: PSID Length: %d", MaptConfig->psidLen);
-#endif
 
     inet_pton(AF_INET, dhcp6cMAPTMsgBody->ruleIPv4Prefix, &(result));
 
