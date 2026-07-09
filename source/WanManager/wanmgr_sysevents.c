@@ -278,17 +278,7 @@ if ( TRUE == UseWANMACForManagementServices )
     }
 
     sysevent_set(sysevent_fd, sysevent_token,SYSEVENT_IPV4_TIME_ZONE, dhcp4Info->timeZone, 0);
-
-    snprintf(name,sizeof(name),SYSEVENT_IPV4_DHCP_SERVER,dhcp4Info->ifname);
-    sysevent_set(sysevent_fd, sysevent_token,name, dhcp4Info->dhcpServerId,0);
-
-    snprintf(name,sizeof(name),SYSEVENT_IPV4_DHCP_STATE ,dhcp4Info->ifname);
-    sysevent_set(sysevent_fd, sysevent_token,name, dhcp4Info->dhcpState,0);
-
-    snprintf(name,sizeof(name), SYSEVENT_IPV4_LEASE_TIME, dhcp4Info->ifname);
-    snprintf(value, sizeof(value), "%u",dhcp4Info->leaseTime);
-    sysevent_set(sysevent_fd, sysevent_token,name, value, 0);
-
+ 
 #endif
     return ANSC_STATUS_SUCCESS;
 }
