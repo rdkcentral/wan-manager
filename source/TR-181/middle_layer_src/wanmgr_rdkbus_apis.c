@@ -1999,7 +1999,8 @@ static void WanMgr_PrintWanFailureTimeMarker(const char *currentAlias)
     struct timespec now = {0};
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     long duration = now.tv_sec - gWanFailureStartTime.tv_sec;
-
+    if (duration < 0)
+        duration = 0;
     const char *prevAlias = (gPrevActiveIfaceAlias[0] != '\0') ? gPrevActiveIfaceAlias : "NONE";
 
     char durStr[128] = {0};
