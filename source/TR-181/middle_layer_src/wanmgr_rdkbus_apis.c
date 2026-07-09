@@ -1969,11 +1969,6 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
 static struct timespec gWanFailureStartTime  = {0};
 static bool            gWanFailureTimerActive = false;
 static char            gPrevActiveIfaceAlias[BUFLEN_64] = {0};
-/* Sticky: records the alias of the last interface that was ACTIVE+VirtIf-UP.
- * Updated on every poll cycle where WAN service is fully established.  Never
- * cleared by the timer — survives across failover events so that if the SM
- * has already deactivated an interface by the time the poll cycle runs, the
- * correct "previously active" alias is still available for the marker. */
 static char            gLastKnownActiveAlias[BUFLEN_64] = {0};
 
 static void WanMgr_RecordWanFailureStart(const char *prevAlias)
@@ -2020,20 +2015,6 @@ static void WanMgr_PrintWanFailureTimeMarker(const char *currentAlias)
     memset(gPrevActiveIfaceAlias, 0, sizeof(gPrevActiveIfaceAlias));
 }
 
-static void WanMgr_ResetWanFailureTimer(void)
-{
-    gWanFailureTimerActive = false;
-    memset(&gWanFailureStartTime, 0, sizeof(gWanFailureStartTime));
-    memset(gPrevActiveIfaceAlias, 0, sizeof(gPrevActiveIfaceAlias));
-}
-
-/**
- * WanMgr_FailureTimer_Init - Start the WAN outage timer at process boot-up.
- *
- * Called once from wanmgr_main.c before WanMgr_Core_Init() so that the clock
- * begins ticking from the very first moment wanmanager is alive, capturing the
- * full time-to-first-WAN duration in the WAN_DOWN_DURATION telemetry marker.
- */
 void WanMgr_FailureTimer_Init(void)
 {
     CcspTraceInfo(("%s %d - WAN failure timer initialised at process start\n",
@@ -2358,27 +2339,13 @@ ANSC_STATUS Update_Interface_Status()
         }
         else if (!wanServiceLost && gWanFailureTimerActive)
         {
-            /* WAN service restored while outage timer was running */
-            bool isBackup = (strstr(activeIfaceAlias, "HOTSPOT") != NULL ||
-                             strstr(activeIfaceAlias, "REMOTE_LTE")  != NULL);
-            if (isBackup)
-            {
-                /* Backup/failover interface carried the traffic — emit duration */
-                CcspTraceInfo(("%s %d - Backup interface '%s' (alias '%s') became"
-                               " fully active, emitting WAN_DOWN_DURATION\n",
-                               __FUNCTION__, __LINE__,
-                               CurrentActiveInterface, activeIfaceAlias));
-                WanMgr_PrintWanFailureTimeMarker(activeIfaceAlias);
-            }
-            else
-            {
-                /* Primary interface recovered — discard timer silently */
-                CcspTraceInfo(("%s %d - Primary interface '%s' (alias '%s') fully"
-                               " recovered, resetting failure timer\n",
-                               __FUNCTION__, __LINE__,
-                               CurrentActiveInterface, activeIfaceAlias));
-                WanMgr_ResetWanFailureTimer();
-            }
+            /* WAN service restored while outage timer was running — emit duration
+             * regardless of which interface became active. */
+            CcspTraceInfo(("%s %d - Interface '%s' (alias '%s') became fully active,"
+                           " emitting WAN_DOWN_DURATION\n",
+                           __FUNCTION__, __LINE__,
+                           CurrentActiveInterface, activeIfaceAlias));
+            WanMgr_PrintWanFailureTimeMarker(activeIfaceAlias);
         }
 
         WanMgrDml_GetConfigData_release(pWanConfigData);
