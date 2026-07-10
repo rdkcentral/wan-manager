@@ -1671,6 +1671,7 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
     }
     
     pIpv6DataNew->addrAssigned = true;
+    pIpv6DataNew->addrConstructedFromIAPD = true;
     pIpv6DataNew->addrCmd = IFADDRCONF_ADD;
 
     CcspTraceInfo(("%s %d Calculated WAN address %s/128\n", __FUNCTION__, __LINE__, pIpv6DataNew->address));
@@ -1774,12 +1775,17 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
              */
         }
     }
-    else if(pDhcp6cInfoCur->addrAssigned && Ipv6DataNew.prefixAssigned)
+    else if(pDhcp6cInfoCur->addrAssigned && !pDhcp6cInfoCur->addrConstructedFromIAPD && Ipv6DataNew.prefixAssigned)
     {
         /* In an IPv6 lease, both IANA and IAPD details are sent together in a struct. 
          * If only one of them is renewed, the other field will be set to its default value.
          * In this scenario, we should not consider IANA or IAPD as deleted. 
          * If we reach this point, only IAPD has been renewed. Use the previous IANA details. 
+         *
+         * Note: This only applies when the previous address was a real IANA lease. If the previous
+         * address was derived from the delegated prefix (addrConstructedFromIAPD), we fall through
+         * to the branch below so the WAN address is re-derived from the newly delegated prefix
+         * instead of reusing the stale address from the old prefix. 
          */
 
         CcspTraceWarning(("%s %d IANA is not assigned in this IPC msg, but we have IANA configured from previous lease. Assuming only IAPD renewed. \n", __FUNCTION__, __LINE__));
@@ -1792,7 +1798,9 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
     {
         /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
          * We can use the received IAPD to construct a Ipv6 /128 address which can be used for managerment and voice ...
-         * If we reach this point, only IAPD has been received. Calculate Wan Ipv6 address 
+         * If we reach this point, only IAPD has been received (either for the first time, or the
+         * previously assigned address was itself derived from a now-stale prefix). Calculate the
+         * WAN Ipv6 address from the newly delegated prefix. 
          */
 
         CcspTraceInfo(("IANA is not assigned by DHCPV6. Constructing WAN address from the IAPD for Wan Interface \n"));
