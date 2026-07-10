@@ -1957,9 +1957,13 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
 
     /* Even when dhcp6c is not used to get the WAN interface IP address,
      *  * use this message as a trigger to check the WAN interface IP.
-     *   * Maybe we've been assigned an address by SLAAC.*/
+     *   * Maybe we've been assigned an address by SLAAC.
+     * Skip this SLAAC detection when our current WAN address was derived from the delegated prefix
+     * (addrConstructedFromIAPD): in that case a global address still lingering on the interface is
+     * our own stale IAPD-derived /128, not a genuine SLAAC address, and must not be used to keep
+     * IPv6 up. Letting the code continue leaves 'connected' FALSE so IPv6 is not marked up. */
 
-    if (!pNewIpcMsg->addrAssigned)
+    if (!pNewIpcMsg->addrAssigned && !pDhcp6cInfoCur->addrConstructedFromIAPD)
     {
         char guAddrPrefix[IP_ADDR_LENGTH] = {0};
         char guAddr[IP_ADDR_LENGTH] = {0};
