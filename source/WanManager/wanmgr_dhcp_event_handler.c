@@ -114,6 +114,7 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
 #ifdef FEATURE_DSLITE_V2
     strncpy(pDhcpv6Data->aftr, leaseInfo->aftr, sizeof(pDhcpv6Data->aftr) - 1);
 #endif
+    pDhcpv6Data->addrConstructedFromIAPD = false;
     if(!pDhcpv6Data->addrAssigned && pDhcpv6Data->prefixAssigned)
     {
         /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
