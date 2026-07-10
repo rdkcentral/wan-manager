@@ -1846,6 +1846,17 @@ ANSC_STATUS wanmgr_handle_dhcpv6_event_data(DML_VIRTUAL_IFACE * pVirtIf)
         CcspTraceWarning(("%s %d IAPD is not assigned in this IPC msg, but we have IAPD configured from previous lease. Assuming only IANA renewed. \n", __FUNCTION__, __LINE__));
         WanMgr_CopyPreviousPrefix(pDhcp6cInfoCur, &Ipv6DataNew);
     }
+    else if(!pNewIpcMsg->addrAssigned && !pNewIpcMsg->prefixAssigned &&
+            !IS_EMPTY_STRING(pNewIpcMsg->sitePrefix) &&
+            strcmp(pDhcp6cInfoCur->sitePrefix, pNewIpcMsg->sitePrefix) == 0)
+    {
+        /* Neither IANA nor IAPD was assigned in this lease (e.g. a DHCPv6 renew failure reports the
+         * previously delegated prefix with zero lifetimes). As the reported prefix matches the one
+         * currently in use, treat this as the WAN IPv6 lease no longer being valid and bring the
+         * IPv6 connection down. */
+        CcspTraceInfo(("%s %d Neither IANA nor IAPD assigned and prefix matches the current lease. Marking IPv6 connection down. \n", __FUNCTION__, __LINE__));
+        WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
+    }
 
 #else
     /* dhcp6c receives an IPv6 address for WAN interface */
