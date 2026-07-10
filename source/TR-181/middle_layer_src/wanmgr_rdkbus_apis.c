@@ -1966,39 +1966,46 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     return RETURN_OK;
 }
 
-static struct timespec gWanFailureStartTime  = {0};
-static bool            gWanFailureTimerActive = false;
-static char            gPrevActiveIfaceAlias[BUFLEN_64] = {0};
-static char            gLastKnownActiveAlias[BUFLEN_64] = {0};
+/* ── WAN failure timer state ─────────────────────────────────────────────────
+ * All outage-tracking state collected in one struct; zeroing it resets everything.
+ * ─────────────────────────────────────────────────────────────────────────── */
+typedef struct {
+    struct timespec startTime;                  ///< Monotonic clock at outage start
+    bool            active;                     ///< Timer is running
+    char            prevAlias[BUFLEN_64];       ///< Alias active when the outage started
+    char            lastKnownAlias[BUFLEN_64];  ///< Last fully-active alias (sticky, never cleared by timer)
+} WanFailureTimer_t;
+
+static WanFailureTimer_t gWanFailureTimer = {0};
 
 static void WanMgr_RecordWanFailureStart(const char *prevAlias)
 {
-    if (!gWanFailureTimerActive)
+    if (!gWanFailureTimer.active)
     {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &gWanFailureStartTime);
-        gWanFailureTimerActive = true;
-        memset(gPrevActiveIfaceAlias, 0, sizeof(gPrevActiveIfaceAlias));
+        clock_gettime(CLOCK_MONOTONIC_RAW, &gWanFailureTimer.startTime);
+        gWanFailureTimer.active = true;
+        memset(gWanFailureTimer.prevAlias, 0, sizeof(gWanFailureTimer.prevAlias));
         if (prevAlias && prevAlias[0] != '\0')
-            snprintf(gPrevActiveIfaceAlias, sizeof(gPrevActiveIfaceAlias), "%s", prevAlias);
+            snprintf(gWanFailureTimer.prevAlias, sizeof(gWanFailureTimer.prevAlias), "%s", prevAlias);
         CcspTraceInfo(("%s %d - WAN failure timer started at %ld (prev active: %s)\n",
-                       __FUNCTION__, __LINE__, gWanFailureStartTime.tv_sec,
-                       gPrevActiveIfaceAlias[0] ? gPrevActiveIfaceAlias : "NONE"));
+                       __FUNCTION__, __LINE__, gWanFailureTimer.startTime.tv_sec,
+                       gWanFailureTimer.prevAlias[0] ? gWanFailureTimer.prevAlias : "NONE"));
     }
 }
 
 static void WanMgr_PrintWanFailureTimeMarker(const char *currentAlias)
 {
-    if (!gWanFailureTimerActive)
+    if (!gWanFailureTimer.active)
         return;
 
     struct timespec now = {0};
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-    long duration = now.tv_sec - gWanFailureStartTime.tv_sec;
+    long duration = now.tv_sec - gWanFailureTimer.startTime.tv_sec;
     if (duration < 0)
         duration = 0;
-    const char *prevAlias = (gPrevActiveIfaceAlias[0] != '\0') ? gPrevActiveIfaceAlias : "NONE";
+    const char *prevAlias = (gWanFailureTimer.prevAlias[0] != '\0') ? gWanFailureTimer.prevAlias : "NONE";
 
-    char durStr[128] = {0};
+    char durStr[BUFLEN_256] = {0};
     snprintf(durStr, sizeof(durStr), "%s|%s|%ld",
              prevAlias,
              (currentAlias ? currentAlias : "unknown"),
@@ -2010,9 +2017,9 @@ static void WanMgr_PrintWanFailureTimeMarker(const char *currentAlias)
     CcspTraceInfo(("%s %d - WAN_DOWN_DURATION:%s\n",
                    __FUNCTION__, __LINE__, durStr));
 
-    gWanFailureTimerActive = false;
-    memset(&gWanFailureStartTime, 0, sizeof(gWanFailureStartTime));
-    memset(gPrevActiveIfaceAlias, 0, sizeof(gPrevActiveIfaceAlias));
+    gWanFailureTimer.active = false;
+    memset(&gWanFailureTimer.startTime, 0, sizeof(gWanFailureTimer.startTime));
+    memset(gWanFailureTimer.prevAlias, 0, sizeof(gWanFailureTimer.prevAlias));
 }
 
 void WanMgr_FailureTimer_Init(void)
@@ -2041,7 +2048,6 @@ ANSC_STATUS Update_Interface_Status()
 
     CHAR    activeIfaceAlias[BUFLEN_64] = {0};
     bool    bIsInterfaceActive = false;
-    bool    bIsActiveIfaceWanDown  = false;
 
 #ifdef RBUS_BUILD_FLAG_ENABLE
     CHAR    CurrentWanStatus[BUFLEN_16] = "Down";
@@ -2092,10 +2098,6 @@ ANSC_STATUS Update_Interface_Status()
                     /* VirtIf UP means WAN service is fully established */
                     if (p_VirtIf->Status == WAN_IFACE_STATUS_UP)
                         bIsInterfaceActive = true;
-
-                    /* PHY_DOWN while still ACTIVE means physical link lost and Virtual Interface Down when WAN refresh or reconnection case */
-                    if ( pWanIfaceData->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_DOWN || p_VirtIf->Status != WAN_IFACE_STATUS_UP )
-                        bIsActiveIfaceWanDown = true;
                 }
 
                 struct IFACE_INFO *newIface = calloc(1, sizeof( struct IFACE_INFO));
@@ -2317,27 +2319,27 @@ ANSC_STATUS Update_Interface_Status()
 #endif //RBUS_BUILD_FLAG_ENABLE
         }
 
-        bool wanServiceLost = !bIsInterfaceActive || bIsActiveIfaceWanDown;
+        bool wanServiceLost = !bIsInterfaceActive;
 
-        /* Keep gLastKnownActiveAlias current while WAN service is healthy.
+        /* Keep gWanFailureTimer.lastKnownAlias current while WAN service is healthy.
          * Do this before the timer logic so the alias is already recorded
          * if wanServiceLost flips true in the same poll cycle. */
         if (bIsInterfaceActive && activeIfaceAlias[0] != '\0')
         {
-            snprintf(gLastKnownActiveAlias, sizeof(gLastKnownActiveAlias),
+            snprintf(gWanFailureTimer.lastKnownAlias, sizeof(gWanFailureTimer.lastKnownAlias),
                      "%s", activeIfaceAlias);
         }
 
-        if (wanServiceLost && !gWanFailureTimerActive)
+        if (wanServiceLost && !gWanFailureTimer.active)
         {
-            CcspTraceInfo(("%s %d - WAN service lost (IsIfaceActive=%d wanDown=%d)"
+            CcspTraceInfo(("%s %d - WAN service lost (bIsInterfaceActive=%d)"
                            " — starting failure timer (last known active: %s)\n",
                            __FUNCTION__, __LINE__,
-                           bIsInterfaceActive, bIsActiveIfaceWanDown,
-                           gLastKnownActiveAlias[0] ? gLastKnownActiveAlias : "NONE"));
-            WanMgr_RecordWanFailureStart(gLastKnownActiveAlias[0] ? gLastKnownActiveAlias : NULL);
+                           bIsInterfaceActive,
+                           gWanFailureTimer.lastKnownAlias[0] ? gWanFailureTimer.lastKnownAlias : "NONE"));
+            WanMgr_RecordWanFailureStart(gWanFailureTimer.lastKnownAlias[0] ? gWanFailureTimer.lastKnownAlias : NULL);
         }
-        else if (!wanServiceLost && gWanFailureTimerActive)
+        else if (!wanServiceLost && gWanFailureTimer.active)
         {
             /* WAN service restored while outage timer was running — emit duration
              * regardless of which interface became active. */
