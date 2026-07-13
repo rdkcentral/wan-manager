@@ -1972,9 +1972,7 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
 typedef struct {
     struct timespec startTime;                 ///< Monotonic clock at outage start
     bool            active;                    ///< Timer is running
-    char            lastKnownAlias[BUFLEN_64]; ///< Alias of the last fully-active interface.
-                                               ///<   Holds the *previous* iface at marker-fire
-                                               ///<   because the update runs after the timer logic.
+    char            lastKnownAlias[BUFLEN_64]; ///< Alias of the last fully-active interface
 } WanFailureTimer_t;
 
 static WanFailureTimer_t gWanFailureTimer = {0};
@@ -2316,10 +2314,6 @@ ANSC_STATUS Update_Interface_Status()
 #endif //RBUS_BUILD_FLAG_ENABLE
         }
 
-        /* Timer logic runs BEFORE updating lastKnownAlias so that at marker-fire
-         * the alias still reflects the PREVIOUS interface, not the recovering one.
-         * At timer-start (!bIsInterfaceActive), lastKnownAlias is also already correct
-         * because the update block below is guarded by bIsInterfaceActive. */
         if (!bIsInterfaceActive && !gWanFailureTimer.active)
         {
             CcspTraceInfo(("%s %d - WAN service lost (bIsInterfaceActive=%d)"
