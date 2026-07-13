@@ -60,6 +60,7 @@
 #include "wanmgr_plugin_main.h"
 #include "wanmgr_plugin_main_apis.h"
 #include "wanmgr_dml_apis.h"
+#include "wanmgr_dml_map.h"
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED)
 #include "wanmgr_dml_iface_v2_apis.h"
 #else
@@ -67,6 +68,9 @@
 #endif /** WAN_MANAGER_UNIFICATION_ENABLED */
 #include "wanmgr_dml_dhcpv4.h"
 #include "wanmgr_dml_dhcpv6.h"
+#ifdef FEATURE_DSLITE_V2
+#include "wanmgr_dml_dslite_apis.h"
+#endif
 
 void *                  g_pDslhDmlAgent;
 extern ANSC_HANDLE      g_MessageBusHandle_Irep;
@@ -581,7 +585,67 @@ int ANSC_EXPORT_API WanManagerDmlInit(ULONG uMaxVersionSupported, void* hCosaPlu
 
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SentOption_GetEntryCount", SentOption_GetEntryCount);
 
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMap_GetParamBoolValue", WanMap_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMap_SetParamBoolValue", WanMap_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMap_Validate", WanMap_Validate);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMap_Commit", WanMap_Commit);
 
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_GetEntryCount", WanMapDomain_GetEntryCount);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_GetEntry", WanMapDomain_GetEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_GetParamUlongValue", WanMapDomain_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_GetParamStringValue", WanMapDomain_GetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_GetParamBoolValue", WanMapDomain_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_GetParamIntValue", WanMapDomain_GetParamIntValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_SetParamUlongValue", WanMapDomain_SetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_SetParamBoolValue", WanMapDomain_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_SetParamStringValue", WanMapDomain_SetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_SetParamIntValue", WanMapDomain_SetParamIntValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_Validate", WanMapDomain_Validate);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_Commit", WanMapDomain_Commit);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapDomain_Rollback", WanMapDomain_Rollback);
+
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_GetEntryCount", WanMapRule_GetEntryCount);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_GetEntry", WanMapRule_GetEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_GetParamUlongValue", WanMapRule_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_GetParamStringValue", WanMapRule_GetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_GetParamBoolValue", WanMapRule_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_SetParamUlongValue", WanMapRule_SetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_SetParamBoolValue", WanMapRule_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_SetParamStringValue", WanMapRule_SetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_Validate", WanMapRule_Validate);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_Commit", WanMapRule_Commit);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapRule_Rollback", WanMapRule_Rollback);
+
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_GetParamUlongValue", WanMapInterface_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_GetParamStringValue", WanMapInterface_GetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_GetParamBoolValue", WanMapInterface_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_SetParamUlongValue", WanMapInterface_SetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_SetParamBoolValue", WanMapInterface_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_SetParamStringValue", WanMapInterface_SetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_Validate", WanMapInterface_Validate);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_Commit", WanMapInterface_Commit);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapInterface_Rollback", WanMapInterface_Rollback);
+
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "WanMapStats_GetParamUlongValue", WanMapStats_GetParamUlongValue);
+
+#ifdef FEATURE_DSLITE_V2
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DSLite_GetParamBoolValue", DSLite_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DSLite_SetParamBoolValue", DSLite_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DSLite_GetParamUlongValue", DSLite_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetEntryCount", InterfaceSetting4_GetEntryCount);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetEntry", InterfaceSetting4_GetEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_AddEntry", InterfaceSetting4_AddEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_DelEntry", InterfaceSetting4_DelEntry);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetParamBoolValue", InterfaceSetting4_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetParamStringValue", InterfaceSetting4_GetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_GetParamUlongValue", InterfaceSetting4_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_SetParamBoolValue", InterfaceSetting4_SetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_SetParamStringValue", InterfaceSetting4_SetParamStringValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_SetParamUlongValue", InterfaceSetting4_SetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_Validate", InterfaceSetting4_Validate);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_Commit", InterfaceSetting4_Commit);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "InterfaceSetting4_Rollback", InterfaceSetting4_Rollback);
+#endif
 
     /* Create backend framework */
     g_pWanMgrBE = (WANMGR_BACKEND_OBJ*)BackEndManagerCreate();

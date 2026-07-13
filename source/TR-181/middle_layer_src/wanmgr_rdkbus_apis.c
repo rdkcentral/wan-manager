@@ -38,6 +38,7 @@
 #include "wanmgr_rdkbus_apis.h"
 #include "dmsb_tr181_psm_definitions.h"
 #include "wanmgr_net_utils.h"
+#include "wanmgr_interface_sm.h"
 #ifdef RBUS_BUILD_FLAG_ENABLE
 #include "wanmgr_rbus_handler_apis.h"
 #endif //RBUS_BUILD_FLAG_ENABLE
@@ -251,6 +252,7 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         pVirtIf->EnableMAPT = TRUE;
     }
 
+#ifndef FEATURE_DSLITE_V2
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ENABLE_DSLITE, instancenum, (virtInsNum + 1));
@@ -260,7 +262,16 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     {
         pVirtIf->EnableDSLite = TRUE;
     }
+#endif
 
+#ifdef FEATURE_DSLITE_V2
+    memset(param_name, 0, sizeof(param_name));
+    memset(param_value, 0, sizeof(param_value));
+    strncpy(param_name, PSM_WANMANAGER_IF_VIRIF_DSLITE_PATH, sizeof(param_name) - 1);
+    retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
+    strncpy(pVirtIf->DSLite.Path, param_value, sizeof(pVirtIf->DSLite.Path) - 1);
+    pVirtIf->DSLite.Path[sizeof(pVirtIf->DSLite.Path) - 1] = '\0';
+#endif
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ENABLE, instancenum, (virtInsNum + 1));
@@ -373,11 +384,13 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv4_CONFIG_TYPE);	
     }
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->IP.DHCPv4Iface, param_value);
+#endif
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -398,11 +411,13 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
         WanMgr_ProcessTelemetryMarker(pVirtIf,WAN_INFO_IPv6_CONFIG_TYPE);	
     }
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     AnscCopyString(pVirtIf->IP.DHCPv6Iface, param_value);
+#endif
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));
@@ -568,6 +583,7 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
 
     CcspTraceInfo(("%s %d Entered\n", __FUNCTION__, __LINE__));
 
+#ifndef FEATURE_DSLITE_V2
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     if(pVirtIf->EnableDSLite == TRUE)
@@ -580,6 +596,7 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     }
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_ENABLE_DSLITE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+#endif
 
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
@@ -662,11 +679,13 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V4SOURCE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     AnscCopyString(param_value, pVirtIf->IP.DHCPv4Iface);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv4, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
+#endif
 
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
@@ -674,12 +693,14 @@ int write_Virtual_Interface_ToPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_V6SOURCE, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     AnscCopyString(param_value, pVirtIf->IP.DHCPv6Iface);
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_IP_DHCPv6, instancenum, (virtInsNum + 1));
     WanMgr_RdkBus_SetParamValuesToDB(param_name,param_value);
-    
+#endif
+
     memset(param_value, 0, sizeof(param_value));
     memset(param_name, 0, sizeof(param_name));
     _ansc_sprintf(param_value, "%d", pVirtIf->IP.PreferredMode );
@@ -1910,7 +1931,7 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
     {
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
-		t2_event_d("SYST_ERROR_DNSFAIL", 1);
+		t2_event_d("SYS_ERROR_DNSFAIL", 1);
 #endif
         return RETURN_ERR;
     }
@@ -1993,6 +2014,13 @@ ANSC_STATUS Update_Interface_Status()
                 {
                 //Note: This function uses first Virtual interface as primary to set status information.
                 DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, virIf_id);
+                
+                /* Skip WAN status updates for voice interfaces (VOIP, VOICE, MTA) */
+                if (WanMgr_IsVoiceInterface(p_VirtIf))
+                {
+                    continue;
+                }
+                
                 struct IFACE_INFO *newIface = calloc(1, sizeof( struct IFACE_INFO));
                 newIface->next = NULL;
 
@@ -2154,7 +2182,7 @@ ANSC_STATUS Update_Interface_Status()
                        }
 				       snprintf(uptime_str, sizeof(uptime_str), "%lld", uptime_ms);
 					   
-	                   t2_event_s("SYST_INFO_DNSSTART_split", uptime_str);
+	                   t2_event_s("SYS_INFO_DNSSTART_split", uptime_str);
 				       dns_start_sent = 1; 
 				   }
 				}

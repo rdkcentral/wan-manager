@@ -114,6 +114,7 @@ extern int stop_dhcpv4_client (dhcp_params * params);
 #define WAN_BRIDGE       "brWAN"
 
 #define SET_MAX_RETRY_COUNT 10 // max. retry count for set requests
+
 /***************************************************************************
  * @brief API used to check the incoming ipv4 address is a valid ipv4 address
  * @param input string contains ipv4 address
@@ -325,114 +326,72 @@ int isModuleLoaded(char *moduleName)
  ****************************************************************************/
 static INT IsIPObtained(char *pInterfaceName);
 
-int WanManager_Ipv6PrefixUtil(char *ifname, Ipv6OperType opr, int preflft, int vallft)
+/***************************************************************************
+ * @brief Utility function used to perform operation on IPV6 addresses
+ * for a particular interface
+ * @param p_VirtIf Pointer to the virtual interface
+ * @param opr indicates operation type (Delete/Set)
+ * @return 0 upon success else -1 returned
+ ***************************************************************************/
+int WanManager_Ipv6AddrUtil(DML_VIRTUAL_IFACE* p_VirtIf,Ipv6OperType opr)
 {
     char cmdLine[128] = {0};
-    char prefix[BUFLEN_48] = {0};
-    char prefixAddr[BUFLEN_48] = {0};
-    char IfaceName[BUFLEN_16] = {0};
-    int BridgeMode = 0;
-
-    memset(prefix, 0, sizeof(prefix));
-    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_PREFIX, prefix, sizeof(prefix));
-
-    memset(prefixAddr, 0, sizeof(prefixAddr));
-    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_GLOBAL_IPV6_PREFIX_SET, prefixAddr, sizeof(prefixAddr));
-
-    { //TODO : temporary debug code to identify the bridgemode sysevent failure issue.
-        char Output[BUFLEN_16] = {0};
-        if (sysevent_get(sysevent_fd, sysevent_token, "bridge_mode", Output, sizeof(Output)) !=0)
-        {
-            CcspTraceError(("%s-%d: bridge_mode sysevent get failed. \n", __FUNCTION__, __LINE__));
-        }
-        BridgeMode = atoi(Output);
-        CcspTraceInfo(("%s-%d: <<DEBUG>> bridge_mode sysevent value set to =%d \n", __FUNCTION__, __LINE__,  BridgeMode));
-    }
-
-    /*TODO:
-     *Below Code should be removed once V6 Prefix/IP is assigned on erouter0 Instead of brlan0 for sky Devices. 
-     */
-    strcpy(IfaceName, LAN_BRIDGE_NAME);
-    if (WanMgr_isBridgeModeEnabled() == TRUE)
-    {
-        memset(IfaceName, 0, sizeof(IfaceName));
-        strncpy(IfaceName, ifname, strlen(ifname));
-    }
-
-    CcspTraceInfo(("%s-%d: IfaceName=%s \n", __FUNCTION__, __LINE__, IfaceName));
 
     switch (opr)
     {
         case DEL_ADDR:
         {
-            if (strlen(prefix) > 0)
+            if (strlen( p_VirtIf->IP.Ipv6Data.address) > 0)
             {
-#if !(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) //Do not delete prefix from LAn bridge for the comcast platforms.
-#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
-                WanMgr_Config_Data_t    *pWanConfigData = WanMgr_GetConfigData_locked();
-                unsigned char           ConfigureWANIPv6OnLANBridgeSupport = FALSE;
-
-                if( NULL != pWanConfigData )
-                {
-                    ConfigureWANIPv6OnLANBridgeSupport = pWanConfigData->data.ConfigureWANIPv6OnLANBridgeSupport;
-                    WanMgrDml_GetConfigData_release(pWanConfigData);
-                }
-
-                if ( TRUE == ConfigureWANIPv6OnLANBridgeSupport )
-#endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
-                {
-                    memset(cmdLine, 0, sizeof(cmdLine));
-                    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/64 dev %s", prefixAddr, IfaceName);
-                    if (WanManager_DoSystemActionWithStatus("ip -6 addr del ADDR dev xxxx", cmdLine) != 0)
-                        CcspTraceError(("failed to run cmd: %s", cmdLine));
-                }
-#endif
                 memset(cmdLine, 0, sizeof(cmdLine));
-#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
-                snprintf(cmdLine, sizeof(cmdLine), "ip -6 route flush match %s ", prefix);
-#else
-                snprintf(cmdLine, sizeof(cmdLine), "ip -6 route flush %s ", prefix);
-#endif
-                if (WanManager_DoSystemActionWithStatus("ip -6 route flush PREFIX ", cmdLine) != 0)
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+                if (WanManager_DoSystemActionWithStatus("ip -6 addr del ADDR dev xxxx", cmdLine) != 0)
                     CcspTraceError(("failed to run cmd: %s", cmdLine));
 
-                CcspTraceInfo(("%s-%d: Successfully del addr and route from Interface %s, prefix=%s, prefixAddr=%s \n",
-       	                               __FUNCTION__, __LINE__, IfaceName, prefix, prefixAddr));
+                memset(cmdLine, 0, sizeof(cmdLine));
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 route flush match %s ", p_VirtIf->IP.Ipv6Data.address);
+
+                if (WanManager_DoSystemActionWithStatus(cmdLine, cmdLine) != 0)
+                    CcspTraceError(("failed to run cmd: %s", cmdLine));
+
+                CcspTraceInfo(("%s-%d: Successfully del addr and route from Interface %s,  Ipv6 Addr=%s \n",
+       	                               __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address));
 
                 memset(cmdLine, 0, sizeof(cmdLine));
                 snprintf(cmdLine, sizeof(cmdLine), "ip -6 route delete default");
                 if (WanManager_DoSystemActionWithStatus("ip -6 route delete default", cmdLine) != 0)
                     CcspTraceError(("failed to run cmd: %s", cmdLine));
 
+                CcspTraceInfo(("%s-%d: Successfully deleted ipv6 default route\n", __FUNCTION__, __LINE__));
             }
             else
             {
-                CcspTraceError(("%s-%d: Failed to delete addr and route from Interface %s, prefix=%s, prefixAddr=%s \n",
-       	                                __FUNCTION__, __LINE__, IfaceName, prefix, prefixAddr));
+                CcspTraceError(("%s-%d: Failed to delete addr and route from Interface %s, IPv6 Addr=%s \n",
+       	                                __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address));
             }
             break;
         }
+
         case SET_LFT:
         {
-            if (strlen(prefixAddr) > 0)
+            if (strlen(p_VirtIf->IP.Ipv6Data.address) > 0)
             {
                 memset(cmdLine, 0, sizeof(cmdLine));
-                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr change %s dev %s valid_lft %d preferred_lft %d ", prefixAddr, IfaceName, vallft, preflft);
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr change %s dev %s valid_lft %d preferred_lft %d ", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime);
                 if (WanManager_DoSystemActionWithStatus("processDhcp6cStateChanged: ip -6 addr change L3IfName", (cmdLine)) != 0)
                     CcspTraceError(("failed to run cmd: %s", cmdLine));
 
-                CcspTraceInfo(("%s-%d: Successfully updated addr from Interface %s, prefixAddr=%s, vallft=%d, preflft=%d \n",
-                                       __FUNCTION__, __LINE__, IfaceName, prefixAddr, vallft, preflft));
+                CcspTraceInfo(("%s-%d: Successfully updated addr from Interface %s, Ipv6 Addr=%s, vallft=%d, preflft=%d \n",
+                                       __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime));
             }
 	    else
             {
-                CcspTraceError(("%s-%d: Failed to update addr from Interface %s, prefixAddr=%s, vallft=%d, preflft=%d \n",
-                                        __FUNCTION__, __LINE__, IfaceName, prefixAddr, vallft, preflft));
+                CcspTraceError(("%s-%d: Failed to update addr from Interface %s, Ipv6 Addr=%s, vallft=%d, preflft=%d \n",
+                                        __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime));
             }
             break;
         }
     }
-
     return 0;
 }
 
@@ -514,10 +473,10 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
+    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
 
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
 
@@ -576,8 +535,18 @@ ANSC_STATUS WanManager_StopDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
-    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "false", ccsp_boolean, TRUE))
+    char dmlValue[16] = {0};
+    if(is_release_required == STOP_DHCP_WITH_RELEASE)
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.X_RDK_Release", pVirtIf->IP.DHCPv6Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "true");
+    }
+    else
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "false");
+    }
+    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, dmlValue, ccsp_boolean, TRUE))
     {
         CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
         pVirtIf->IP.Dhcp6cStatus = DHCPC_STOPPED;
@@ -623,10 +592,10 @@ int WanManager_StartDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, char* baseInterface
     }
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv4Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
+    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "true", ccsp_boolean, TRUE))
     {
@@ -682,8 +651,18 @@ ANSC_STATUS WanManager_StopDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
     CcspTraceInfo (("%s %d: Stopping dhcpv4 client for %s %s\n", __FUNCTION__, __LINE__, pVirtIf->Name, (IsReleaseNeeded==STOP_DHCP_WITH_RELEASE)? "With release": "."));
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
-    snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
-    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "false", ccsp_boolean, TRUE))
+    char dmlValue[16] = {0};
+    if(IsReleaseNeeded == STOP_DHCP_WITH_RELEASE)
+    {        
+        snprintf( dmlName, sizeof(dmlName), "%s.X_RDK_Release", pVirtIf->IP.DHCPv4Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "true");
+    }
+    else
+    {
+        snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
+        snprintf( dmlValue, sizeof(dmlValue), "%s", "false");
+    }
+    if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, dmlValue, ccsp_boolean, TRUE))
     {
         CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
         pVirtIf->IP.Dhcp4cStatus = DHCPC_STOPPED;
@@ -772,7 +751,7 @@ void WanManager_PrintBootEvents (WanBootEventState state)
 const char *nat44PostRoutingTable = "OUTBOUND_POSTROUTING";
 char ipv6AddressString[BUFLEN_256] = {0};
 #ifdef FEATURE_MAPT_DEBUG
-void WanManager_UpdateMaptLogFile(ipc_mapt_data_t *dhcp6cMAPTMsgBody);
+void WanManager_UpdateMaptLogFile(ipc_map_data_t *dhcp6cMAPTMsgBody);
 #endif // FEATURE_MAPT_DEBUG
 static int WanManager_ConfigureIpv6Sysevents(char *pdIPv6Prefix, char *ipAddressString, int psidValue);
 #ifdef NAT46_KERNEL_SUPPORT
@@ -853,7 +832,7 @@ int WanMgr_RdkBus_ConfigureUPnPIGDService (BOOL configure_UPnPIGD)
     return 0;
 }
 
-ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig)
+ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig)
 {
     int ret = RETURN_OK;
     int ipv4IndexValue = 0;
@@ -892,27 +871,29 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBod
         MaptInfo("Using psidLen value from dhcp6c options : %d", MaptConfig->psidLen);
         MaptInfo("Using psidOffset value from dhcp6c options : %d", dhcp6cMAPTMsgBody->psidOffset);
 #endif
+        MaptConfig->isPSIDComputed = FALSE;
     }
     else
     {
         ret = WanManager_CalculatePsidAndV4Index(dhcp6cMAPTMsgBody->pdIPv6Prefix, dhcp6cMAPTMsgBody->v6Len, dhcp6cMAPTMsgBody->iapdPrefixLen,
                 dhcp6cMAPTMsgBody->v4Len, &(MaptConfig->psidValue), &ipv4IndexValue, &(MaptConfig->psidLen));
-    }
 
-    if (ret != RETURN_OK)
-    {
-        CcspTraceError(("Error in calculating MAPT PSID value \n"));
+        if (ret != RETURN_OK)
+        {
+            CcspTraceError(("Error in calculating MAPT PSID value \n"));
 #ifdef FEATURE_MAPT_DEBUG
-        MaptInfo("Exiting MAPT configuration, MAPT will not be configured, error found in getting PSID value");
+            MaptInfo("Exiting MAPT configuration, MAPT will not be configured, error found in getting PSID value");
 #endif
-        CcspTraceNotice(("FEATURE_MAPT: MAP-T configuration failed\n"));
-        return ANSC_STATUS_FAILURE;
+            CcspTraceNotice(("FEATURE_MAPT: MAP-T configuration failed\n"));
+            return ANSC_STATUS_FAILURE;
+        }
+#ifdef FEATURE_MAPT_DEBUG
+        MaptInfo("--- MAP-T Computed Values - START ---");
+        MaptInfo("mapt: PSID Value: %d, ipv4IndexValue: %d", MaptConfig->psidValue, ipv4IndexValue);
+        MaptInfo("mapt: PSID Length: %d", MaptConfig->psidLen);
+#endif
+        MaptConfig->isPSIDComputed = TRUE;
     }
-#ifdef FEATURE_MAPT_DEBUG
-    MaptInfo("--- MAP-T Computed Values - START ---");
-    MaptInfo("mapt: PSID Value: %d, ipv4IndexValue: %d", MaptConfig->psidValue, ipv4IndexValue);
-    MaptInfo("mapt: PSID Length: %d", MaptConfig->psidLen);
-#endif
 
     inet_pton(AF_INET, dhcp6cMAPTMsgBody->ruleIPv4Prefix, &(result));
 
@@ -951,7 +932,7 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBod
     return ANSC_STATUS_SUCCESS;
 }
 
-int WanManager_ProcessMAPTConfiguration(ipc_mapt_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data)
+int WanManager_ProcessMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody, WANMGR_MAPT_CONFIG_DATA *MaptConfig, const char *baseIf, const WANMGR_IPV6_DATA *ipv6Data)
 {
     /* IVI_KERNEL_SUPPORT : To Enable IVI sopprted MAPT work flow
      * NAT46_KERNEL_SUPPORT : To Enable NAT46 sopprted MAPT work flow
@@ -1698,7 +1679,7 @@ int WanManager_ResetMAPTConfiguration(const char *baseIf, const char *vlanIf)
 }
 
 #ifdef FEATURE_MAPT_DEBUG
-void WanManager_UpdateMaptLogFile(ipc_mapt_data_t *dhcp6cMAPTMsgBody)
+void WanManager_UpdateMaptLogFile(ipc_map_data_t *dhcp6cMAPTMsgBody)
 {
 
     MaptInfo("--- MAP-T Options Received from DHCPv6 - START ---");
@@ -2267,9 +2248,20 @@ int WanManager_AddGatewayRoute(const WANMGR_IPV4_DATA* pIpv4Info)
     char cmd[BUFLEN_128]={0};
     int ret = RETURN_OK;
     FILE *fp = NULL;
-    
+    char interface_gw[32] = {0};
+    char backup_gw[32] = {0};
+
     /* delete gateway first before add  */
-    snprintf(cmd, sizeof(cmd), "route del %s dev %s", pIpv4Info->gateway, pIpv4Info->ifname);
+    snprintf(interface_gw,sizeof(interface_gw),"%s_backup_gw",pIpv4Info->ifname);
+    sysevent_get(sysevent_fd, sysevent_token, interface_gw, backup_gw, sizeof(backup_gw));
+    if(strlen(backup_gw) > 0)
+    {
+        snprintf(cmd, sizeof(cmd), "route del %s dev %s", backup_gw, pIpv4Info->ifname);
+    }
+    else
+    {
+        snprintf(cmd, sizeof(cmd), "route del %s dev %s", pIpv4Info->gateway, pIpv4Info->ifname);
+    }
     WanManager_DoSystemAction("SetUpSystemGateway:", cmd);
 
     /* Sets gateway route entry */
@@ -2279,6 +2271,7 @@ int WanManager_AddGatewayRoute(const WANMGR_IPV4_DATA* pIpv4Info)
         WanManager_DoSystemAction("SetUpSystemGateway:", cmd);
         CcspTraceInfo(("%s %d - The gateway route entries set!\n",__FUNCTION__,__LINE__));
     }
+    sysevent_set(sysevent_fd, sysevent_token,interface_gw, pIpv4Info->gateway, 0);
 
     return ret;
 }

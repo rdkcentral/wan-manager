@@ -28,6 +28,98 @@
 
 extern rbusHandle_t rbusHandle;
 
+/*
+ * DHCP event queue – FIFO linked list protected by mutex + condvar.
+ * A single persistent worker thread drains the queue so events are
+ * always processed in the order they arrive.
+ */
+static DhcpEventThreadArgs *g_dhcpEventQueueHead = NULL;
+static DhcpEventThreadArgs *g_dhcpEventQueueTail = NULL;
+static pthread_mutex_t      g_dhcpEventQueueMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t       g_dhcpEventQueueCond  = PTHREAD_COND_INITIALIZER;
+static int                  g_dhcpEventWorkerRunning = 0;
+
+/* Worker thread: drains the queue in strict FIFO order. */
+static void* WanMgr_DhcpEventQueueWorker(void *arg)
+{
+    (void)arg;
+    pthread_detach(pthread_self());
+
+    while (1)
+    {
+        DhcpEventThreadArgs *eventData = NULL;
+
+        pthread_mutex_lock(&g_dhcpEventQueueMutex);
+        /* Wait until there is at least one event in the queue */
+        while (g_dhcpEventQueueHead == NULL)
+        {
+            pthread_cond_wait(&g_dhcpEventQueueCond, &g_dhcpEventQueueMutex);
+        }
+
+        /* Dequeue the head element */
+        eventData = g_dhcpEventQueueHead;
+        g_dhcpEventQueueHead = eventData->next;
+        if (g_dhcpEventQueueHead == NULL)
+        {
+            g_dhcpEventQueueTail = NULL;
+        }
+        eventData->next = NULL;
+        pthread_mutex_unlock(&g_dhcpEventQueueMutex);
+
+        /* Process the event — this runs outside the queue lock so that
+         * new events can still be enqueued while we process. */
+        CcspTraceInfo(("%s-%d : Dequeued DHCP event (type %d) for %s\n",
+                       __FUNCTION__, __LINE__, eventData->type, eventData->ifName));
+        WanMgr_ProcessDhcpClientEvent(eventData);
+        free(eventData);
+    }
+
+    return NULL;
+}
+
+/* Enqueue a DHCP event and ensure the worker thread is running. */
+void WanMgr_DhcpEventQueue_Enqueue(DhcpEventThreadArgs *eventData)
+{
+    if (eventData == NULL)
+    {
+        return;
+    }
+
+    eventData->next = NULL;
+
+    pthread_mutex_lock(&g_dhcpEventQueueMutex);
+
+    /* Append to tail of queue */
+    if (g_dhcpEventQueueTail != NULL)
+    {
+        g_dhcpEventQueueTail->next = eventData;
+    }
+    else
+    {
+        g_dhcpEventQueueHead = eventData;
+    }
+    g_dhcpEventQueueTail = eventData;
+
+    /* Start the worker thread on first use */
+    if (!g_dhcpEventWorkerRunning)
+    {
+        pthread_t workerThread;
+        if (pthread_create(&workerThread, NULL, WanMgr_DhcpEventQueueWorker, NULL) == 0)
+        {
+            g_dhcpEventWorkerRunning = 1;
+            CcspTraceInfo(("%s-%d : DHCP event queue worker thread started\n", __FUNCTION__, __LINE__));
+        }
+        else
+        {
+            CcspTraceError(("%s-%d : Failed to create DHCP event queue worker thread\n", __FUNCTION__, __LINE__));
+        }
+    }
+
+    /* Signal the worker that a new event is available */
+    pthread_cond_signal(&g_dhcpEventQueueCond);
+    pthread_mutex_unlock(&g_dhcpEventQueueMutex);
+}
+
 static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription)
 {
     (void)handle;
@@ -40,27 +132,86 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
         CcspTraceError(("%s : FAILED , value is NULL\n",__FUNCTION__));
         return;
     }
-
-    pthread_t dhcpEvent_thread;
-
-    //CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
+  
+    CcspTraceInfo(("%s %d: Received %s\n", __FUNCTION__, __LINE__, eventName));
     if (strstr(eventName, DHCP_MGR_DHCPv4_TABLE) || strstr(eventName, DHCP_MGR_DHCPv6_TABLE) )
     {
         DhcpEventThreadArgs *eventData = malloc(sizeof(DhcpEventThreadArgs));
+        if(eventData == NULL)
+        {
+            CcspTraceError(("%s %d: Failed to allocate memory for DHCP event data\n", __FUNCTION__, __LINE__));
+            return;
+        }
         memset(eventData, 0, sizeof(DhcpEventThreadArgs));
         eventData->version = strstr(eventName, DHCP_MGR_DHCPv4_TABLE) ? DHCPV4 : DHCPV6;
+
+        /* Resolve the object that holds IfName/MsgType/LeaseInfo.
+         * RBUS wraps the payload under "initialValue" for subscribe-GET
+         * responses; fall back to "value" for other auto-publish shapes. */
+        rbusObject_t dataObj = event->data;
+        rbusValue_t wrappedVal = rbusObject_GetValue(event->data, "initialValue");
+        if ((wrappedVal != NULL) && (rbusValue_GetType(wrappedVal) == RBUS_OBJECT))
+        {
+            rbusObject_t nestedObj = rbusValue_GetObject(wrappedVal);
+            if (nestedObj != NULL)
+            {
+                dataObj = nestedObj;
+                CcspTraceInfo(("%s %d: Unwrapped payload from initialValue\n", __FUNCTION__, __LINE__));
+            }
+        }
+        else
+        {
+            wrappedVal = rbusObject_GetValue(event->data, "value");
+            if ((wrappedVal != NULL) && (rbusValue_GetType(wrappedVal) == RBUS_OBJECT))
+            {
+                rbusObject_t nestedObj = rbusValue_GetObject(wrappedVal);
+                if (nestedObj != NULL)
+                {
+                    dataObj = nestedObj;
+                    CcspTraceInfo(("%s %d: Unwrapped payload from value\n", __FUNCTION__, __LINE__));
+                }
+            }
+        }
+
         rbusValue_t value;
-        value = rbusObject_GetValue(event->data, "IfName");
-        strncpy(eventData->ifName , rbusValue_GetString(value, NULL), sizeof(eventData->ifName)-1);
+        value = rbusObject_GetValue(dataObj, "IfName");
+        if(value == NULL)
+        {
+            CcspTraceError(("%s %d: Failed to get IfName from event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
+
+        const char* ifName = rbusValue_GetString(value, NULL);
+        if (ifName == NULL)
+        {
+            CcspTraceError(("%s %d: IfName string is NULL in event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
+
+        strncpy(eventData->ifName , ifName, sizeof(eventData->ifName)-1);
         CcspTraceInfo(("%s-%d : DHCP client event %s received for  %s\n", __FUNCTION__, __LINE__, eventName, eventData->ifName));
 
-        value = rbusObject_GetValue(event->data, "MsgType");
+        value = rbusObject_GetValue(dataObj, "MsgType");
+        if(value == NULL)
+        {
+            CcspTraceError(("%s %d: Failed to get MsgType from event data\n", __FUNCTION__, __LINE__));
+            free(eventData);
+            return;
+        }
         eventData->type = rbusValue_GetUInt32(value);
 
         if(eventData->type == DHCP_LEASE_UPDATE)
         {
             int bytes_len=0;
-            value = rbusObject_GetValue(event->data, "LeaseInfo");
+            value = rbusObject_GetValue(dataObj, "LeaseInfo");
+            if(value == NULL)
+            {
+                CcspTraceError(("%s %d: Failed to get LeaseInfo from event data\n", __FUNCTION__, __LINE__));
+                free(eventData);
+                return;
+            }
             uint8_t const* ptr = rbusValue_GetBytes(value, &bytes_len);
             if(eventData->version == DHCPV4)
             {
@@ -86,14 +237,8 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
             }
         }
 
-        if(pthread_create(&dhcpEvent_thread, NULL, WanMgr_DhcpClientEventsHandler_Thread, eventData) != 0)
-        {
-            CcspTraceError(("%s %d: Failed to create thread for DHCPv4 event\n", __FUNCTION__, __LINE__));
-            free(eventData);
-            return;
-        }
-        /* Adding sleep to make sure the thread locks the DhcpClientEvents_mutex */
-        usleep(10000);
+        /* Enqueue the event for ordered processing by the worker thread */
+        WanMgr_DhcpEventQueue_Enqueue(eventData);
     }
 }
 
@@ -101,12 +246,15 @@ void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     char eventName[64] = {0};
+
     snprintf(eventName, sizeof(eventName), "%s.Events", DhcpInterface);
-    rc = rbusEvent_Subscribe(rbusHandle, eventName, WanMgr_DhcpClientEventsHandler, NULL, 60);
+    rbusEventSubscription_t subscription = {eventName, NULL, 0, 0, WanMgr_DhcpClientEventsHandler, NULL, NULL, NULL, true};
+
+    rc = rbusEvent_SubscribeEx(rbusHandle, &subscription, 1, 60);
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to Subscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));
-        return NULL;
+        return;
     }
     
     CcspTraceInfo(("%s %d: Subscribed to %s  n", __FUNCTION__, __LINE__, eventName));
@@ -121,7 +269,7 @@ void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface)
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to UnSubscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));
-        return NULL;
+        return;
     }
     
     CcspTraceInfo(("%s %d: UnSubscribed to %s  n", __FUNCTION__, __LINE__, eventName));

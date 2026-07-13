@@ -23,9 +23,10 @@
 #include "wanmgr_interface_sm.h"
 #include "wanmgr_dhcp_client_events.h"
 #include "wanmgr_net_utils.h"
-
-
-
+#include "wanmgr_dhcpv6_apis.h"
+#ifdef FEATURE_MAPE
+#include "wanmgr_map_apis.h"
+#endif
 
 static void copyDhcpv4Data(WANMGR_IPV4_DATA* pDhcpv4Data, const DHCP_MGR_IPV4_MSG* leaseInfo) 
 {
@@ -79,15 +80,22 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
         "| addrAssigned        : %-40d |\n"
         "| prefixAssigned      : %-40d |\n"
         "| domainNameAssigned  : %-40d |\n"
+        "| mapeAssigned        : %-40d |\n"
 #ifdef FEATURE_MAPT
         "| maptAssigned        : %-40d |\n"
+#endif
+#ifdef FEATURE_DSLITE_V2
+        "| aftrName            : %-40s |\n"
 #endif
         "=================================================================\n",
         leaseInfo->ifname, leaseInfo->address, leaseInfo->nameserver, leaseInfo->nameserver1,
         leaseInfo->domainName, leaseInfo->sitePrefix, leaseInfo->prefixPltime, leaseInfo->prefixVltime,
-        leaseInfo->addrAssigned, leaseInfo->prefixAssigned, leaseInfo->domainNameAssigned
+        leaseInfo->addrAssigned, leaseInfo->prefixAssigned, leaseInfo->domainNameAssigned, leaseInfo->mapeAssigned
 #ifdef FEATURE_MAPT
         , leaseInfo->maptAssigned
+#endif
+#ifdef FEATURE_DSLITE_V2
+        , leaseInfo->aftr
 #endif
     ));
 
@@ -103,15 +111,34 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->prefixAssigned = leaseInfo->prefixAssigned;
     pDhcpv6Data->domainNameAssigned = leaseInfo->domainNameAssigned;
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
+#ifdef FEATURE_DSLITE_V2
+    strncpy(pDhcpv6Data->aftr, leaseInfo->aftr, sizeof(pDhcpv6Data->aftr) - 1);
+#endif
+    if(!pDhcpv6Data->addrAssigned && pDhcpv6Data->prefixAssigned)
+    {
+        /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
+         * We can use the received IAPD to construct a Ipv6 /128 address which can be used for management and voice ...
+         * If we reach this point, only IAPD has been received. Calculate Wan Ipv6 address 
+         */
+
+        CcspTraceInfo(("IANA is not assigned by DHCPV6. Constructing WAN address from the IAPD for Wan Interface \n"));
+        wanmgr_construct_wan_address_from_IAPD(pDhcpv6Data);
+    }
+
 }
 
-pthread_mutex_t DhcpClientEvents_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
+/*
+ * Process a single DHCP client event.  Called by the queue worker thread
+ * so events are guaranteed to be handled in FIFO order.
+ * Caller is responsible for freeing eventData after this returns.
+ */
+void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
 {
-    DhcpEventThreadArgs *eventData = (DhcpEventThreadArgs *)arg;
-    pthread_mutex_lock(&DhcpClientEvents_mutex);
-    pthread_detach(pthread_self());
+    if (eventData == NULL)
+    {
+        CcspTraceError(("%s-%d : eventData is NULL\n", __FUNCTION__, __LINE__));
+        return;
+    }
 
     DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVIfByName_VISM_running_locked(eventData->ifName);
     if(pVirtIf != NULL)
@@ -149,6 +176,22 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
 
                 case DHCP_LEASE_UPDATE:
                     CcspTraceInfo(("%s-%d : DHCPv4 lease updated for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                    /* A gateway of 0.0.0.0 indicates a private lease used solely for
+                     * validity and authentication of the WAN connection. This lease must
+                     * not be used for internet traffic. In this case, only mark the
+                     * interface as VALID and wait for the DHCPv6 lease (with MAP-T) to
+                     * establish the actual internet-capable connection. */
+                    if (strcmp(eventData->lease.v4.gateway, "0.0.0.0") == 0)
+                    {
+                        //Don't set the status to VALID if it is already UP or STANDBY
+                        if (pVirtIf->Status != WAN_IFACE_STATUS_STANDBY && pVirtIf->Status != WAN_IFACE_STATUS_UP)
+                        {
+                            CcspTraceInfo(("%s %d - gateway=[%s] Setting Iface Status to VALID\n", __FUNCTION__, __LINE__, eventData->lease.v4.gateway));
+                            pVirtIf->Status = WAN_IFACE_STATUS_VALID;
+                        }
+                        break;
+                    }
+
                     copyDhcpv4Data(&(pVirtIf->IP.Ipv4Data), &(eventData->lease.v4));
                     pVirtIf->IP.Ipv4Changed = TRUE;
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
@@ -156,7 +199,6 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv4Address", pVirtIf->baseIfIdx + 1, pVirtIf->VirIfIdx + 1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv4Data.ip, RBUS_STRING);
-                    // TODO: Check for sysevents
                     break;
 
                 default:
@@ -188,7 +230,7 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
                     //TODO: Check for sysevents
                     if(pVirtIf->IP.Ipv6Data.prefixAssigned == TRUE)
                     {
-                        WanManager_Ipv6PrefixUtil(pVirtIf->Name, SET_LFT, pVirtIf->IP.Ipv6Data.prefixPltime, pVirtIf->IP.Ipv6Data.prefixVltime);
+                        WanManager_Ipv6AddrUtil(pVirtIf, SET_LFT);
                         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_RADVD_RESTART, NULL, 0);
                     }
                     CcspTraceInfo(("%s-%d : DHCPv6 lease renewed for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
@@ -208,36 +250,51 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
                     //TODO : WAN ip creation from IA_PD if required. address assignment on LAN bridge.
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_IPV6_UP);
 
-#ifdef FEATURE_MAPT
-                    CcspTraceNotice(("FEATURE_MAPT: MAP-T Enable %d\n", leaseInfo->maptAssigned));
+                    CcspTraceNotice(("FEATURE_MAP: MAP-T Enable %d MAP-E Enable %d\n", leaseInfo->maptAssigned, leaseInfo->mapeAssigned));
                     if (leaseInfo->maptAssigned)
                     {
+#ifdef FEATURE_MAPT
 #ifdef FEATURE_MAPT_DEBUG
                         MaptInfo("--------- Got a new event in Wanmanager for MAPT_CONFIG ---------");
 #endif
                         //Compare  MAP-T previous data
-                        if (memcmp(&(pVirtIf->MAP.dhcp6cMAPTparameters), &(leaseInfo->mapt), sizeof(ipc_mapt_data_t)) != 0)
+                        if (memcmp(&(pVirtIf->MAP.dhcp6cMAPparameters), &(leaseInfo->map), sizeof(ipc_map_data_t)) != 0)
                         {
                             pVirtIf->MAP.MaptChanged = TRUE;
                             CcspTraceInfo(("MAPT configuration has been changed \n"));
                         }
-                        memcpy(&(pVirtIf->MAP.dhcp6cMAPTparameters), &(leaseInfo->mapt), sizeof(ipc_mapt_data_t));
+                        memcpy(&(pVirtIf->MAP.dhcp6cMAPparameters), &(leaseInfo->map), sizeof(ipc_map_data_t));
                         // update MAP-T flags
                         WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPT_START);
+#endif
                     }
+                    else if (leaseInfo->mapeAssigned)
+                    {
+#ifdef FEATURE_MAPE
+                        CcspTraceInfo(("--------- Got a new event in Wanmanager for MAPE_CONFIG ---------"));
+                        memcpy(&(pVirtIf->MAP.dhcp6cMAPparameters), &(leaseInfo->map), sizeof(ipc_map_data_t));
+                        WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPE_START);
+#endif
+		    }
                     else
                     {
                         if (leaseInfo->prefixAssigned && !IS_EMPTY_STRING(leaseInfo->sitePrefix) && leaseInfo->prefixPltime != 0 && leaseInfo->prefixVltime != 0)
                         {
-#ifdef FEATURE_MAPT_DEBUG
-                            MaptInfo("--------- Got an event in Wanmanager for MAPT_STOP ---------");
-#endif
+                            CcspTraceInfo(("--------- Got an event in Wanmanager for MAP_STOP ---------"));
                             // reset MAP-T parameters
-                            memset(&(pVirtIf->MAP.dhcp6cMAPTparameters), 0, sizeof(ipc_mapt_data_t));
                             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPT_STOP);
+                            WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPE_STOP);
                         }
                     }
-#endif // FEATURE_MAPT
+#ifdef FEATURE_DSLITE_V2
+                    if (WanMgr_DSLite_isEndpointNameChanged(pVirtIf, leaseInfo->aftr))
+                    {
+                        WanMgr_DSLite_UpdateEndPointName(pVirtIf, leaseInfo->aftr);
+                        pVirtIf->DSLite.Changed = TRUE; // sm checks this flag to take action
+                        CcspTraceInfo(("DS-Lite Endpoint name has been changed\n"));
+                    }
+#endif
+
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Address",  pVirtIf->baseIfIdx+1, pVirtIf->VirIfIdx+1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv6Data.address,RBUS_STRING);
@@ -253,8 +310,4 @@ void* WanMgr_DhcpClientEventsHandler_Thread(void *arg)
         } 
         WanMgr_VirtualIfaceData_release(pVirtIf);
     }
-    free(eventData);
-    pthread_mutex_unlock(&DhcpClientEvents_mutex);
-    pthread_exit(NULL);
-    return NULL;
 }

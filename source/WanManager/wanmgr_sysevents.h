@@ -140,6 +140,11 @@
 #define SYSEVENT_FIREWALL_RESTART "firewall-restart"
 #define SYSEVENT_FIREWALL_STATUS "firewall-status"
 
+#ifdef FEATURE_MAPE
+#define SYSCFG_WAN_INTERFACE          "wan_ifname"
+#define SYSEVENT_IGD_RESTART          "igd-restart"
+#endif
+
 #define SYSEVENT_IPV4_LEASE_TIME  "ipv4_%s_lease_time"
 #define SYSEVENT_IPV4_DHCP_SERVER "ipv4_%s_dhcp_server"
 #define SYSEVENT_IPV4_DHCP_STATE  "ipv4_%s_dhcp_state"
@@ -199,18 +204,6 @@
 #define PSM_DHCPV4_OPT_43         "dmsb.dhcpv4.option.43"
 
 #define  WANMNGR_INTERFACE_DEFAULT_MTU_SIZE          (1500)
-
-/* IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT - stops and starts IPOE HEALTH CHECK Service based on lan events(SYSEVENT_LAN_STATUS).
- * SKY IPoE Health check depends on the global ipv6 address configured on brlan0 and during the lan stop event brlan0 interface
- * is made down affecting the IPoE service.
- * */
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-typedef enum{
-    LAN_STATE_RESET = 0,
-    LAN_STATE_STOPPED,
-    LAN_STATE_STARTED,
-}lanState_t;
-#endif
 
 //Bridge Mode
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED)

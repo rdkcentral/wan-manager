@@ -9,13 +9,18 @@ static void wanmgr_telemetry_append_key_value(char* key, const char* value)
 {
     if(value != NULL && strlen(MarkerArguments) < BUFFER_LENGTH_256 )
     {
-	if(strlen(MarkerArguments)>0)
+        size_t remaining;
+        if(strlen(MarkerArguments)>0)
         {
-            strncat(MarkerArguments,WANMGR_T2_TELEMETRY_MARKER_ARG_DELIMITER,sizeof(MarkerArguments));
+            remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+            strncat(MarkerArguments, WANMGR_T2_TELEMETRY_MARKER_ARG_DELIMITER, remaining);
         }
-        strncat(MarkerArguments,key,sizeof(MarkerArguments));
-        strncat(MarkerArguments,WANMGR_T2_TELEMETRY_MARKER_KEY_VALUE_DELIMITER,sizeof(MarkerArguments));
-        strncat(MarkerArguments,value,sizeof(MarkerArguments));
+        remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+        strncat(MarkerArguments, key, remaining);
+        remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+        strncat(MarkerArguments, WANMGR_T2_TELEMETRY_MARKER_KEY_VALUE_DELIMITER, remaining);
+        remaining = sizeof(MarkerArguments) - strlen(MarkerArguments) - 1;
+        strncat(MarkerArguments, value, remaining);
     }
 }
 
@@ -174,6 +179,30 @@ ANSC_STATUS wanmgr_process_T2_telemetry_event(WanMgr_Telemetry_Marker_t *Marker)
             break;
 
         case WAN_ERROR_MAPT_STATUS_FAILED:
+            break;
+
+        case WAN_INFO_DSLITE_STATUS_UP:
+            if(pVirtIntf->DSLite.Status == WAN_IFACE_DSLITE_STATE_UP)
+            {
+                return ANSC_STATUS_SUCCESS;
+            }
+            wanmgr_telemetry_append_key_value(WANMGR_T2_SELECTION_STATUS_STRING,(pIntf->Selection.Status == WAN_IFACE_ACTIVE) ? "Active" : (pIntf->Selection.Status == WAN_IFACE_VALIDATING) ? "Validating" : (pIntf->Selection.Status == WAN_IFACE_SELECTED ) ? "Selected" : "Standby");
+            break;
+
+        case WAN_ERROR_DSLITE_STATUS_DOWN:
+            if(pVirtIntf->DSLite.Status == WAN_IFACE_DSLITE_STATE_DOWN)
+            {
+                return ANSC_STATUS_SUCCESS;
+            }
+            wanmgr_telemetry_append_key_value(WANMGR_T2_SELECTION_STATUS_STRING,(pIntf->Selection.Status == WAN_IFACE_ACTIVE) ? "Active" : (pIntf->Selection.Status == WAN_IFACE_VALIDATING) ? "Validating" : (pIntf->Selection.Status == WAN_IFACE_SELECTED ) ? "Selected" : "Standby");
+            break;
+
+        case WAN_ERROR_DSLITE_STATUS_FAILED:
+            if(pVirtIntf->DSLite.Status == WAN_IFACE_DSLITE_STATE_ERROR)
+            {
+                return ANSC_STATUS_SUCCESS;
+            }
+            wanmgr_telemetry_append_key_value(WANMGR_T2_SELECTION_STATUS_STRING,(pIntf->Selection.Status == WAN_IFACE_ACTIVE) ? "Active" : (pIntf->Selection.Status == WAN_IFACE_VALIDATING) ? "Validating" : (pIntf->Selection.Status == WAN_IFACE_SELECTED ) ? "Selected" : "Standby");
             break;
 
         case WAN_ERROR_VLAN_DOWN:

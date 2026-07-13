@@ -67,6 +67,7 @@ extern int WanMgr_TriggerPrimaryDnsConnectivityRestart(void);
 #endif
 #endif
 
+
 static int isDefaultGatewayAdded = 0; //global varibale for default route status.
 static int lan_wan_started = 0;
 static int ipv4_connection_up = 0;
@@ -75,10 +76,6 @@ static void check_lan_wan_ready();
 static int set_default_conf_entry();
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 int mapt_feature_enable_changed = FALSE;
-#endif
-
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-lanState_t lanState = LAN_STATE_RESET;
 #endif
 
 #if defined(_DT_WAN_Manager_Enable_)
@@ -330,7 +327,7 @@ void  wanmgr_setWanLedState(eWanState_t state)
         case WAN_STATE_IPV4_LEASED:
             ipv4_state = true;
             break;
-        case WAN_STATE_MAPT_ACTIVE:
+        case WAN_STATE_MAP_ACTIVE:
             ipv6_state = true;
             mapt_state = true;
             break;
@@ -610,9 +607,10 @@ static void *WanManagerSyseventHandler(void *args)
     async_id_t primary_v6ipaddress_asyncid;
 #endif
 #endif
-
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
+
+
 #if defined (_HUB4_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_ULA_ADDRESS, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_ULA_ADDRESS, &lan_ula_address_event_asyncid);
@@ -875,13 +873,24 @@ static void *WanManagerSyseventHandler(void *args)
                 /*ToDo
                  *This is temporary changes because of Voice Issue,
                  * For More Info, please Refer RDKB-38461.
+                 * TODO: remove this when IPV6 moved from the LAN bridge.
                  */
                 char ifName[64] = {0};
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV6_CONNECTION_STATE, STATUS_DOWN_STRING, 0);
                 sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, ifName, sizeof(ifName));
                 if(strlen(ifName) > 0)
                 {
+#if defined( FEATURE_RDKB_DHCP_MANAGER )
+                    //in case of DHCP manager enabled builds set the ipv6 change flag to true, So VISM will reconfigure the lease.
+                    DML_VIRTUAL_IFACE* pVirtIf = WanMgr_GetVirtualIfaceByName_locked(ifName);
+                    if(pVirtIf != NULL)
+                    {
+                        pVirtIf->IP.Ipv6Changed = TRUE;
+                        WanMgr_VirtualIfaceData_release(pVirtIf);
+                    }
+#else
                     WanMgr_SetInterfaceStatus(ifName, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
+#endif
                     Wan_ForceRenewDhcpIPv6(ifName);
                 }
                 sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
@@ -1197,7 +1206,6 @@ int Force_IPv6_toggle (char* wanInterface)
     }
 
     isDefaultGatewayAdded = 1; //Reset isDefaultGatewayAdded flag;
-    
     return ret;
 }
 

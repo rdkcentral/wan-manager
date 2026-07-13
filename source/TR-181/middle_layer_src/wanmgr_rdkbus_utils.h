@@ -141,7 +141,7 @@ extern token_t sysevent_token;
 #define CMAGENT_COMPONENT_NAME "eRT.com.cisco.spvtg.ccsp.cm"
 #define CMAGENT_COMP_NAME_WITHOUTSUBSYSTEM "com.cisco.spvtg.ccsp.cm"
 #define CMAGENT_COMPONENT_PATH "/com/cisco/spvtg/ccsp/cm"
-#define CMAGENT_PHY_STATUS_DM_SUFFIX             "CMStatus"
+#define CMAGENT_PHY_STATUS_DM_SUFFIX             ".CMStatus"
 
 //Cellular Manager
 #define CELLULAR_COMPONENT_NAME "eRT.com.cisco.spvtg.ccsp.cellularmanager"
@@ -238,4 +238,18 @@ void Wanmgr_TriggerReboot();
  */
 
  BOOL WanMgr_isBridgeModeEnabled();
+#ifdef FEATURE_DSLITE_V2
+/* TODO: Use PSM for DSLite related configuration */
+ANSC_STATUS WanMgr_SysCfgGetBool(const CHAR *key, BOOL *value);
+ANSC_STATUS WanMgr_SysCfgGetUint(const CHAR *key, UINT *value);
+ANSC_STATUS WanMgr_SysCfgGetStr(const CHAR *key, CHAR *dst, ULONG dst_len);
+ANSC_STATUS WanMgr_SysCfgSetUint(const CHAR *key, UINT value);
+ANSC_STATUS WanMgr_SysCfgSetStr(const CHAR *key, const CHAR *value);
+#define DSLITE_WRITE_IF_CHANGED(cond, call)          \
+    do                                               \
+    {                                                \
+        if ((cond) && (call) != ANSC_STATUS_SUCCESS) \
+            ret = ANSC_STATUS_FAILURE;               \
+    } while (0)
+#endif
 #endif /* _WANMGR_RDKBUS_UTILS_H_ */

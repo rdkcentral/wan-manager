@@ -34,16 +34,28 @@
 #include "wanmgr_net_utils.h"
 #include "wanmgr_dhcpv4_apis.h"
 #include "wanmgr_dhcpv6_apis.h"
+#ifdef FEATURE_MAPE
+#include "wanmgr_map_apis.h"
+#include "wanmgr_mape.h"
+#endif
 #include "secure_wrapper.h"
 #include "wanmgr_telemetry.h"
 #ifdef ENABLE_FEATURE_TELEMETRY2_0
 #include <telemetry_busmessage_sender.h>
+#endif
+#ifdef FEATURE_DSLITE_V2
+#include "wanmgr_dslite.h"
 #endif
 
 #define IF_SIZE      32
 #define LOOP_TIMEOUT 50000 // timeout in microseconds. This is the state machine loop interval
 #define RESOLV_CONF_FILE "/etc/resolv.conf"
 #define LOOPBACK "127.0.0.1"
+
+// TODO: Consider extending datamodel for DSLITE_RETRY_INTERVAL_SEC
+#ifdef FEATURE_DSLITE_V2
+#define DSLITE_RETRY_INTERVAL_SEC 5
+#endif
 
 #ifdef FEATURE_IPOE_HEALTH_CHECK
 #define IPOE_HEALTH_CHECK_V4_STATUS "ipoe_health_check_ipv4_status"
@@ -55,9 +67,6 @@
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
 
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-extern lanState_t lanState;
-#endif
 
 #if defined(FEATURE_464XLAT)
 typedef enum
@@ -78,9 +87,12 @@ static eWanState_t wan_state_standby(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 static eWanState_t wan_state_ipv4_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-#endif //FEATURE_MAPT
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+static eWanState_t wan_state_map_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+#endif
+#if defined(FEATURE_DSLITE_V2)
+static eWanState_t wan_state_dslite_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+#endif //FEATURE_DSLITE_V2
 static eWanState_t wan_state_refreshing_wan(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_deconfiguring_wan(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_state_exit(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
@@ -105,10 +117,16 @@ static eWanState_t wan_transition_vlan_configure(WanMgr_IfaceSM_Controller_t* pW
 
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 static eWanState_t wan_transition_mapt_feature_refresh(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-static eWanState_t wan_transition_mapt_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
-static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 extern int mapt_feature_enable_changed;
 #endif //FEATURE_MAPT
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+static eWanState_t wan_transition_map_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+#endif
+#if defined(FEATURE_DSLITE_V2)
+static eWanState_t wan_transition_dslite_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+static eWanState_t wan_transition_dslite_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
+#endif //FEATURE_DSLITE_V2
 static eWanState_t wan_transition_configuring_interface(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_transition_phy_deconfiguring(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
 static eWanState_t wan_transition_wan_deconfigured(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl);
@@ -192,7 +210,33 @@ static ANSC_STATUS WanManager_ClearDHCPData(DML_VIRTUAL_IFACE * pVirtIf);
  * lan ipv6 address ready to use.
  * @return RETURN_OK on success else RETURN_ERR
  *************************************************************************************/
-static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
+static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
+
+#ifdef FEATURE_DSLITE_V2
+/*************************************************************************************
+ * @brief Enable DSLite configuration on the interface.
+ * This API calls the HAL routine to Enable DSLite.
+ * @return RETURN_OK upon success else ERROR code returned
+ **************************************************************************************/
+static int wan_setUpDSLite(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl);
+
+/*************************************************************************************
+ * @brief Disable DSLite configuration on the interface.
+ * This API calls the HAL routine to disable DSLite.
+ * @return RETURN_OK upon success else ERROR code returned
+ **************************************************************************************/
+static int wan_tearDownDSLite(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl);
+
+#endif
+
+#ifdef FEATURE_MAPE
+/*************************************************************************************
+ * @brief Disable mape configuration on the interface.
+ * This API deletes the mape interface to disable mape.
+ * @return RETURN_OK upon success else ERROR code returned
+ **************************************************************************************/
+static int WanMgr_tearDownMape(DML_VIRTUAL_IFACE* p_VirtIf);
+#endif
 
 #ifdef FEATURE_MAPT
 
@@ -324,6 +368,26 @@ static int wan_tearDownMapt()
 }
 #endif
 
+#ifdef FEATURE_MAPE
+static int WanMgr_tearDownMape(DML_VIRTUAL_IFACE* p_VirtIf)
+{
+    int ret = RETURN_OK;
+    char cmd[BUFLEN_64] = {0};
+    char wan_interface[BUFLEN_64]={0};
+
+    CcspTraceInfo(("%s %d - stop MAP-E\n", __FUNCTION__, __LINE__));
+
+    snprintf(cmd, sizeof(cmd), "iproute del default dev %s", p_VirtIf->Name);
+    v_secure_system("%s", cmd);
+
+    v_secure_system("ip link set dev ip6tnl down");
+    v_secure_system("ip -6 tunnel del ip6tnl");
+    syscfg_set(NULL, "mape_config_flag", "false");
+
+    return ret;
+}
+#endif
+
 /************************************************************************************
  * @brief Get the status of Interface State Machine.
  * @return TRUE on running else FALSE
@@ -404,9 +468,9 @@ static BOOL WanMgr_RestartFindExistingLink (WanMgr_IfaceSM_Controller_t* pWanIfa
         }
     }
 
-    if(p_VirtIf->VLAN.Enable == TRUE && (strlen(p_VirtIf->VLAN.CurrentVlan) > 0))
+    if(p_VirtIf->VLAN.Enable == TRUE && (strlen(p_VirtIf->VLAN.VLANInUse) > 0))
     {
-        snprintf(dmQuery, sizeof(dmQuery)-1,"%s.Status",p_VirtIf->VLAN.CurrentVlan);
+        snprintf(dmQuery, sizeof(dmQuery)-1,"%s.Status",p_VirtIf->VLAN.VLANInUse);
 
         if ( ANSC_STATUS_FAILURE == WanMgr_RdkBus_GetParamValueFromAnyComp (dmQuery, dmValue))
         {
@@ -420,6 +484,10 @@ static BOOL WanMgr_RestartFindExistingLink (WanMgr_IfaceSM_Controller_t* pWanIfa
             ret = TRUE;
             /* If we are here. WanManager is restarted. Do a IPv6 toggle to avoid DAD. */
             Force_IPv6_toggle(p_VirtIf->Name); 
+
+            CcspTraceInfo(("%s %d - interface %s : using previously found VLAN %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->VLAN.VLANInUse));
+            strncpy(p_VirtIf->VLAN.CurrentVlan, p_VirtIf->VLAN.VLANInUse, sizeof(p_VirtIf->VLAN.CurrentVlan));
+            p_VirtIf->VLAN.CurrentVlan[sizeof(p_VirtIf->VLAN.CurrentVlan) - 1] = '\0';
         }
 
     }
@@ -697,6 +765,7 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
             pVirtIf->IP.Ipv6Renewed = FALSE;
             pVirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;     // reset MAPT flag
             pVirtIf->MAP.MaptChanged = FALSE;                        // reset MAPT flag
+            pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
             strncpy(pVirtIf->IP.Ipv6Data.address, "", sizeof(pVirtIf->IP.Ipv6Data.address));
             strncpy(pVirtIf->IP.Ipv6Data.pdIfAddress, "", sizeof(pVirtIf->IP.Ipv6Data.pdIfAddress));
             strncpy(pVirtIf->IP.Ipv6Data.sitePrefix, "", sizeof(pVirtIf->IP.Ipv6Data.sitePrefix));
@@ -726,7 +795,25 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
             break;
         }
 #endif
-        default:
+#ifdef FEATURE_MAPE
+        case WANMGR_IFACE_MAPE_START:
+        {
+            pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_UP;
+            CcspTraceInfo(("mape: %s \n",
+                   ((iface_status == WANMGR_IFACE_MAPE_START) ? "UP" : (iface_status == WANMGR_IFACE_MAPE_STOP) ? "DOWN" : "N/A")));
+
+            break;
+        }
+        case WANMGR_IFACE_MAPE_STOP:
+        {
+            pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
+            CcspTraceInfo(("mape: %s \n",
+                   ((iface_status == WANMGR_IFACE_MAPE_START) ? "UP" : (iface_status == WANMGR_IFACE_MAPE_STOP) ? "DOWN" : "N/A")));
+
+            break;
+        }
+#endif
+	default:
             /* do nothing */
             break;
     }
@@ -977,57 +1064,38 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
     return ret;
 }
 
-/* Check Duplicate Address Detection (DAD) status. The way it works is that
-   after an address is added to an interface, the operating system uses the
-   Neighbor Discovery Protocol to check if any other host on the network
-   has the same address. The whole process will take around 3 to 4 seconds
-   to complete. Also we need to check and ensure that the gateway has
-   a valid default route entry.
+
+/**
+ * @brief Checks if the IPv6 address is ready to use.
+ *
+ * This function checks the tentative address, detects Duplicate Address Detection (DAD)
+ * failure, and verifies that a default route is present.
+ * If the default route is missing, it triggers a Router Solicitation.
+ *
+ * @param p_VirtIf Pointer to the virtual interface structure.
+ * @return int 0 on success, negative value on failure.
  */
-static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
+static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
 {
     char buffer[BUFLEN_256] = {0};
-    FILE *fp_dad   = NULL;
-    FILE *fp_route = NULL;
+    FILE *fp_dad       = NULL;
+    FILE *fp_route     = NULL;
     int dad_flag       = 0;
     int route_flag     = 0;
-    int i;
-    char IfaceName[BUFLEN_16] = {0};
-    int BridgeMode = 0;
 
-    { //TODO : temporary debug code to identify the bridgemode sysevent failure issue.
-        char Output[BUFLEN_16] = {0};
-        if (sysevent_get(sysevent_fd, sysevent_token, "bridge_mode", Output, sizeof(Output)) !=0)
-        {
-            CcspTraceError(("%s-%d: bridge_mode sysevent get failed. \n", __FUNCTION__, __LINE__));
-        }
-        BridgeMode = atoi(Output);
-        CcspTraceInfo(("%s-%d: <<DEBUG>> bridge_mode sysevent value set to =%d \n", __FUNCTION__, __LINE__,  BridgeMode));
-    }
-     /*TODO:
-     *Below Code should be removed once V6 Prefix/IP is assigned on erouter0 Instead of brlan0 for sky Devices.
-     */
-    strncpy(IfaceName, ETH_BRIDGE_NAME, sizeof(IfaceName)-1);
-    if (WanMgr_isBridgeModeEnabled() == TRUE)
-    {
-        CcspTraceInfo(("%s-%d: Device is in bridge mode. Assigning IPv6 address on WAN interface.\n", __FUNCTION__, __LINE__));
-        memset(IfaceName, 0, sizeof(IfaceName));
-        strncpy(IfaceName, p_VirtIf->Name, sizeof(IfaceName)-1);
-    }
-    CcspTraceInfo(("%s-%d: IfaceName=%s, BridgeMode=%d \n", __FUNCTION__, __LINE__, IfaceName, BridgeMode));
+    /* Check Duplicate Address Detection (DAD) status. The way it works is that after an address is added to an interface, the operating system uses the
+    Neighbor Discovery Protocol to check if any other host on the network has the same address. The whole process will take around 3 to 4 seconds
+    to complete. Also we need to check and ensure that the gateway has a valid default route entry.
+    */
+    // Note: This check is not strictly necessary and this check could delay the WAN up by 15 seconds in worst case. If the IPv6 address (IANA) is obtained via DHCPv6, and the DHCP client already performs the DAD check.
+    // However, it is beneficial to verify that the WAN IPv6 address is auto-calculated from the delegated prefix or via SLAAC.
 
-    /* TODO: the below code assumes if the LAN ipv6 address is tentaive for 15 seconds DAD has failed. Do we need additional check?
-     * IANA dad is handled in the DHCPv6 client for the Wan Interface.
-     * Should we remove the IP from LAN bridge and request a different Delegated prefix?
-     * Should we use EUI-64 based Interface identifiers for all platforms?
-     */
-
-    for(i=0; i<15; i++) 
+    for(int i=0; i<15; i++) 
     {
         buffer[0] = '\0';
         if(dad_flag == 0) 
         {
-            if ((fp_dad = v_secure_popen("r","ip address show dev %s tentative", IfaceName))) 
+            if ((fp_dad = v_secure_popen("r","ip address show dev %s tentative", p_VirtIf->Name))) 
             {
                 if(fp_dad != NULL) 
                 {
@@ -1040,7 +1108,6 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
                 }
             }
         }
-
         if(dad_flag == 0) 
         {
             sleep(1);
@@ -1064,10 +1131,10 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
         }
     }
 
-    //if DAD failed on LAN bridge, log an ERROR message and continue with the WAN process.
+    //if DAD failed on WAN interface, log an ERROR message and continue with the WAN process.
     if(dad_flag == 0 || route_flag == 0) 
     {
-        CcspTraceError(("%s %d dad_flag[%d] route_flag[%d] Failed \n", __FUNCTION__, __LINE__,dad_flag,route_flag));
+        CcspTraceError(("%s %d dad_flag[%s] route_flag[%s] Failed \n", __FUNCTION__, __LINE__, dad_flag ? "SUCCESS" : "FAILED", route_flag ? "SUCCESS" : "FAILED"));
     }
 
     if(route_flag == 0)
@@ -1080,6 +1147,29 @@ static int checkIpv6LanAddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
     return 0;
 }
 
+
+/**
+ * @brief Updates voice interface status to TelcoVoiceManager
+ * 
+ * This function notifies TelcoVoiceManager when voice-related interfaces (VOIP, VOICE, MTA, DATA) 
+ * come up or go down by setting the X_RDK_BoundIfName parameter.
+ * 
+ * @param[in] pWanIfaceCtrl Pointer to WAN interface state machine controller
+ * @param[in] voip_started  TRUE if interface is up, FALSE if interface is down
+ * 
+ * @note Behavior by interface type:
+ *       - VOIP/VOICE/MTA: Always updates TelcoVoiceManager with the interface name
+ *       - DATA: Updates TelcoVoiceManager ONLY if no VOIP interface exists
+ *       - Other: No action taken (warning logged)
+ * 
+ * @note When voip_started is FALSE, an empty string is sent to TelcoVoiceManager
+ *       to indicate the interface is down
+ * 
+ * @note Priority: VOIP takes precedence over DATA. If VOIP interface exists,
+ *       DATA interface will not update TelcoVoiceManager
+ * 
+ * @warning This function is only applicable for DATA, VOIP, VOICE, and MTA alias interfaces
+ */
 static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, bool voip_started)
 {
     ANSC_STATUS retStatus        = ANSC_STATUS_FAILURE;
@@ -1095,12 +1185,11 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
     DML_WAN_IFACE* pWanIfaceData = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    if (0 == strcmp("VOIP", p_VirtIf->Alias))
+    if (WanMgr_IsVoiceInterface(p_VirtIf))
     {
-        /* Update VOIP vlan name to TelcoVoiceManager */
+        /* Update VOIP/VOICE/MTA interface name to TelcoVoiceManager */
         isUpdate = true;
 
-	// Update the Interface name after auto wan sesning is complete.
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
             strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
@@ -1109,17 +1198,16 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
     {
         isUpdate = true;
 
-        // Update the Interface name after auto wan sesning is complete.
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
             strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
 
-        /* If there is a VOIP interface present, then do not update DATA vlan name to TelecoVoiceManager. */
+        /* If there is a VOIP interface present, then do not update DATA vlan name to TelcoVoiceManager. */
         for(int virIf_id=0; virIf_id< pWanIfaceData->NoOfVirtIfs; virIf_id++)
         {
             DML_VIRTUAL_IFACE* VirtIf = WanMgr_getVirtualIfaceById(pWanIfaceData->VirtIfList, virIf_id);
 
-            if (0 == strcmp("VOIP", VirtIf->Alias))
+            if (WanMgr_IsVoiceInterface(VirtIf))
             {
                 isUpdate = false;
                 break;
@@ -1152,13 +1240,15 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
  * @brief Removes IPv6 default route and global addresses from interface
  * 
  * @param ifaceName Interface name (e.g., "eth0", "erouter0")
+ * @param ipv6Address The IPv6 address to remove NDP proxy for (can be NULL or empty)
  * @return RETURN_OK on success, RETURN_ERR on failure
  * 
  * @note This API performs the following operations:
  *       1. Deletes IPv6 default route for the interface
  *       2. Flushes all global scope IPv6 addresses from the interface
+ *       3. Removes the NDP proxy entry for the WAN address from the LAN bridge
  */
-static int WanMgr_RemoveIPv6RouteAndAddress(const char* ifaceName)
+static int WanMgr_RemoveIPv6RouteAndAddress(const char* ifaceName, const char* ipv6Address)
 {
     if (ifaceName == NULL || strlen(ifaceName) == 0)
     {
@@ -1188,6 +1278,16 @@ static int WanMgr_RemoveIPv6RouteAndAddress(const char* ifaceName)
     {
         CcspTraceError(("%s %d - Failed to run cmd: %s\n", __FUNCTION__, __LINE__, acCmdLine));
         ret = RETURN_ERR;
+    }
+
+    /* Remove the specific NDP proxy entry for the WAN address from the LAN bridge.
+     * This was added by wanmgr_construct_wan_address_from_IAPD() to proxy the
+     * WAN /128 address on brlan0 for DAD protection and reachability. */
+    if (ipv6Address != NULL && ipv6Address[0] != '\0')
+    {
+        memset(acCmdLine, 0, sizeof(acCmdLine));
+        snprintf(acCmdLine, sizeof(acCmdLine), "ip -6 neigh del proxy %s dev %s", ipv6Address, COSA_DML_DHCPV6_SERVER_IFNAME);
+        WanManager_DoSystemActionWithStatus(__FUNCTION__, acCmdLine);
     }
 
     return ret;
@@ -1235,7 +1335,7 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 
     int ret = RETURN_OK;
-    char cmdStr[BUFLEN_128 + IP_ADDR_LENGTH] = {0};
+    char cmdStr[BUFLEN_256] = {0};
     char bCastStr[IP_ADDR_LENGTH] = {0};
     char buf[BUFLEN_32] = {0};
 
@@ -1243,10 +1343,61 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     DML_WAN_IFACE * pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
+    if (WanMgr_IsVoiceInterface(p_VirtIf))
+    {
+        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv4 system configuration\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
+        return RETURN_OK;
+    }
+
      if (wanmgr_set_Ipv4Sysevent(&p_VirtIf->IP.Ipv4Data, pWanIfaceCtrl->DeviceNwMode) != ANSC_STATUS_SUCCESS)
      {
          CcspTraceError(("%s %d - Could not store ipv4 data!", __FUNCTION__, __LINE__));
      }
+
+    /** Assign IPv4 address on the interface and bring it up */
+    CcspTraceInfo(("%s %d - Assigning IPv4 address %s with netmask %s on interface %s\n", 
+                   __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, 
+                   p_VirtIf->IP.Ipv4Data.mask, p_VirtIf->Name));
+    
+    if (WanManager_GetBCastFromIpSubnetMask(p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr) != RETURN_OK)
+    {
+        CcspTraceError(("%s %d - bad address %s/%s \n", __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask));
+        return RETURN_ERR;
+    }
+
+    snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s %s netmask %s broadcast %s up",
+             p_VirtIf->Name, p_VirtIf->IP.Ipv4Data.ip, p_VirtIf->IP.Ipv4Data.mask, bCastStr);
+    
+    if (WanManager_DoSystemActionWithStatus("wan_setUpIPv4: Assign IPv4 address", cmdStr) != 0)
+    {
+        CcspTraceError(("%s %d - Failed to assign IPv4 address on interface %s\n", 
+                       __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ifname));
+        ret = RETURN_ERR;
+    }
+    else
+    {
+        CcspTraceInfo(("%s %d - Successfully assigned IPv4 address on interface %s\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.ifname));
+    }
+
+    /* Set MTU separately if valid */
+    if (p_VirtIf->IP.Ipv4Data.mtuSize > 0)
+    {
+        memset(cmdStr, 0, sizeof(cmdStr));
+        snprintf(cmdStr, sizeof(cmdStr), "ifconfig %s mtu %u", p_VirtIf->Name, p_VirtIf->IP.Ipv4Data.mtuSize);
+        if (WanManager_DoSystemActionWithStatus("wan_setUpIPv4: Set MTU", cmdStr) != 0)
+        {
+            CcspTraceError(("%s %d - Failed to set MTU on interface %s\n", 
+                           __FUNCTION__, __LINE__, p_VirtIf->Name));
+        }
+        else
+        {
+            CcspTraceInfo(("%s %d - Successfully set MTU %u on interface %s\n", 
+                          __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv4Data.mtuSize, p_VirtIf->Name));
+        }
+    }
 
     /** configure DNS */
     if (RETURN_OK != wan_updateDNS(pWanIfaceCtrl, TRUE, (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)))
@@ -1259,7 +1410,7 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         CcspTraceInfo(("%s %d -  IPv4 DNS servers configures successfully \n", __FUNCTION__, __LINE__));
     }
 
-        /** Set default gatway. */
+        /** Set default gateway. */
     if (WanManager_AddDefaultGatewayRoute(DeviceNwMode, &p_VirtIf->IP.Ipv4Data) != RETURN_OK)
     {
         CcspTraceError(("%s %d - Failed to set up default system gateway", __FUNCTION__, __LINE__));
@@ -1346,6 +1497,14 @@ static int wan_tearDownIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     DML_WAN_IFACE * pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
+    if (WanMgr_IsVoiceInterface(p_VirtIf))
+    {
+        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv4 teardown\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
+        return RETURN_OK;
+    }
+
     /** Reset IPv4 DNS configuration. */
 #if (defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_))
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -1427,6 +1586,44 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     {
         CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
         return RETURN_ERR;
+    }
+
+    /** Assign IPv6 IANA address on the interface */
+
+    if (p_VirtIf->IP.Ipv6Data.address[0] != '\0')
+    {
+        char cmdStr[BUFLEN_256] = {0};
+        
+        CcspTraceInfo(("%s %d - Assigning IPv6 address %s on interface %s\n",
+                       __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, 
+                       p_VirtIf->Name));
+        
+        snprintf(cmdStr, sizeof(cmdStr), "ip -6 addr add %s dev %s",
+                 p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+        
+        if (WanManager_DoSystemActionWithStatus("wan_setUpIPv6: Assign IPv6 address", cmdStr) != 0)
+        {
+            CcspTraceError(("%s %d - Failed to assign IPv6 address on interface %s\n",
+                           __FUNCTION__, __LINE__, p_VirtIf->Name));
+            ret = RETURN_ERR;
+        }
+        else
+        {
+            CcspTraceInfo(("%s %d - Successfully assigned IPv6 address on interface %s\n",
+                          __FUNCTION__, __LINE__, p_VirtIf->Name));
+        }
+    }
+    else
+    {
+        CcspTraceInfo(("%s %d - IPv6 address not assigned, skipping address assignment\n",
+                       __FUNCTION__, __LINE__));
+    }
+    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
+    if (WanMgr_IsVoiceInterface(p_VirtIf))
+    {
+        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv6 system configuration\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
+        return RETURN_OK;
     }
 
     /** Reset IPv6 DNS configuration. */
@@ -1541,6 +1738,14 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     DML_WAN_IFACE * pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
+    /* Voice interfaces (VOIP, VOICE, MTA) don't need system configuration */
+    if (WanMgr_IsVoiceInterface(p_VirtIf))
+    {
+        CcspTraceInfo(("%s %d - Voice interface '%s' - skipping IPv6 teardown\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
+        return RETURN_OK;
+    }
+
     //TODO: FIXME: XB devices use the DNS of primary for backup and doesn't deconfigure the primary ipv6 prefix from the LAN interface. 
 #if (!(defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_))) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -1569,14 +1774,15 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         }
     }
 #endif
+
     /** Unconfig IPv6. */
-    if ( WanManager_Ipv6PrefixUtil(p_VirtIf->Name, DEL_ADDR,0,0) < 0)
+    if ( WanManager_Ipv6AddrUtil(p_VirtIf, DEL_ADDR) < 0)
     {
         AnscTraceError(("%s %d -  Failed to remove inactive address \n", __FUNCTION__,__LINE__));
     }
 
     /* Remove IPv6 default route and global addresses */
-    if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name) != RETURN_OK)
+    if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address) != RETURN_OK)
     {
         CcspTraceError(("%s %d - Failed to remove IPv6 route and address for '%s'\n", 
                        __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -1603,6 +1809,7 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
 
 //RBUS_WAN_IP
+// TODO: Verify that the RBUS_WAN_IP IPv6 sysevent keys cleared below are correct for all product variants when WAN IPv6 goes down.
 #if defined (RBUS_WAN_IP)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     unsigned char ConfigureWANIPv6OnLANBridgeSupport = FALSE;
@@ -1640,6 +1847,90 @@ static int wan_tearDownIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 
     return ret;
 }
+
+#ifdef FEATURE_DSLITE_V2
+static int wan_tearDownDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
+{
+    if ((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
+    {
+        CcspTraceError(("%s %d - Invalid args \n", __FUNCTION__, __LINE__));
+        return RETURN_ERR;
+    }
+    DML_WAN_IFACE *pInterface = pWanIfaceCtrl->pIfaceData;
+    DML_VIRTUAL_IFACE *p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+
+    if (WanMgr_DSLite_TeardownTunnel(p_VirtIf) == ANSC_STATUS_FAILURE)
+    {
+        CcspTraceError(("%s %d - DSLite tunnel teardown failed for interface %s.\n",__FUNCTION__, __LINE__, p_VirtIf->Name));
+        WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_ERROR_DSLITE_STATUS_FAILED);
+        return RETURN_ERR;
+    }
+
+    if (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY)
+    {
+        /* IPv6-only mode: disable LAN-to-WAN IPv4 forwarding */
+        if (sysctl_iface_set("/proc/sys/net/ipv4/ip_forward", NULL, "0") != 0)
+        {
+            CcspTraceError(("%s %d - Failure writing to /proc file\n", __FUNCTION__, __LINE__));
+        }
+    }
+    else
+    {
+        /* Dual-stack mode: update routing */
+        WanMgr_Dslite_AddIpRules(p_VirtIf->Name);
+
+    }
+
+    WanMgr_Dslite_RestartServices(p_VirtIf->IP.Mode);
+
+    WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_ERROR_DSLITE_STATUS_DOWN);
+    p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
+
+    return RETURN_OK;
+}
+
+static int wan_setUpDSLite(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
+{
+    if ((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
+    {
+        CcspTraceError(("%s %d - Invalid args \n", __FUNCTION__, __LINE__));
+        return RETURN_ERR;
+    }
+
+    DML_WAN_IFACE *pInterface = pWanIfaceCtrl->pIfaceData;
+    DML_VIRTUAL_IFACE *p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+
+    if (WanMgr_DSLite_SetupTunnel(p_VirtIf) == ANSC_STATUS_FAILURE)
+    {
+        CcspTraceError(("%s %d - DSLite tunnel setup failed for interface %s.\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+
+        WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_ERROR_DSLITE_STATUS_FAILED);
+        p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_ERROR;
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &(p_VirtIf->DSLite.LastRetryTime));
+        return RETURN_ERR;
+    }
+
+    // IPv6 only mode, we need to start the LAN to WAN IPv4 function
+    if (p_VirtIf->IP.Mode == DML_WAN_IP_MODE_IPV6_ONLY)
+    {
+        if (sysctl_iface_set ("/proc/sys/net/ipv4/ip_forward", NULL, "1") != 0)
+        {
+            CcspTraceError(("%s %d - Failure writing to /proc file\n", __FUNCTION__, __LINE__));
+        }
+    }
+
+    WanMgr_Dslite_RestartServices(p_VirtIf->IP.Mode);
+
+    WanMgr_ProcessTelemetryMarker(p_VirtIf, WAN_INFO_DSLITE_STATUS_UP);
+    p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_UP;
+
+    memset(&(p_VirtIf->DSLite.LastRetryTime), 0, sizeof(p_VirtIf->DSLite.LastRetryTime));
+
+    return RETURN_OK;
+}
+
+#endif
 
 #ifdef FEATURE_IPOE_HEALTH_CHECK
 static ANSC_STATUS WanMgr_IfaceSM_IHC_Init(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
@@ -1811,14 +2102,14 @@ static ANSC_STATUS WanMgr_SendMsgTo_ConnectivityCheck(WanMgr_IfaceSM_Controller_
                     //Restarting firewall to add IPOE_HEALTH_CHECK firewall rules.
                     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
                 }
-                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_UP, p_VirtIf->Name);
+                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_UP, p_VirtIf);
                 pWanIfaceCtrl->IhcV4Status = IHC_STARTED;
             }
         }
         else if(type == CONNECTION_MSG_IPV4 && ConnStatus == FALSE)
         {
                 CcspTraceInfo(("%s %d Sending IPOE_MSG_WAN_CONNECTION_DOWN \n", __FUNCTION__, __LINE__));
-                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_DOWN, p_VirtIf->Name);
+                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_DOWN, p_VirtIf);
                 pWanIfaceCtrl->IhcV4Status = IHC_STOPPED;
         }
         else if(type == CONNECTION_MSG_IPV6 && ConnStatus == TRUE)
@@ -1834,14 +2125,14 @@ static ANSC_STATUS WanMgr_SendMsgTo_ConnectivityCheck(WanMgr_IfaceSM_Controller_
                     //Restarting firewall to add IPOE_HEALTH_CHECK firewall rules.
                     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
                 }
-               WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_UP, p_VirtIf->Name);
+               WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_UP, p_VirtIf);
                pWanIfaceCtrl->IhcV6Status = IHC_STARTED;
             }
         }
         else if(type == CONNECTION_MSG_IPV6 && ConnStatus == FALSE)
         {
                 CcspTraceInfo(("%s %d Sending IPOE_MSG_WAN_CONNECTION_IPV6_DOWN \n", __FUNCTION__, __LINE__));
-                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_DOWN, p_VirtIf->Name);
+                WanMgr_SendMsgToIHC(IPOE_MSG_WAN_CONNECTION_IPV6_DOWN, p_VirtIf);
                 pWanIfaceCtrl->IhcV6Status = IHC_STOPPED;
         }
 
@@ -1915,6 +2206,7 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     p_VirtIf->IP.Ipv4Status = WAN_IFACE_IPV4_STATE_DOWN;
     p_VirtIf->IP.Ipv6Status = WAN_IFACE_IPV6_STATE_DOWN;
     p_VirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;
+    p_VirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
     p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN;
     memset(p_VirtIf->VLAN.CurrentVlan, 0, sizeof(p_VirtIf->VLAN.CurrentVlan));
 
@@ -2022,10 +2314,17 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-    if(p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+    if((p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP) || (p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP))
     {
-        wan_transition_mapt_down(pWanIfaceCtrl);
+        wan_transition_map_down(pWanIfaceCtrl);
+    }
+#endif
+
+#ifdef FEATURE_DSLITE_V2
+    if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_UP)
+    {
+        wan_transition_dslite_down(pWanIfaceCtrl);
     }
 #endif
 
@@ -2145,13 +2444,15 @@ static eWanState_t wan_transition_wan_validated(WanMgr_IfaceSM_Controller_t* pWa
     p_VirtIf->IP.Ipv4ConnectivityStatus = WAN_CONNECTIVITY_UP;
     p_VirtIf->IP.Ipv6ConnectivityStatus = WAN_CONNECTIVITY_UP;
 
-    if(p_VirtIf->IP.SelectedMode == MAPT_MODE && p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED)
+    if((p_VirtIf->IP.SelectedMode == MAPT_MODE || p_VirtIf->IP.SelectedMode == MAPE_MODE || p_VirtIf->IP.SelectedMode == DSLITE_MODE) && p_VirtIf->IP.SelectedModeTimerStatus != EXPIRED)
     {
-        /* Start all interface with accept ra disbaled */
+        /* Start all interface with accept ra disabled */
         WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
         /* Start DHCPv6 Client */
         WanManager_StartDhcpv6Client(p_VirtIf, pInterface->IfaceType);
-        CcspTraceInfo(("%s %d - MAPT_MODE preferred \n", __FUNCTION__, __LINE__));
+        CcspTraceInfo(("%s %d - %s_MODE preferred \n", __FUNCTION__, __LINE__,
+                       (p_VirtIf->IP.SelectedMode == MAPT_MODE) ? "MAPT" : 
+                       ((p_VirtIf->IP.SelectedMode == MAPE_MODE) ? "MAPE" : "DSLITE")));
         // clock start
         p_VirtIf->IP.SelectedModeTimerStatus = RUNNING;
         memset(&(p_VirtIf->IP.SelectedModeTimerStart), 0, sizeof(struct timespec));
@@ -2307,21 +2608,37 @@ static eWanState_t wan_transition_ipv4_up(WanMgr_IfaceSM_Controller_t* pWanIface
     /* successfully got the v4 lease from the interface, so lets mark it validated */
     p_VirtIf->Status = WAN_IFACE_STATUS_UP;
 
-#if defined(_DT_WAN_Manager_Enable_)
-    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
+    /* 
+     * Handle voice-related interfaces (DATA, VOIP, VOICE, MTA)
+     * These interfaces need to be registered with TelcoVoiceManager
+     */
+    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || WanMgr_IsVoiceInterface(p_VirtIf))
     {
         /* Update voice interface name to TelcoVoiceManager */
         updateInterfaceToVoiceManager(pWanIfaceCtrl, true);
+        
+        /* 
+         * For actual voice interfaces (VOIP, VOICE, MTA), return early
+         * DATA interface continues with normal WAN setup flow below
+         */
+        if (strcmp(p_VirtIf->Alias, "DATA") != 0)
+        {
+            /* Check if both IPv4 and IPv6 are up */
+            if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
+            {
+                CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION DUAL STACK ACTIVE\n", 
+                              __FUNCTION__, __LINE__, pInterface->Name));
+                return WAN_STATE_DUAL_STACK_ACTIVE;
+            }
+            
+            /* Voice interface with IPv4 only */
+            CcspTraceInfo(("%s %d - Interface '%s' - Voice interface IPv4 configured\n", 
+                          __FUNCTION__, __LINE__, pInterface->Name));
+            return WAN_STATE_IPV4_LEASED;
+        }
     }
 
-    if(strcmp(p_VirtIf->Alias, "DATA"))
-    {
-        return WAN_STATE_IPV4_LEASED;
-    }
-    v_secure_system("echo 2 > /proc/sys/net/ipv6/conf/erouter0/accept_ra");
-    v_secure_system("echo 0 > /proc/sys/net/ipv6/conf/erouter0/accept_ra_mtu");
-
-#endif
+    /* Continue normal WAN setup for DATA interface or non-voice interfaces */
 
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
@@ -2407,17 +2724,53 @@ static eWanState_t wan_transition_ipv4_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     }
     else
     {
-        // start DHCPv4 client if it is not running, MAP-T not configured and PPP Disable scenario.
-        if(p_VirtIf->IP.Dhcp4cStatus != DHCPC_STARTED &&
+        // start DHCPv4 client if it is not running, DSLite and MAP-T not configured and PPP Disable scenario.
+        if (p_VirtIf->IP.Dhcp4cStatus != DHCPC_STARTED &&
             (p_VirtIf->PPP.Enable == FALSE) &&
-            (!(p_VirtIf->EnableMAPT == TRUE && (pInterface->Selection.Status == WAN_IFACE_ACTIVE) && 
-            (p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP))))
+            (!(p_VirtIf->EnableMAPT == TRUE && (pInterface->Selection.Status == WAN_IFACE_ACTIVE) &&
+               (p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)))
+#ifdef FEATURE_DSLITE_V2
+            && (!(WanMgr_DSLite_isEnabled(p_VirtIf) == TRUE && (pInterface->Selection.Status == WAN_IFACE_ACTIVE) &&
+               (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_UP)))
+#endif
+        )
         {
             WanManager_StartDhcpv4Client(p_VirtIf, pInterface->Name, pInterface->IfaceType);
             CcspTraceInfo(("%s %d - SELFHEAL - Started dhcpc on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
     }
     WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
+
+    /* 
+     * Handle voice interfaces (VOIP, VOICE, MTA) specially:
+     * - Voice interfaces only need address cleanup, not full WAN teardown
+     * - They don't require system-level configuration (DNS, firewall, sysevents)
+     * - State transition depends on whether IPv6 is still active
+     */
+    if (WanMgr_IsVoiceInterface(p_VirtIf))
+    {
+        /* Clean up IPv4 address from interface only */
+        wan_deconfigIPv4onInterface(pWanIfaceCtrl);
+        
+        CcspTraceInfo(("%s %d - Voice interface '%s' IPv4 down - removing address only\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
+        
+        /* Determine next state based on IPv6 availability */
+        if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP) 
+        {
+            /* IPv6 still active - transition to IPv6-only state */
+            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED (voice interface, IPv6 active)\n", 
+                          __FUNCTION__, __LINE__, pInterface->Name));
+            return WAN_STATE_IPV6_LEASED;
+        }
+        else
+        {
+            /* No IPv6 - return to IP acquisition state */
+            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION OBTAINING IP ADDRESSES (voice interface, no IPv6)\n", 
+                          __FUNCTION__, __LINE__, pInterface->Name));
+            return WAN_STATE_OBTAINING_IP_ADDRESSES;
+        }
+    }
 
 #if defined(_DT_WAN_Manager_Enable_)
     if(strcmp(p_VirtIf->Alias, "DATA"))
@@ -2577,13 +2930,38 @@ static eWanState_t wan_transition_ipv6_up(WanMgr_IfaceSM_Controller_t* pWanIface
     /* successfully got the v6 lease from the interface, so lets mark it validated */
     p_VirtIf->Status = WAN_IFACE_STATUS_UP;
 
-#if defined(_DT_WAN_Manager_Enable_)
-    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
+    /* 
+     * Handle voice-related interfaces (DATA, VOIP, VOICE, MTA)
+     * These interfaces need to be registered with TelcoVoiceManager
+     */
+    if ((0 == strcmp("DATA", p_VirtIf->Alias)) || WanMgr_IsVoiceInterface(p_VirtIf))
     {
         /* Update voice interface name to TelcoVoiceManager */
         updateInterfaceToVoiceManager(pWanIfaceCtrl, true);
+        
+        /* 
+         * For actual voice interfaces (VOIP, VOICE, MTA), return early
+         * DATA interface continues with normal WAN setup flow below
+         */
+        if (strcmp(p_VirtIf->Alias, "DATA") != 0)
+        {
+            /* Check if both IPv4 and IPv6 are up */
+            if (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
+            {
+                CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION DUAL STACK ACTIVE\n", 
+                              __FUNCTION__, __LINE__, pInterface->Name));
+                return WAN_STATE_DUAL_STACK_ACTIVE;
+            }
+            
+            /* Voice interface with IPv6 only */
+            CcspTraceInfo(("%s %d - Interface '%s' - Voice interface IPv6 configured\n", 
+                          __FUNCTION__, __LINE__, pInterface->Name));
+            return WAN_STATE_IPV6_LEASED;
+        }
     }
-#endif
+
+    /* Continue normal WAN setup for DATA interface or non-voice interfaces */
+
     if (pWanIfaceCtrl->interfaceIdx != -1)
     {
         WanMgr_Publish_WanStatus(pWanIfaceCtrl->interfaceIdx, pWanIfaceCtrl->VirIfIdx);
@@ -2694,11 +3072,42 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Prefix",  p_VirtIf->baseIfIdx+1, p_VirtIf->VirIfIdx+1);
     WanMgr_Rbus_EventPublishHandler(param_name, "", RBUS_STRING);
-    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
 
-    //Disable accept_ra
+    // Disable accept_ra
     WanMgr_Configure_accept_ra(p_VirtIf, FALSE);
 
+    /* 
+     * Handle voice interfaces (VOIP, VOICE, MTA) specially:
+     * - Voice interfaces only need route/address cleanup, not full WAN teardown
+     * - They don't require system-level configuration (DNS, firewall, sysevents)
+     * - State transition depends on whether IPv4 is still active
+     */
+    if (WanMgr_IsVoiceInterface(p_VirtIf))
+    {
+        /* Clean up IPv6 routes and addresses only */
+        WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address);
+        
+        CcspTraceInfo(("%s %d - Voice interface '%s' IPv6 down - removing routes/addresses only\n", 
+                      __FUNCTION__, __LINE__, p_VirtIf->Alias));
+        
+        /* Determine next state based on IPv4 availability */
+        if (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP) 
+        {
+            /* IPv4 still active - transition to IPv4-only state */
+            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV4 LEASED (voice interface, IPv4 active)\n", 
+                          __FUNCTION__, __LINE__, pInterface->Name));
+            return WAN_STATE_IPV4_LEASED;
+        }
+        else
+        {
+            /* No IPv4 - return to IP acquisition state */
+            CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION OBTAINING IP ADDRESSES (voice interface, no IPv4)\n", 
+                          __FUNCTION__, __LINE__, pInterface->Name));
+            return WAN_STATE_OBTAINING_IP_ADDRESSES;
+        }
+    }
+
+    /* Continue with normal WAN IPv6 teardown for non-voice interfaces */
     if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
     {
         if (wan_tearDownIPv6(pWanIfaceCtrl) != RETURN_OK)
@@ -2709,11 +3118,21 @@ static eWanState_t wan_transition_ipv6_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     else
     {
         /* Remove IPv6 default route and global addresses */
-        if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name) != RETURN_OK)
+        if (WanMgr_RemoveIPv6RouteAndAddress(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address) != RETURN_OK)
         {
             CcspTraceError(("%s %d - Failed to remove IPv6 route and address for '%s'\n", 
                            __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
+    }
+
+    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
+    //clear IPv6 lease from the interface data
+    memset(&(p_VirtIf->IP.Ipv6Data), 0, sizeof(WANMGR_IPV6_DATA));
+    if (p_VirtIf->IP.pIpcIpv6Data != NULL )
+    {
+        //free memory
+        free(p_VirtIf->IP.pIpcIpv6Data);
+        p_VirtIf->IP.pIpcIpv6Data = NULL;
     }
 
 #if defined(FEATURE_464XLAT)
@@ -2812,13 +3231,17 @@ static eWanState_t wan_transition_mapt_feature_refresh(WanMgr_IfaceSM_Controller
 
     return WAN_STATE_OBTAINING_IP_ADDRESSES; //TODO NEW_DESIGN check for new return status
 }
+#endif
 
-static eWanState_t wan_transition_mapt_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
+static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     CcspTraceInfo(("%s %d \n", __FUNCTION__, __LINE__));
     ANSC_STATUS ret;
     char buf[BUFLEN_128] = {0};
     char cmdEnableIpv4Traffic[BUFLEN_256] = {'\0'};
+    char curr_router_mtu[64] = {0};
+    char acSetParamName[256] = {0};
+    char acSetParamValue[256] = {0};
 
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
@@ -2828,90 +3251,117 @@ static eWanState_t wan_transition_mapt_up(WanMgr_IfaceSM_Controller_t* pWanIface
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    // verify mapt configuration
-    memset(&(p_VirtIf->MAP.MaptConfig), 0, sizeof(WANMGR_MAPT_CONFIG_DATA));
-    if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_FAILURE)
+    if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPT)
     {
-        CcspTraceError(("%s %d - Error verifying MAP-T Parameters \n", __FUNCTION__, __LINE__));
-        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION to State=%d \n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->eCurrentState));
-        return(p_VirtIf->eCurrentState);
+#ifdef FEATURE_MAPT
+        // MAP-T Processing
+        memset(&(p_VirtIf->MAP.MaptConfig), 0, sizeof(WANMGR_MAPT_CONFIG_DATA));
+        if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_FAILURE)
+        {
+            CcspTraceError(("%s %d - Error verifying MAP-T Parameters \n", __FUNCTION__, __LINE__));
+            return p_VirtIf->eCurrentState;
+        }
+
+        CcspTraceInfo(("%s %d - MAPT Configuration verification success \n", __FUNCTION__, __LINE__));
+        p_VirtIf->MAP.MaptChanged = FALSE;
+
+        if((p_VirtIf->IP.Ipv4Changed == TRUE) && (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
+        {
+            wan_transition_ipv4_up(pWanIfaceCtrl);
+        }
+
+        // configure mapt module
+        ret = wan_setUpMapt();
+        if (ret != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Failed to configure MAP-T \n", __FUNCTION__, __LINE__));
+            WanMgr_ProcessTelemetryMarker(WanMgr_getVirtualIfaceById( pInterface->VirtIfList,0),WAN_ERROR_MAPT_STATUS_FAILED);	
+        }
+
+        //Stop DHCP client if running as MAP-T doesn't support DHCPv4
+        if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+        {
+            CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
+            WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
+        }
+
+        if(p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
+        {
+            wan_transition_ipv4_down(pWanIfaceCtrl);
+
+#if defined(IVI_KERNEL_SUPPORT)
+            snprintf(cmdEnableIpv4Traffic,sizeof(cmdEnableIpv4Traffic),"ip ro rep default dev %s", p_VirtIf->Name);
+#elif defined(NAT46_KERNEL_SUPPORT)
+            snprintf(cmdEnableIpv4Traffic, sizeof(cmdEnableIpv4Traffic), "ip ro rep default dev %s mtu %d", MAP_INTERFACE, MTU_DEFAULT_SIZE);
+#endif
+#ifdef FEATURE_MAPT_DEBUG
+            MaptInfo("mapt: default route after v4 teardown:%s",cmdEnableIpv4Traffic);
+#endif
+            if (WanManager_DoSystemActionWithStatus("mapt:", cmdEnableIpv4Traffic) < RETURN_OK)
+            {
+                CcspTraceError(("%s %d - Failed to run: %s \n", __FUNCTION__, __LINE__, cmdEnableIpv4Traffic));
+            }
+        }
+
+        if( p_VirtIf->PPP.Enable == TRUE )
+        {
+            WanManager_ConfigurePPPSession(p_VirtIf, FALSE);
+        }
+
+        CcspTraceInfo(("%s %d - net.ipv4.ip_forward set to 1 \n", __FUNCTION__, __LINE__));
+        v_secure_system("sysctl -w net.ipv4.ip_forward=1");
+
+        if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, p_VirtIf->IP.Ipv6Data.ifname) != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Error processing MAP-T Parameters \n", __FUNCTION__, __LINE__));
+            return p_VirtIf->eCurrentState;
+        }
+
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
+        wanmgr_services_restart();
+#endif
+    }
+    else if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE)
+    {
+#ifdef FEATURE_MAPE
+        // MAP-E Processing
+        ret = WanManager_MAPEConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->IP.Ipv6Data));
+        if (ret == ANSC_STATUS_SUCCESS)
+        {
+            syscfg_get(NULL, "router_mtu", curr_router_mtu, sizeof(curr_router_mtu));
+            if(strcmp(curr_router_mtu, "1500") != 0)
+            {
+		syscfg_set(NULL, "router_mtu", "1500");
+		syscfg_commit();
+            }
+        }
+        else
+        {
+            CcspTraceWarning(("%s %d : Failed to configure MAP-E!", __FUNCTION__, __LINE__));
+            return WAN_STATE_OBTAINING_IP_ADDRESSES;
+        }
+
+        //Stop DHCP client if running as MAP-E doesn't support DHCPv4
+        if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+        {
+            CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
+            WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
+        }
+#endif
     }
     else
     {
-        CcspTraceInfo(("%s %d - MAPT Configuration verification success \n", __FUNCTION__, __LINE__));
+        CcspTraceError(("%s %d - Invalid MAP Type\n", __FUNCTION__, __LINE__));
+        return ANSC_STATUS_FAILURE;
     }
 
-
-    p_VirtIf->MAP.MaptChanged = FALSE;
-
-    /* if V4 data already recieved, let it configure */
-    if((p_VirtIf->IP.Ipv4Changed == TRUE) && (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
-    {
-        wan_transition_ipv4_up(pWanIfaceCtrl);
-    }
-
-    // configure mapt module
-    ret = wan_setUpMapt();
-    if (ret != RETURN_OK)
-    {
-        CcspTraceError(("%s %d - Failed to configure MAP-T \n", __FUNCTION__, __LINE__));
-        WanMgr_ProcessTelemetryMarker(WanMgr_getVirtualIfaceById( pInterface->VirtIfList,0),WAN_ERROR_MAPT_STATUS_FAILED);	
-    }
-
-    if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
-    {
-        // MAPT is configured, stop DHCPv4 client with RELEASE if v4 configured
-        CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
-        WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
-    }
-
-    /* if V4 already configured, let it teardown */
-    if((p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
-    {
-        wan_transition_ipv4_down(pWanIfaceCtrl);
-
-#if defined(IVI_KERNEL_SUPPORT)
-        snprintf(cmdEnableIpv4Traffic,sizeof(cmdEnableIpv4Traffic),"ip ro rep default dev %s", p_VirtIf->Name);
-#elif defined(NAT46_KERNEL_SUPPORT)
-        snprintf(cmdEnableIpv4Traffic, sizeof(cmdEnableIpv4Traffic), "ip ro rep default dev %s mtu %d", MAP_INTERFACE, MTU_DEFAULT_SIZE);
-#endif
-#ifdef FEATURE_MAPT_DEBUG
-        MaptInfo("mapt: default route after v4 teardown:%s",cmdEnableIpv4Traffic);
-#endif
-        if (WanManager_DoSystemActionWithStatus("mapt:", cmdEnableIpv4Traffic) < RETURN_OK)
-        {
-            CcspTraceError(("%s %d - Failed to run: %s \n", __FUNCTION__, __LINE__, cmdEnableIpv4Traffic));
-        }
-    }
-
-    if( p_VirtIf->PPP.Enable == TRUE )
-    {
-        WanManager_ConfigurePPPSession(p_VirtIf, FALSE);
-    }
-
-    //Enabling IP forwarding 
-    CcspTraceInfo(("%s %d - net.ipv4.ip_forward set to 1 \n", __FUNCTION__, __LINE__));
-    v_secure_system("sysctl -w net.ipv4.ip_forward=1");
-
-    /* Configure MAPT. */
-    if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, &(p_VirtIf->IP.Ipv6Data)) != RETURN_OK)
-    {
-        CcspTraceError(("%s %d - Error processing MAP-T Parameters \n", __FUNCTION__, __LINE__));
-        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION to State=%d \n", __FUNCTION__, __LINE__, pInterface->Name, p_VirtIf->eCurrentState));
-        return(p_VirtIf->eCurrentState);
-    }
-
-    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
-    wanmgr_services_restart();
-
-    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION WAN_STATE_MAPT_ACTIVE\n", __FUNCTION__, __LINE__, pInterface->Name));
-    return WAN_STATE_MAPT_ACTIVE;
+    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION WAN_STATE_MAP_ACTIVE\n", __FUNCTION__, __LINE__, pInterface->Name));
+    return WAN_STATE_MAP_ACTIVE;
 }
 
-static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
+static eWanState_t wan_transition_map_down(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     CcspTraceInfo(("%s %d \n", __FUNCTION__, __LINE__));
-    char buf[BUFLEN_128] = {0};
 
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
@@ -2921,22 +3371,141 @@ static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfa
     DML_WAN_IFACE* pInterface = pWanIfaceCtrl->pIfaceData;
     DML_VIRTUAL_IFACE* p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
 
-    WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_MAPT_STOP);
-
-    if(p_VirtIf->Status == WAN_IFACE_STATUS_UP)
+    // Common: Set appropriate IFACE status
+    if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE)
     {
-        if (wan_tearDownMapt() != RETURN_OK)
+        WanManager_UpdateInterfaceStatus(p_VirtIf, WANMGR_IFACE_MAPE_STOP);
+    }
+    else if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPT)
+    {
+        WanManager_UpdateInterfaceStatus(p_VirtIf, WANMGR_IFACE_MAPT_STOP);
+    }
+
+    if (p_VirtIf->Status == WAN_IFACE_STATUS_UP)
+    {
+        if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE)
         {
-            CcspTraceError(("%s %d - Failed to tear down MAP-T for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+#ifdef FEATURE_MAPE
+            if (WanMgr_tearDownMape(p_VirtIf) != RETURN_OK)
+            {
+                CcspTraceError(("%s %d - Failed to tear down MAP-E for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+            }
+#endif
+        }
+        else if (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPT)
+        {
+#ifdef FEATURE_MAPT
+            if (wan_tearDownMapt() != RETURN_OK)
+            {
+                CcspTraceError(("%s %d - Failed to tear down MAP-T for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+            }
+
+            if (WanManager_ResetMAPTConfiguration(pInterface->Name, p_VirtIf->Name) != RETURN_OK)
+            {
+                CcspTraceError(("%s %d Error resetting MAP-T configuration", __FUNCTION__, __LINE__));
+            }
+#endif
+	}
+
+    //Reset MAPT configuration
+    memset(&(p_VirtIf->MAP.dhcp6cMAPparameters), 0, sizeof(ipc_map_data_t));
+
+
+        /* Clear DHCPv4 client */
+        WanManager_UpdateInterfaceStatus(p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
+        memset(&(p_VirtIf->IP.Ipv4Data), 0, sizeof(WANMGR_IPV4_DATA));
+
+        if (p_VirtIf->IP.pIpcIpv4Data != NULL)
+        {
+            free(p_VirtIf->IP.pIpcIpv4Data);
+            p_VirtIf->IP.pIpcIpv4Data = NULL;
+        }
+
+        if (pWanIfaceCtrl->WanEnable == TRUE &&
+            pInterface->Selection.Enable == TRUE &&
+            pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
+            p_VirtIf->Enable == TRUE &&
+            p_VirtIf->Reset == FALSE &&
+            p_VirtIf->VLAN.Reset == FALSE &&
+            pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP)
+        {
+            if (p_VirtIf->PPP.Enable == FALSE)
+            {
+                WanManager_StartDhcpv4Client(p_VirtIf, pInterface->Name, pInterface->IfaceType);
+                CcspTraceInfo(("%s %d - Started dhcpc on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+            }
+            else
+            {
+                WanManager_ConfigurePPPSession(p_VirtIf, TRUE);
+            }
         }
     }
 
-    if (WanManager_ResetMAPTConfiguration(pInterface->Name, p_VirtIf->Name) != RETURN_OK)
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
+
+    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
+    return WAN_STATE_IPV6_LEASED;
+}
+
+#ifdef FEATURE_DSLITE_V2
+static eWanState_t wan_transition_dslite_up(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
+{
+    if ((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
-        CcspTraceError(("%s %d Error resetting MAP-T configuration", __FUNCTION__, __LINE__));
+        return ANSC_STATUS_FAILURE;
     }
 
-    /* Clear DHCPv4 client */
+    DML_WAN_IFACE *pInterface = pWanIfaceCtrl->pIfaceData;
+    DML_VIRTUAL_IFACE *p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+
+    p_VirtIf->DSLite.Changed = FALSE; // Reset flag even if tunnel setup attempts fails
+
+    if (wan_setUpDSLite(pWanIfaceCtrl) != RETURN_OK)
+    {
+        CcspTraceError(("%s %d - Failed to setup DS-Lite for %s, will retry after %d seconds\n",
+                       __FUNCTION__, __LINE__, p_VirtIf->Name, DSLITE_RETRY_INTERVAL_SEC));
+        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED \n", __FUNCTION__, __LINE__, pInterface->Name));
+        return WAN_STATE_IPV6_LEASED;
+    }
+
+#ifdef FEATURE_DSLITE_V2_DUALSTACK_SUPPORT
+    if (p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+    {
+        // DS-Lite is configured, stop DHCPv4 client with RELEASE if v4 configured
+        CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
+        WanManager_StopDhcpv4Client(p_VirtIf, STOP_DHCP_WITH_RELEASE);
+    }
+    if((p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP))
+    {
+        wan_transition_ipv4_down(pWanIfaceCtrl);
+    }
+#endif
+
+    wanmgr_firewall_restart();
+
+    CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION DSLITE ACTIVE\n", __FUNCTION__, __LINE__, pInterface->Name));
+    return WAN_STATE_DSLITE_ACTIVE;
+}
+
+static eWanState_t wan_transition_dslite_down(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
+{
+    if ((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    DML_WAN_IFACE *pInterface = pWanIfaceCtrl->pIfaceData;
+    DML_VIRTUAL_IFACE *p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+
+    if (wan_tearDownDSLite(pWanIfaceCtrl) != RETURN_OK)
+    {
+        CcspTraceError(("%s %d - Failed to tear down DS-Lite for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED \n", __FUNCTION__, __LINE__, pInterface->Name));
+        return WAN_STATE_IPV6_LEASED;
+    }
+
+#if defined (FEATURE_DSLITE_V2) && defined (FEATURE_DSLITE_V2_DUALSTACK_SUPPORT)
+
     WanManager_UpdateInterfaceStatus (p_VirtIf, WANMGR_IFACE_CONNECTION_DOWN);
     memset(&(p_VirtIf->IP.Ipv4Data), 0, sizeof(WANMGR_IPV4_DATA));
 
@@ -2952,9 +3521,10 @@ static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfa
         p_VirtIf->Enable == TRUE &&
         p_VirtIf->Reset == FALSE &&
         p_VirtIf->VLAN.Reset == FALSE &&
-        pInterface->BaseInterfaceStatus ==  WAN_IFACE_PHY_STATUS_UP)
+        pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP &&
+        p_VirtIf->IP.Mode == DML_WAN_IP_MODE_DUAL_STACK)
     {
-        if( p_VirtIf->PPP.Enable == FALSE )
+        if (p_VirtIf->PPP.Enable == FALSE)
         {
             WanManager_StartDhcpv4Client(p_VirtIf, pInterface->Name, pInterface->IfaceType);
             CcspTraceInfo(("%s %d - Started dhcpc on interface %s\n", __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -2964,13 +3534,14 @@ static eWanState_t wan_transition_mapt_down(WanMgr_IfaceSM_Controller_t* pWanIfa
             WanManager_ConfigurePPPSession(p_VirtIf, TRUE);
         }
     }
+#endif
 
-    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
+    wanmgr_firewall_restart();
 
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION IPV6 LEASED\n", __FUNCTION__, __LINE__, pInterface->Name));
     return WAN_STATE_IPV6_LEASED;
 }
-#endif //FEATURE_MAPT
+#endif
 
 static eWanState_t wan_transition_configuring_interface(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
@@ -3135,6 +3706,28 @@ static eWanState_t wan_transition_standby_deconfig_ips(WanMgr_IfaceSM_Controller
         if (WanManager_ResetMAPTConfiguration(pInterface->Name, p_VirtIf->Name) != RETURN_OK)
         {
             CcspTraceError(("%s %d Error resetting MAP-T configuration", __FUNCTION__, __LINE__));
+        }
+    }
+#endif
+
+#ifdef FEATURE_MAPE
+    if(p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)
+    {
+        CcspTraceInfo(("%s %d - Deconfiguring MAP-E for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        if (WanMgr_tearDownMape(p_VirtIf) != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Failed to tear down MAP-T for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        }
+    }
+#endif
+
+#ifdef FEATURE_DSLITE_V2
+    if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_UP)
+    {
+        CcspTraceInfo(("%s %d - Deconfiguring DSLite for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
+        if (wan_tearDownDSLite(pWanIfaceCtrl) != RETURN_OK)
+        {
+            CcspTraceError(("%s %d - Failed to tear down DSLite for %s \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
     }
 #endif
@@ -3406,7 +3999,8 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
         p_VirtIf->PPP.LinkStatus ==  WAN_IFACE_PPP_LINK_STATUS_CONFIGURING ||
         p_VirtIf->Reset == TRUE)
     {
-        if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
+        //Update that voice interface is down to TelcoVoiceManager
+        if (!strcmp("DATA", p_VirtIf->Alias) || WanMgr_IsVoiceInterface(p_VirtIf))
         {
             /* Update voice interface name to TelcoVoiceManager */
             updateInterfaceToVoiceManager(pWanIfaceCtrl, false);
@@ -3429,7 +4023,8 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
         CcspTraceInfo(("%s %d VlanDiscovery timer expired Or VLAN/PPP status DOWN \n", __FUNCTION__, __LINE__));
         p_VirtIf->VLAN.Expired = TRUE;
 
-        if ((0 == strcmp("DATA", p_VirtIf->Alias)) || (0 == strcmp("VOIP", p_VirtIf->Alias)))
+        //Update that voice interface is down to TelcoVoiceManager
+        if (!strcmp("DATA", p_VirtIf->Alias) || WanMgr_IsVoiceInterface(p_VirtIf))
         {
             /* Update voice interface name to TelcoVoiceManager */
             updateInterfaceToVoiceManager(pWanIfaceCtrl, false);
@@ -3438,26 +4033,29 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
         return wan_transition_physical_interface_down(pWanIfaceCtrl);
     }
 
-    if(p_VirtIf->IP.SelectedMode == MAPT_MODE)
+    if(p_VirtIf->IP.SelectedMode == MAPT_MODE || p_VirtIf->IP.SelectedMode == MAPE_MODE || p_VirtIf->IP.SelectedMode == DSLITE_MODE)
     {
-        if(p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+        const char *mode_str = (p_VirtIf->IP.SelectedMode == MAPT_MODE) ? "MAPT" : 
+                               (p_VirtIf->IP.SelectedMode == MAPE_MODE) ? "MAPE" : "DSLITE";
+        bool iface_state_up = (p_VirtIf->IP.SelectedMode == MAPT_MODE) ? (p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP) :
+                              (p_VirtIf->IP.SelectedMode == MAPE_MODE) ? (p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP) :
+                              (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_UP);
+
+        if(iface_state_up)
         {
             p_VirtIf->IP.SelectedModeTimerStatus = COMPLETE;
-            CcspTraceInfo(("%s %d MAPT option recieved in MAPT Preferred Mode - Timer complete \n", __FUNCTION__, __LINE__));
+            CcspTraceInfo(("%s %d %s option received in %s Preferred Mode - Timer complete \n", __FUNCTION__, __LINE__, mode_str, mode_str));
         }
-        else
+        else if (p_VirtIf->IP.SelectedModeTimerStatus == RUNNING)
         {
-            if(p_VirtIf->IP.SelectedModeTimerStatus == RUNNING)
+            if (difftime(CurrentTime.tv_sec, p_VirtIf->IP.SelectedModeTimerStart.tv_sec) > SELECTED_MODE_TIMEOUT_SECONDS ||
+                p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
             {
-                if (difftime(CurrentTime.tv_sec, p_VirtIf->IP.SelectedModeTimerStart.tv_sec) > SELECTED_MODE_TIMEOUT_SECONDS ||
-                    p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
-                {
-                    p_VirtIf->IP.SelectedModeTimerStatus = EXPIRED;
-                    CcspTraceInfo(("%s %d MAPT option not recieved in MAPT Preferred Mode - Timer Expired \n", __FUNCTION__, __LINE__));
-                    return wan_transition_wan_validated(pWanIfaceCtrl);
-                }
-                return WAN_STATE_OBTAINING_IP_ADDRESSES;
+                p_VirtIf->IP.SelectedModeTimerStatus = EXPIRED;
+                CcspTraceInfo(("%s %d %s option not received in %s Preferred Mode - Timer Expired \n", __FUNCTION__, __LINE__, mode_str, mode_str));
+                return wan_transition_wan_validated(pWanIfaceCtrl);
             }
+            return WAN_STATE_OBTAINING_IP_ADDRESSES;
         }
     }
 
@@ -3535,7 +4133,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
                 p_VirtIf->IP.Ipv6Changed = FALSE;
                 return WAN_STATE_OBTAINING_IP_ADDRESSES;
             }
-            if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
             {
                 return wan_transition_ipv6_up(pWanIfaceCtrl);
             }
@@ -3606,10 +4204,16 @@ static eWanState_t wan_state_standby(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
                 }
                 p_VirtIf->IP.Ipv6Changed = FALSE;
             }
-            if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
             {
                 ret = wan_transition_ipv6_up(pWanIfaceCtrl);
                 CcspTraceInfo((" %s %d - IPv6 Address Assigned to Bridge Yet.\n", __FUNCTION__, __LINE__));
+            }
+            else
+            {
+                /* IPv6 address not ready yet, stay in standby to retry */
+                CcspTraceInfo((" %s %d - IPv6 address not ready, waiting...\n", __FUNCTION__, __LINE__));
+                return WAN_STATE_STANDBY;
             }
         }
         if (p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP)
@@ -3709,7 +4313,7 @@ static eWanState_t wan_state_ipv4_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             p_VirtIf->IP.Ipv6Changed = FALSE;
             return WAN_STATE_IPV4_LEASED;
         }
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+        if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
         {
             return wan_transition_ipv6_up(pWanIfaceCtrl);
         }
@@ -3815,16 +4419,16 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     {
         return wan_transition_ipv4_up(pWanIfaceCtrl);
     }
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-    else if (p_VirtIf->EnableMAPT == TRUE &&
-            pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
-            p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+    else if (pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
+             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6AddressIsReadyToUse(p_VirtIf) ==RETURN_OK)
+              || (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE && p_VirtIf->Status == WAN_IFACE_STATUS_UP && p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)))
     {
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
-        {
-            return wan_transition_mapt_up(pWanIfaceCtrl);
-        } 
+        CcspTraceInfo(("%s %d - calling wan_transition_map_up \n", __FUNCTION__, __LINE__));
+        return wan_transition_map_up(pWanIfaceCtrl);
     }
+#endif
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     else if (p_VirtIf->EnableMAPT == TRUE &&
              pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
              mapt_feature_enable_changed == TRUE &&
@@ -3837,6 +4441,35 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
         }
     }
 #endif //FEATURE_MAPT
+#ifdef FEATURE_DSLITE_V2
+    else if (WanMgr_DSLite_isEnabled(p_VirtIf) == TRUE &&
+             WanMgr_DSLite_isEndpointAssigned(p_VirtIf) == TRUE &&
+             pInterface->Selection.Status == WAN_IFACE_ACTIVE)
+    {
+        if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_DOWN)
+        {
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            {
+                return wan_transition_dslite_up(pWanIfaceCtrl);
+            }
+        }
+        else if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_ERROR)
+        {
+            struct timespec CurrentTime;
+            clock_gettime(CLOCK_MONOTONIC_RAW, &CurrentTime);
+
+            time_t elapsed = (CurrentTime.tv_sec - p_VirtIf->DSLite.LastRetryTime.tv_sec);
+
+            // Immediate retry only if there was a change in DSLite params
+            if (p_VirtIf->DSLite.Changed == TRUE || elapsed >= DSLITE_RETRY_INTERVAL_SEC)
+            {
+                CcspTraceInfo(("%s - Retrying DSLite setup for %s after %ld seconds [DS-Lite Cfg changed=%s]\n",
+                               __FUNCTION__, p_VirtIf->Name, elapsed, p_VirtIf->DSLite.Changed ? "true" : "false"));
+                p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN; // let the next iteration handle it
+            }
+        }
+    }
+#endif
     else if (p_VirtIf->IP.Ipv6Renewed == TRUE)
     {
         WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
@@ -3845,18 +4478,6 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
 
     WanMgr_CheckDefaultRA(p_VirtIf);
 
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-    if(lanState == LAN_STATE_STOPPED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-        lanState = LAN_STATE_RESET;
-    }
-    else if(lanState == LAN_STATE_STARTED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
-        lanState = LAN_STATE_RESET;
-    }
-#endif
     return WAN_STATE_IPV6_LEASED;
 }
 
@@ -3953,16 +4574,16 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
             CcspTraceError(("%s %d - Failed to tear down IPv6 for %s Interface \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
         }
     }
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-    else if (p_VirtIf->EnableMAPT == TRUE &&
-            pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
-            p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+    else if (pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
+             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6AddressIsReadyToUse(p_VirtIf) ==RETURN_OK)
+              || (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE && p_VirtIf->Status == WAN_IFACE_STATUS_UP && p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)))
     {
-        if (checkIpv6LanAddressIsReadyToUse(p_VirtIf) == RETURN_OK) // Wait for default gateway before MAP-T configuration
-        {
-            return wan_transition_mapt_up(pWanIfaceCtrl);
-        }
+        CcspTraceInfo(("%s %d - calling wan_transition_map_up \n", __FUNCTION__, __LINE__));
+        return wan_transition_map_up(pWanIfaceCtrl);
     }
+#endif
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     else if (p_VirtIf->EnableMAPT == TRUE &&
             pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
             mapt_feature_enable_changed == TRUE &&
@@ -3975,6 +4596,35 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
         }
     }
 #endif //FEATURE_MAPT
+#if defined (FEATURE_DSLITE_V2) && defined (FEATURE_DSLITE_V2_DUALSTACK_SUPPORT)
+    else if (WanMgr_DSLite_isEnabled(p_VirtIf) == TRUE &&
+             WanMgr_DSLite_isEndpointAssigned(p_VirtIf) == TRUE &&
+             pInterface->Selection.Status == WAN_IFACE_ACTIVE)
+    {
+        if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_DOWN)
+        {
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            {
+                return wan_transition_dslite_up(pWanIfaceCtrl);
+            }
+        }
+        else if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_ERROR)
+        {
+            struct timespec CurrentTime;
+            clock_gettime(CLOCK_MONOTONIC_RAW, &CurrentTime);
+
+            time_t elapsed = (CurrentTime.tv_sec - p_VirtIf->DSLite.LastRetryTime.tv_sec);
+
+            // Immediate retry only if there was a change in DSLite params
+            if (p_VirtIf->DSLite.Changed == TRUE || elapsed >= DSLITE_RETRY_INTERVAL_SEC)
+            {
+                CcspTraceInfo(("%s - Retrying DSLite setup for %s after %ld seconds [DS-Lite Cfg changed=%s]\n",
+                               __FUNCTION__, p_VirtIf->Name, elapsed, p_VirtIf->DSLite.Changed ? "true" : "false"));
+                p_VirtIf->DSLite.Status = WAN_IFACE_DSLITE_STATE_DOWN; // let the next iteration handle it
+            }
+        }
+    }
+#endif // FEATURE_DSLITE_V2
     else if (p_VirtIf->IP.Ipv4Renewed == TRUE)
     {
         WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV4 , TRUE);
@@ -3990,23 +4640,10 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
     WanMgr_MonitorDhcpApps(pWanIfaceCtrl);
     WanMgr_CheckDefaultRA(p_VirtIf);
 
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-    if(lanState == LAN_STATE_STOPPED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-        lanState = LAN_STATE_RESET;
-    }
-    else if(lanState == LAN_STATE_STARTED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
-        lanState = LAN_STATE_RESET;
-    }
-#endif
     return WAN_STATE_DUAL_STACK_ACTIVE;
 }
 
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
+static eWanState_t wan_state_map_active(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
     if((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
     {
@@ -4030,24 +4667,36 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     {
         return wan_transition_standby_deconfig_ips(pWanIfaceCtrl);
     }
+#ifdef FEATURE_MAPE
+    else if(p_VirtIf->MAP.dhcp6cMAPparameters.mapType != MAP_TYPE_MAPE ||
+            p_VirtIf->Status == WAN_IFACE_STATUS_DISABLED ||
+	    p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
+	    p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_DOWN)
+    {
+           return wan_transition_map_down(pWanIfaceCtrl);
+    }
+#endif
+#if defined(FEATURE_MAPT)
     else if (p_VirtIf->EnableMAPT == FALSE ||
-            p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
+             p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN ||
             p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_DOWN ||
             (p_VirtIf->IP.RefreshDHCP == TRUE && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_IPV6_ONLY && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_DUAL_STACK)||
             (p_VirtIf->VLAN.Enable == TRUE &&  p_VirtIf->VLAN.Status ==  WAN_IFACE_LINKSTATUS_DOWN ))
     {
         CcspTraceInfo(("%s %d - LinkStatus=[%d] \n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.Status));
-        return wan_transition_mapt_down(pWanIfaceCtrl);
+        return wan_transition_map_down(pWanIfaceCtrl);
     }
+
     else if (mapt_feature_enable_changed == TRUE)
     {
         if (FALSE == wanmanager_mapt_feature())
         {
             mapt_feature_enable_changed = FALSE;
-            wan_transition_mapt_down(pWanIfaceCtrl);
+            wan_transition_map_down(pWanIfaceCtrl);
             return wan_transition_mapt_feature_refresh(pWanIfaceCtrl);
         }
     }
+#endif
     else if (p_VirtIf->IP.Ipv6Changed == TRUE)
     {
         if (wan_tearDownIPv6(pWanIfaceCtrl) == RETURN_OK)
@@ -4061,7 +4710,7 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
                     CcspTraceInfo(("%s %d - Successfully updated IPv6 configure Changes for %s Interface \n",
                                 __FUNCTION__, __LINE__, p_VirtIf->Name));
 
-                    if (p_VirtIf->EnableMAPT == TRUE &&
+		    if (p_VirtIf->EnableMAPT == TRUE &&
                             pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
                             p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP)
                     {
@@ -4096,10 +4745,10 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             if (wan_setUpMapt() == RETURN_OK)
             {
                 memset(&(p_VirtIf->MAP.MaptConfig), 0, sizeof(WANMGR_MAPT_CONFIG_DATA));
-                if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_SUCCESS)
+                if (WanManager_VerifyMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig)) == ANSC_STATUS_SUCCESS)
                 {
                     CcspTraceInfo(("%s %d - MAPT Configuration verification success \n", __FUNCTION__, __LINE__));
-                    if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPTparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, &(p_VirtIf->IP.Ipv6Data)) == RETURN_OK)
+                    if (WanManager_ProcessMAPTConfiguration(&(p_VirtIf->MAP.dhcp6cMAPparameters), &(p_VirtIf->MAP.MaptConfig), pInterface->Name, p_VirtIf->IP.Ipv6Data.ifname) == RETURN_OK)
                     {
                         p_VirtIf->MAP.MaptChanged = FALSE;
                         CcspTraceInfo(("%s %d - Successfully updated MAP-T configure Changes for %s Interface \n", __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -4135,21 +4784,70 @@ static eWanState_t wan_state_mapt_active(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     WanMgr_MonitorDhcpApps(pWanIfaceCtrl);
 
     WanMgr_CheckDefaultRA(p_VirtIf);
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-    if(lanState == LAN_STATE_STOPPED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , FALSE);
-        lanState = LAN_STATE_RESET;
-    }
-    else if(lanState == LAN_STATE_STARTED)
-    {
-        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6 , TRUE);
-        lanState = LAN_STATE_RESET;
-    }
-#endif
-    return WAN_STATE_MAPT_ACTIVE;
+
+    return WAN_STATE_MAP_ACTIVE;
 }
-#endif //FEATURE_MAPT
+
+#ifdef FEATURE_DSLITE_V2
+static eWanState_t wan_state_dslite_active(WanMgr_IfaceSM_Controller_t *pWanIfaceCtrl)
+{
+    if ((pWanIfaceCtrl == NULL) || (pWanIfaceCtrl->pIfaceData == NULL))
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    DML_WAN_IFACE *pInterface = pWanIfaceCtrl->pIfaceData;
+    DML_VIRTUAL_IFACE *p_VirtIf = WanMgr_getVirtualIfaceById(pInterface->VirtIfList, pWanIfaceCtrl->VirIfIdx);
+
+    if (pWanIfaceCtrl->WanEnable == FALSE ||
+        pInterface->Selection.Enable == FALSE ||
+        pInterface->Selection.Status == WAN_IFACE_NOT_SELECTED ||
+        p_VirtIf->Enable == FALSE ||
+        p_VirtIf->Reset == TRUE ||
+        p_VirtIf->VLAN.Reset == TRUE ||
+        pInterface->BaseInterfaceStatus != WAN_IFACE_PHY_STATUS_UP)
+    {
+        return wan_transition_physical_interface_down(pWanIfaceCtrl);
+    }
+    else if ((pInterface->Selection.Status != WAN_IFACE_ACTIVE) || (pWanIfaceCtrl->DeviceNwModeChanged == TRUE))
+    {
+        return wan_transition_standby_deconfig_ips(pWanIfaceCtrl);
+    }
+    else if (WanMgr_DSLite_isEnabled(p_VirtIf) == FALSE ||
+             (WanMgr_DSLite_isEndpointAssigned(p_VirtIf) == FALSE) ||
+             (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_DOWN) ||
+             (p_VirtIf->IP.RefreshDHCP == TRUE && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_IPV6_ONLY && p_VirtIf->IP.Mode != DML_WAN_IP_MODE_DUAL_STACK) ||
+             (p_VirtIf->VLAN.Enable == TRUE && p_VirtIf->VLAN.Status == WAN_IFACE_LINKSTATUS_DOWN))
+    {
+        CcspTraceInfo(("%s %d - LinkStatus=[%d] \n", __FUNCTION__, __LINE__, p_VirtIf->VLAN.Status));
+        return wan_transition_dslite_down(pWanIfaceCtrl);
+    }
+    else if (p_VirtIf->IP.Ipv6Changed == TRUE || p_VirtIf->DSLite.Changed == TRUE)
+    {
+        CcspTraceInfo(("%s - %s configuration is changed! Deconfigure DS-Lite\n", __FUNCTION__,
+                       p_VirtIf->IP.Ipv6Changed ? "IPv6" : "DS-Lite"));
+        return wan_transition_dslite_down(pWanIfaceCtrl);
+    }
+    else if (p_VirtIf->IP.Ipv6Renewed == TRUE)
+    {
+        WanMgr_SendMsgTo_ConnectivityCheck(pWanIfaceCtrl, CONNECTION_MSG_IPV6, TRUE);
+        p_VirtIf->IP.Ipv6Renewed = FALSE;
+    }
+
+    // Check if DNS TTL has expired, re-resolve endpoint, and restart tunnel only if address changed
+    if (WanMgr_DSLite_CheckAndHandleTtlExpiration(p_VirtIf) == TRUE)
+    {
+        return wan_transition_dslite_down(pWanIfaceCtrl);
+    }
+
+    // Start DHCP apps if not started
+    WanMgr_MonitorDhcpApps(pWanIfaceCtrl);
+
+    WanMgr_CheckDefaultRA(p_VirtIf);
+
+    return WAN_STATE_DSLITE_ACTIVE;
+}
+#endif // FEATURE_DSLITE_V2
 
 static eWanState_t wan_state_refreshing_wan(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
 {
@@ -4426,14 +5124,21 @@ static void* WanMgr_InterfaceSMThread( void *arg )
                     iface_sm_state = wan_state_dual_stack_active(pWanIfaceCtrl);
                     break;
                 }
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
-            case WAN_STATE_MAPT_ACTIVE:
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
+	    case WAN_STATE_MAP_ACTIVE:
                 {
-                    iface_sm_state = wan_state_mapt_active(pWanIfaceCtrl);
+                    iface_sm_state = wan_state_map_active(pWanIfaceCtrl);
                     break;
                 }
-#endif //FEATURE_MAPT
-            case WAN_STATE_REFRESHING_WAN:
+#endif
+#ifdef FEATURE_DSLITE_V2
+            case WAN_STATE_DSLITE_ACTIVE:
+                {
+                    iface_sm_state = wan_state_dslite_active(pWanIfaceCtrl);
+                    break;
+                }
+#endif //FEATURE_DSLITE_V2
+	    case WAN_STATE_REFRESHING_WAN:
                 {
                     iface_sm_state = wan_state_refreshing_wan(pWanIfaceCtrl);
                     break;

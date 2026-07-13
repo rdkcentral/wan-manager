@@ -256,6 +256,12 @@ LONG WanManager_GetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, ch
         snprintf(pValue, *pulSize, "%s", WAN_MANAGER_VERSION);
         ret = 0;
     }
+    else if (strcmp(ParamName, "WanFailoverData") == 0)
+    {
+        /* Data value should be empty for all get */
+        snprintf(pValue, *pulSize, "%s", "");
+        ret = 0;
+    }
 
     return ret;
 }

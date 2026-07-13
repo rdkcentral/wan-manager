@@ -21,6 +21,10 @@
 #include "wanmgr_data.h"
 #include "wanmgr_rdkbus_apis.h"
 
+#ifdef FEATURE_DSLITE_V2
+#include "wanmgr_dslite.h"
+#endif
+
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED) && (defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_))
 extern ANSC_STATUS WanMgr_CheckAndResetV2PSMEntries(UINT IfaceCount);
 #endif
@@ -28,6 +32,198 @@ extern ANSC_STATUS WanMgr_CheckAndResetV2PSMEntries(UINT IfaceCount);
 /******** WAN MGR DATABASE ********/
 WANMGR_DATA_ST gWanMgrDataBase;
 
+static WANMGR_MAP_ST gWanMgrMapDataBase;
+
+#ifdef FEATURE_DSLITE_V2
+/******** WANMGR DSLITE DATA ACCESS FUNCTIONS ********/
+BOOL WanMgr_DSLite_isEnabled(DML_VIRTUAL_IFACE *p_VirtIf)
+{
+    WanMgr_DSLite_Data_t *pDSLiteData;
+    BOOL enabled = FALSE;
+    DML_DSLITE_LIST *entry;
+
+    entry = WanMgr_getDSLiteEntryByAlias_locked(p_VirtIf->DSLite.Path);
+    if (!entry)
+    {
+        return FALSE;
+    }
+
+    pDSLiteData = &(gWanMgrDataBase.DSLite);
+    enabled = pDSLiteData->Enable && entry->CurrCfg.Enable;
+
+    WanMgr_GetDSLiteData_release();
+    return enabled;
+}
+
+ANSC_STATUS WanMgr_DSLite_AddToList(UINT inst)
+{
+    DML_DSLITE_LIST *entry;
+    WanMgr_DSLite_Data_t *pDSLiteData;
+
+    pDSLiteData = WanMgr_GetDSLiteData_locked();
+    if (!pDSLiteData)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    entry = (DML_DSLITE_LIST *)calloc(1, sizeof(DML_DSLITE_LIST));
+    if (!entry)
+    {
+        CcspTraceError(("%s: allocation failed\n", __FUNCTION__));
+        WanMgr_GetDSLiteData_release();
+        return ANSC_STATUS_FAILURE;
+    }
+
+    DSLITE_SET_DEFAULTVALUE(&entry->PrevCfg);
+    DSLITE_SET_DEFAULTVALUE(&entry->CurrCfg);
+
+    snprintf(entry->CurrCfg.Alias,
+             sizeof(entry->CurrCfg.Alias),
+             "Dslite.Tunnel.%u", inst);
+
+    entry->InstanceNumber = inst;
+    entry->New            = TRUE;
+    entry->next           = NULL;
+
+    /* insert at list head */
+    entry->next = pDSLiteData->DSLiteList;
+    pDSLiteData->DSLiteList = entry;
+    pDSLiteData->InterfaceSettingNumberOfEntries++;
+    pDSLiteData->Changed = TRUE;
+
+    WanMgr_GetDSLiteData_release();
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS WanMgr_DSLite_RemoveFromList(UINT inst)
+{
+    WanMgr_DSLite_Data_t *pDSLiteData;
+    DML_DSLITE_LIST *prev = NULL, *curr = NULL;
+
+    pDSLiteData = WanMgr_GetDSLiteData_locked();
+    if (!pDSLiteData)
+    {
+        return ANSC_STATUS_FAILURE;
+    }
+
+    curr = pDSLiteData->DSLiteList;
+    while (curr)
+    {
+        if (curr->InstanceNumber == inst)
+        {
+            if (prev)
+            {
+                prev->next = curr->next;
+            }
+            else
+            {
+                pDSLiteData->DSLiteList = curr->next;
+            }
+
+            free(curr);
+
+            pDSLiteData->InterfaceSettingNumberOfEntries--;
+            pDSLiteData->Changed = TRUE;
+            WanMgr_GetDSLiteData_release();
+            return ANSC_STATUS_SUCCESS;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+
+    WanMgr_GetDSLiteData_release();
+    return ANSC_STATUS_FAILURE;
+}
+
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByInstance_locked(UINT inst)
+{
+    if (pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        WanMgr_DSLite_Data_t *pDSLite = &gWanMgrDataBase.DSLite;
+        DML_DSLITE_LIST *entry = pDSLite->DSLiteList;
+
+        while (entry != NULL)
+        {
+            if (entry->InstanceNumber == (ULONG)inst)
+            {
+                return entry;
+            }
+            entry = entry->next;
+        }
+        WanMgr_GetDSLiteData_release();
+    }
+    return NULL;
+}
+
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByIdx_locked(UINT idx)
+{
+    if (pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        UINT i = 0;
+        WanMgr_DSLite_Data_t *pDSLite = &(gWanMgrDataBase.DSLite);
+        DML_DSLITE_LIST *entry = pDSLite->DSLiteList;
+
+        while (entry != NULL)
+        {
+            if (i++ == idx)
+            {
+                return entry;
+            }
+            entry = entry->next;
+        }
+        WanMgr_GetDSLiteData_release();
+    }
+    return NULL;
+}
+
+DML_DSLITE_LIST *WanMgr_getDSLiteEntryByAlias_locked(char *Alias)
+{
+    if (!Alias)
+    {
+        return NULL;
+    }
+
+    if (pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        WanMgr_DSLite_Data_t *pDSLite = &gWanMgrDataBase.DSLite;
+        DML_DSLITE_LIST *entry = pDSLite->DSLiteList;
+
+        while (entry != NULL)
+        {
+            if (!strcmp(entry->CurrCfg.Alias, Alias))
+            {
+                return entry;
+            }
+            entry = entry->next;
+        }
+        WanMgr_GetDSLiteData_release();
+    }
+    return NULL;
+}
+
+WanMgr_DSLite_Data_t* WanMgr_GetDSLiteData_locked(void)
+{
+    WanMgr_DSLite_Data_t* pDSLiteData = &(gWanMgrDataBase.DSLite);
+
+    //lock
+    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        return pDSLiteData;
+    }
+
+    return NULL;
+}
+
+void WanMgr_GetDSLiteData_release(void)
+{
+    WanMgr_DSLite_Data_t* pDSLiteData = &(gWanMgrDataBase.DSLite);
+    if(pDSLiteData != NULL)
+    {
+        pthread_mutex_unlock (&gWanMgrDataBase.gDataMutex);
+    }
+}
+#endif
 
 /******** WANMGR CONFIG FUNCTIONS ********/
 WanMgr_Config_Data_t* WanMgr_GetConfigData_locked(void)
@@ -100,6 +296,15 @@ void WanMgr_SetIfaceCtrl_Default(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
     }
 }
 
+void WanMgr_SetMapCtrl_Default(WanMgr_MapDomainCtrl_Data_t* pWanMapCtrl)
+{
+    if(pWanMapCtrl != NULL)
+    {
+        pWanMapCtrl->ulTotalNumWanMapDomainEntries = 0;
+        pWanMapCtrl->Enable = false;
+        pWanMapCtrl->pDomain = NULL;
+    }
+}
 
 void WanMgr_IfaceCtrl_Delete(WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl)
 {
@@ -316,6 +521,19 @@ ANSC_STATUS WanMgr_WanConfigInit(void)
     WanMgr_Group_Configure();
     //Wan Interface Configuration init
     retStatus = WanMgr_WanDataInit();
+    if(retStatus != ANSC_STATUS_SUCCESS)
+    {
+        return retStatus;
+    }
+
+#ifdef FEATURE_DSLITE_V2
+    // Wan DSLite Configuration init
+    retStatus = WanMgr_DSLiteInit();
+    if (retStatus != ANSC_STATUS_SUCCESS)
+    {
+        return retStatus;
+    }
+#endif
     return retStatus;
 }
 
@@ -860,6 +1078,7 @@ void WanMgr_VirtIface_Init(DML_VIRTUAL_IFACE * pVirtIf, UINT iface_index)
     pVirtIf->IP.pIpcIpv4Data = NULL;
     pVirtIf->IP.pIpcIpv6Data = NULL;
     pVirtIf->MAP.MaptStatus = WAN_IFACE_MAPT_STATE_DOWN;
+    pVirtIf->MAP.MapeStatus = WAN_IFACE_MAPE_STATE_DOWN;
     memset(pVirtIf->MAP.Path, 0, 64);
     pVirtIf->MAP.MaptChanged = FALSE;
 #ifdef FEATURE_MAPT
@@ -915,6 +1134,7 @@ void WanMgr_Remote_IfaceData_Update(WanMgr_Iface_Data_t* pIfaceData, UINT iface_
 void WanMgr_Data_Init(void)
 {
     WANMGR_DATA_ST*         pWanMgrData = &gWanMgrDataBase;
+    WANMGR_MAP_ST*          pWanMgrMapData = &gWanMgrMapDataBase;
     pthread_mutexattr_t     muttex_attr;
 
     //Initialise mutex attributes
@@ -930,6 +1150,11 @@ void WanMgr_Data_Init(void)
     WanMgr_SetIfaceGroup_Default(&(pWanMgrData->IfaceGroup));
 
     pthread_mutex_init(&(gWanMgrDataBase.gDataMutex), &(muttex_attr));
+
+    /*** WAN MAP ***/
+    WanMgr_SetMapCtrl_Default(&(pWanMgrMapData->MapDomainCtrl));
+    pthread_mutex_init(&(pWanMgrMapData->MapDomainCtrl.mDataMutex), &(muttex_attr));
+
 }
 
 ANSC_STATUS WanMgr_Data_Delete(void)
@@ -1114,3 +1339,42 @@ DML_VIRTUAL_IFACE* WanMgr_GetActiveVirtIfData_locked(void)
     }
     return NULL;
 }
+
+#ifdef FEATURE_DSLITE_V2
+/*
+ * This function checks virtual interfaces of all Interfaces and retuns if DSLite Alias is found.
+ */
+DML_VIRTUAL_IFACE* WanMgr_GetVirtIfDataByDSLiteAlias_locked(char* Alias)
+{
+    if (Alias == NULL)
+    {
+        CcspTraceError(("%s %d: invalid args\n", __FUNCTION__, __LINE__));
+        return NULL;
+    }
+    UINT idx;
+
+    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    {
+        WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
+        if(pWanIfaceCtrl->pIface != NULL)
+        {
+            for(idx = 0; idx < pWanIfaceCtrl->ulTotalNumbWanInterfaces; idx++)
+            {
+                WanMgr_Iface_Data_t* pWanIfaceData = &(pWanIfaceCtrl->pIface[idx]);
+                DML_VIRTUAL_IFACE* virIface = pWanIfaceData->data.VirtIfList;
+                while(virIface != NULL)
+                {
+                    if(!strcmp(Alias,virIface->DSLite.Path))
+                    {
+                        return virIface;
+                    }
+                    virIface = virIface->next;
+                }
+            }
+        }
+        pthread_mutex_unlock(&gWanMgrDataBase.gDataMutex);
+    }
+
+    return NULL;
+}
+#endif

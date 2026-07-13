@@ -61,6 +61,16 @@ typedef enum _DEVICE_NETWORKING_MODE_
     MODEM_MODE
 } DEVICE_NETWORKING_MODE;
 
+typedef  enum
+_DML_WAN_DEVICE_MODE
+{
+    DML_WAN_DEVICE_MODE_Bridge = 1,
+    DML_WAN_DEVICE_MODE_Ipv4,
+    DML_WAN_DEVICE_MODE_Ipv6,
+    DML_WAN_DEVICE_MODE_Dualstack
+}
+DML_WAN_DEVICE_MODE;
+
 typedef enum _DML_WAN_IFACE_OPER_STATUS
 {
     WAN_OPERSTATUS_UNKNOWN = 1,
@@ -144,12 +154,34 @@ typedef enum _DML_WAN_IFACE_MAPT_STATUS
     WAN_IFACE_MAPT_STATE_DOWN
 } DML_WAN_IFACE_MAPT_STATUS;
 
+/** enum map-e status */
+typedef enum _DML_WAN_IFACE_MAPE_STATUS
+{
+    WAN_IFACE_MAPE_STATE_UP = 1,
+    WAN_IFACE_MAPE_STATE_DOWN
+} DML_WAN_IFACE_MAPE_STATUS;
+
 /** enum dslite status */
 typedef enum _DML_WAN_IFACE_DSLITE_STATUS
 {
     WAN_IFACE_DSLITE_STATE_UP = 1,
-    WAN_IFACE_DSLITE_STATE_DOWN
+    WAN_IFACE_DSLITE_STATE_DOWN,
+    WAN_IFACE_DSLITE_STATE_ERROR
 } DML_WAN_IFACE_DSLITE_STATUS;
+
+#ifdef FEATURE_DSLITE_V2
+typedef enum _DML_WAN_DSLITE_ADDR_METHOD
+{
+    DSLITE_ENDPOINT_DHCPV6 = 1,
+    DSLITE_ENDPOINT_STATIC
+} DML_WAN_DSLITE_ADDR_METHOD;
+
+typedef enum _DML_WAN_DSLITE_ADDR_PRECEDENCE
+{
+    DSLITE_ENDPOINT_FQDN = 1,
+    DSLITE_ENDPOINT_IPV6ADDRESS
+} DML_WAN_DSLITE_ADDR_PRECEDENCE;
+#endif
 
 /** enum wan status */
 typedef enum _WAN_NOTIFY_ENUM
@@ -359,14 +391,15 @@ typedef struct _WANMGR_IPV6_DATA
    uint32_t prefixVltime;
    char sitePrefixOld[BUFLEN_48]; /**< add support for RFC7084 requirement L-13 */
     uint32_t ipv6_TimeOffset;
-   #if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
    /* Params to store the IPv6 IPC message */
-   bool addrAssigned;
+   bool addrAssigned;           /**< Have we been assigned an IPv6 address ? */
    uint32_t addrCmd;
-   bool prefixAssigned;  /**< Have we been assigned a site prefix ? */
+   bool prefixAssigned;         /**< Have we been assigned a site prefix ? */
    uint32_t prefixCmd;
    bool domainNameAssigned;     /**< Have we been assigned dns server addresses ? */
-   #endif
+#ifdef FEATURE_DSLITE_V2
+   char aftr[BUFLEN_256];
+#endif
 } WANMGR_IPV6_DATA;
 
 typedef struct _WANMGR_IPV6_RA_DATA 
@@ -442,6 +475,7 @@ typedef struct _WANMGR_MAPT_CONFIG_DATA_
     char ipAddressString[BUFLEN_32];
     char ipLANAddressString[BUFLEN_32];
     int psidLen;
+    BOOL isPSIDComputed;
 }WANMGR_MAPT_CONFIG_DATA;
 
 #endif
@@ -449,10 +483,11 @@ typedef struct _WANMGR_MAPT_CONFIG_DATA_
 typedef struct _DML_WANIFACE_MAP
 {
     DML_WAN_IFACE_MAPT_STATUS   MaptStatus;
+    DML_WAN_IFACE_MAPE_STATUS   MapeStatus;
     CHAR                        Path[BUFLEN_64];
     BOOL                        MaptChanged;
+    ipc_map_data_t              dhcp6cMAPparameters;
 #ifdef FEATURE_MAPT
-    ipc_mapt_data_t dhcp6cMAPTparameters;
     WANMGR_MAPT_CONFIG_DATA     MaptConfig;
 #endif
 } DML_WANIFACE_MAP;
@@ -462,8 +497,50 @@ typedef struct _DML_WANIFACE_DSLITE
     CHAR                        Path[BUFLEN_64];
     DML_WAN_IFACE_DSLITE_STATUS Status;
     BOOL                        Changed;
+    struct timespec             LastRetryTime;
 } DML_WANIFACE_DSLITE;
 
+#ifdef FEATURE_DSLITE_V2
+typedef struct _DML_DSLITE_CONFIG
+{
+    BOOL                                Enable;
+    DML_WAN_IFACE_DSLITE_STATUS         Status;
+    CHAR                                Alias[BUFLEN_64];              // map to virtual interface Path
+    DML_WAN_DSLITE_ADDR_METHOD          Mode;                          // EndpointAssignmentPrecedence
+    CHAR                                EndpointName[BUFLEN_256];
+    CHAR                                EndpointAddr[BUFLEN_256];
+    DML_WAN_DSLITE_ADDR_METHOD          Origin;
+    CHAR                                TunnelIface[BUFLEN_256];
+    CHAR                                TunneledIface[BUFLEN_256];
+    DML_WAN_DSLITE_ADDR_PRECEDENCE      Type;                          // EndpointAddressTypePrecedence
+    CHAR                                AddrInUse[BUFLEN_256];         // Resolved AFTR IPv6 address currently in use
+    BOOL                                MssClampingEnable;
+    UINT                                TcpMss;                        // X_RDKCENTRAL-COM_Tcpmss
+    BOOL                                Ipv6FragEnable;                // X_RDKCENTRAL-COM_IPv6FragEnable
+    CHAR                                TunnelV4Addr[BUFLEN_64];       // X_RDKCENTRAL-COM_TunnelV4Addr
+    struct timespec                     DnsResolveTime;                // Timestamp when DNS resolution occurred
+    UINT                                DnsTtl;                        // DNS TTL value in seconds
+} DML_DSLITE_CONFIG;
+
+typedef struct _DML_DSLITE_LIST
+{
+    struct _DML_DSLITE_LIST *next;
+    UINT InstanceNumber;
+    BOOL New;
+    DML_DSLITE_CONFIG PrevCfg;
+    DML_DSLITE_CONFIG CurrCfg;
+} DML_DSLITE_LIST;
+
+// DSLITE CONFIG
+typedef struct _WANMGR_DSLITE_CONFIG_DATA_
+{
+    DML_DSLITE_LIST *DSLiteList;
+    BOOL Enable;
+    UINT InterfaceSettingNumberOfEntries;
+    UINT NextInstanceNumber;
+    BOOL Changed;
+} WanMgr_DSLite_Data_t;
+#endif
 
 typedef struct _DML_WANIFACE_SUBSCRIBE
 {
@@ -485,7 +562,8 @@ typedef enum
     WAN_STATE_IPV4_LEASED,
     WAN_STATE_IPV6_LEASED,
     WAN_STATE_DUAL_STACK_ACTIVE,
-    WAN_STATE_MAPT_ACTIVE,
+    WAN_STATE_MAP_ACTIVE,
+    WAN_STATE_DSLITE_ACTIVE,
     WAN_STATE_REFRESHING_WAN,
     WAN_STATE_DECONFIGURING_WAN,
     WAN_STATE_STANDBY
@@ -663,6 +741,115 @@ typedef struct _WANMGR_IFACECTRL_DATA_
     UINT                        update;
 }WanMgr_IfaceCtrl_Data_t;
 
+typedef enum _DML_MAP_STATUS
+{
+    WAN_MAP_STATUS_DISABLED = 1,
+    WAN_MAP_STATUS_ENABLED
+} DML_MAP_STATUS;
+
+typedef enum _DML_MAP_TRANSPORT
+{
+    WAN_MAP_TRANSPORT_ENCAPSULATED = 1,
+    WAN_MAP_TRANSPORT_TRANSLATION
+} DML_MAP_TRANSPORT;
+
+typedef enum _DML_MAP_DOMAININTERFACE_STATUS
+{
+    WAN_MAPDOMAININTERFACE_STATUS_Up = 1,
+    WAN_MAPDOMAININTERFACE_STATUS_Down
+} DML_MAP_DOMAININTERFACE_STATUS;
+
+ /* Interface Stat structure */
+typedef struct _DML_MAP_DOMAININTERFACESTAT
+{
+    ULONG BytesSent;
+    ULONG BytesReceived;
+    ULONG PacketsSent;
+    ULONG PacketsReceived;
+    ULONG ErrorsSent;
+    ULONG ErrorsReceived;
+    ULONG UnicastPacketsSent;
+    ULONG UnicastPacketsReceived;
+    ULONG DiscardPacketsSent;
+    ULONG DiscardPacketsReceived;
+    ULONG MulticastPacketsSent;
+    ULONG MulticastPacketsReceived;
+    ULONG BroadcastPacketsSent;
+    ULONG BroadcastPacketsReceived;
+    ULONG UnknownProtoPacketsReceived;
+}DML_MAP_DOMAININTERFACESTAT;
+
+ /* DomainInterface structure */
+typedef struct _DML_MAP_DOMAININTERFACE
+{
+    BOOL Enable;
+    DML_MAP_DOMAININTERFACE_STATUS Status;
+    CHAR Alias[BUFLEN_32];
+    CHAR Name[BUFLEN_32];
+    UINT LastChange;
+    CHAR LowerLayers[BUFLEN_32];
+    DML_MAP_DOMAININTERFACESTAT data;
+}DML_MAP_DOMAININTERFACE;
+
+ /* DomainRule structure */
+typedef struct _DML_MAP_DOMAINRULE
+{
+    BOOL Enable;
+    DML_MAP_STATUS Status;
+    CHAR Alias[BUFLEN_32];
+    CHAR Origin[BUFLEN_32];
+    CHAR IPv6Prefix[BUFLEN_32];
+    CHAR IPv4Prefix[BUFLEN_32];
+    UINT EABitsLength;
+    BOOL IsFMR;
+    UINT PSIDOffset;
+    UINT PSIDLength;
+    UINT PSID;
+    BOOL IncludeSystemPorts;
+    UINT uiIfaceIdx;
+    UINT uiInstanceNumber;
+}DML_MAP_DOMAINRULE;
+ /* Map Domain structure */
+typedef struct _DML_MAP_DOMAIN
+{
+    BOOL Enable;
+    DML_MAP_STATUS Status;
+    CHAR Alias[BUFLEN_32];
+    DML_MAP_TRANSPORT TransportMode;
+    CHAR WANInterface[BUFLEN_32];
+    CHAR IPv6Prefix[BUFLEN_32];
+    CHAR BRIPv6Prefix[BUFLEN_32];
+    UINT DSCPMarkPolicy;
+    UINT uiIfaceIdx;
+    UINT uiInstanceNumber;
+}DML_MAP_DOMAIN;
+
+typedef struct _WANMGR_MAPDOMAINRULE_DATA_
+{
+   UINT    ulTotalNumWanMapDomainRuleEntries;
+   DML_MAP_DOMAINRULE data;
+}WanMgr_Map_DomainRule_t;
+
+typedef struct _WANMGR_MAP_DOMAIN_
+{
+    DML_MAP_DOMAIN      Domaindata;
+    WanMgr_Map_DomainRule_t* pRule;
+    DML_MAP_DOMAININTERFACE data;
+}WanMgr_Map_Domain_t;
+
+typedef struct _WANMGR_MAPDOMAINCTRL_DATA_
+{
+    UINT                        ulTotalNumWanMapDomainEntries;
+    BOOL                        Enable;
+    WanMgr_Map_Domain_t*        pDomain;
+    pthread_mutex_t             mDataMutex;
+}WanMgr_MapDomainCtrl_Data_t;
+
+typedef struct WANMGR_MAP_ST
+{
+   WanMgr_MapDomainCtrl_Data_t MapDomainCtrl;
+} WANMGR_MAP_ST;
+
 typedef struct _WANMGR_DATA_ST_
 {
     //Mutex
@@ -676,5 +863,9 @@ typedef struct _WANMGR_DATA_ST_
 
     //Iface Group
     WanMgr_IfaceGroup_t         IfaceGroup;
+#ifdef FEATURE_DSLITE_V2
+    //DSLITE CONFIG
+    WanMgr_DSLite_Data_t        DSLite;
+#endif
 } WANMGR_DATA_ST;
 #endif //_WANMGR_DML_H_

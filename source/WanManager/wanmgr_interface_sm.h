@@ -54,6 +54,8 @@ typedef enum
     WANMGR_IFACE_CONNECTION_IPV6_DOWN,
     WANMGR_IFACE_MAPT_START,
     WANMGR_IFACE_MAPT_STOP,
+    WANMGR_IFACE_MAPE_START,
+    WANMGR_IFACE_MAPE_STOP,
     WANMGR_IFACE_STATUS_ERROR
 }wanmgr_iface_status_t;
 
@@ -81,4 +83,18 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
 void WanMgr_IfaceSM_Init(WanMgr_IfaceSM_Controller_t* pWanIfaceSMCtrl, INT iface_idx, INT VirIfIdx);
 int WanMgr_StartInterfaceStateMachine(WanMgr_IfaceSM_Controller_t *wanIf);
 BOOL WanMgr_Get_ISM_RunningStatus (UINT ifIndex);
+
+/**
+ * @brief Check if virtual interface is a voice-related interface
+ * @param pVirtIf Pointer to virtual interface
+ * @return TRUE if interface is VOIP, VOICE, or MTA; FALSE otherwise
+ */
+static inline BOOL WanMgr_IsVoiceInterface(const DML_VIRTUAL_IFACE* pVirtIf)
+{
+    return (pVirtIf != NULL && 
+            (strcmp(pVirtIf->Alias, "VOIP") == 0 || 
+             strcmp(pVirtIf->Alias, "VOICE") == 0 || 
+             strcmp(pVirtIf->Alias, "MTA") == 0));
+}
+
 #endif /*_WANMGR_INTERFACE_SM_H_*/
