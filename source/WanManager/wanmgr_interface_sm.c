@@ -1463,7 +1463,6 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         {
             syscfg_set_commit(NULL, SYSCFG_WAN_INTERFACE_NAME, p_VirtIf->IP.Ipv4Data.ifname);
         }
-        wanmgr_services_restart();
         //Get WAN uptime
         WanManager_GetDateAndUptime( buffer, &uptime );
         LOG_CONSOLE("%s [tid=%ld] v4: Wan_init_complete for interface index %d at %d\n", buffer, syscall(SYS_gettid), pWanIfaceCtrl->interfaceIdx, uptime);
@@ -1476,7 +1475,13 @@ static int wan_setUpIPv4(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 #endif
     /* Firewall restart. */
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
+
+    /* Restart WAN management services (sshd etc.) so that reverse SSH and other management services (re)bind to the WAN IPv4 address. 
+     * Runs on both first-time bring-up and on a lease/address change. */
+    wanmgr_services_restart();
+
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
+
     return ret;
 }
 
@@ -1690,7 +1695,6 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
         {
             syscfg_set_commit(NULL, SYSCFG_WAN_INTERFACE_NAME, p_VirtIf->IP.Ipv6Data.ifname);
         }
-        wanmgr_services_restart();
 
 #if (!defined (_XB6_PRODUCT_REQ_) && !defined (_CBR2_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_)) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) //parodus uses cmac for xb platforms
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -1715,8 +1719,13 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
     }
 #endif
     }
-  
+
+    /* Restart WAN management services (sshd etc.) so that reverse SSH and other management services (re)bind to the WAN IPv6 address. 
+     * Runs on both first-time bring-up and on a lease/address change. */
+    wanmgr_services_restart();
+
     WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
+
     return ret;
 }
 
