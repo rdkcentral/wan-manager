@@ -174,16 +174,6 @@ ANSC_STATUS wanmgr_sysevents_ipv4Info_set(const ipc_dhcpv4_data_t* dhcp4Info, co
 
     sysevent_set(sysevent_fd, sysevent_token,SYSEVENT_IPV4_TIME_ZONE, dhcp4Info->timeZone, 0);
 
-    snprintf(name,sizeof(name),SYSEVENT_IPV4_DHCP_SERVER,dhcp4Info->dhcpcInterface);
-    sysevent_set(sysevent_fd, sysevent_token,name, dhcp4Info->dhcpServerId,0);
-
-    snprintf(name,sizeof(name),SYSEVENT_IPV4_DHCP_STATE ,dhcp4Info->dhcpcInterface);
-    sysevent_set(sysevent_fd, sysevent_token,name, dhcp4Info->dhcpState,0);
-
-    snprintf(name,sizeof(name), SYSEVENT_IPV4_LEASE_TIME, dhcp4Info->dhcpcInterface);
-    snprintf(value, sizeof(value), "%u",dhcp4Info->leaseTime);
-    sysevent_set(sysevent_fd, sysevent_token,name, value, 0);
-
     return ANSC_STATUS_SUCCESS;
 }
 
