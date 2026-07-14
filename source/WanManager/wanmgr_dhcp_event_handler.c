@@ -105,6 +105,8 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->prefixAssigned = leaseInfo->prefixAssigned;
     pDhcpv6Data->domainNameAssigned = leaseInfo->domainNameAssigned;
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
+    pDhcpv6Data->addrConstructedFromIAPD = false;
+ 
     if(!pDhcpv6Data->addrAssigned && pDhcpv6Data->prefixAssigned)
     {
         /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
