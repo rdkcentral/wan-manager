@@ -393,6 +393,7 @@ typedef struct _WANMGR_IPV6_DATA
     uint32_t ipv6_TimeOffset;
    /* Params to store the IPv6 IPC message */
    bool addrAssigned;           /**< Have we been assigned an IPv6 address ? */
+   bool addrConstructedFromIAPD; /**< TRUE if the WAN address was derived from the delegated prefix (IAPD) instead of a real IANA lease */
    uint32_t addrCmd;
    bool prefixAssigned;         /**< Have we been assigned a site prefix ? */
    uint32_t prefixCmd;
