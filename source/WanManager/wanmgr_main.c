@@ -60,6 +60,7 @@
 #include "wanmgr_core.h"
 #include "wanmgr_data.h"
 #include "wanmgr_webconfig_apis.h"
+#include "wanmgr_rdkbus_apis.h"
 #include "stdlib.h"
 #include "ccsp_dm_api.h"
 
@@ -375,6 +376,10 @@ int main(int argc, char* argv[])
     {
        close(fd_ret);
     }
+
+    /* Start the WAN outage timer now so the full boot-to-first-WAN duration
+     * is captured by the WAN_DOWN_DURATION telemetry marker. */
+    WanMgr_FailureTimer_Init();
 
     //CORE INT
     WanMgr_Core_Init();
