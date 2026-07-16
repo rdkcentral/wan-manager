@@ -1688,6 +1688,17 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
 #endif
     }
 
+    /* Wait for the newly assigned WAN IPv6 address to complete Duplicate Address
+     * Detection (i.e. no longer "tentative") before restarting management services.
+     * On a lease change the address is flushed and re-added, which restarts DAD;
+     * restarting sshd/dropbear while the address is still tentative makes the bind
+     * fail with "Cannot assign requested address", leaving reverse SSH IPv4-only. */
+    if (checkIpv6AddressIsReadyToUse(p_VirtIf) != RETURN_OK)
+    {
+        CcspTraceError(("%s %d - IPv6 address not ready (DAD/route) on %s before restarting services\n",
+                       __FUNCTION__, __LINE__, p_VirtIf->Name));
+    }
+
     /* Restart WAN management services (sshd etc.) so that reverse SSH and other management services (re)bind to the WAN IPv6 address. 
      * Runs on both first-time bring-up and on a lease/address change. */
     wanmgr_services_restart();
