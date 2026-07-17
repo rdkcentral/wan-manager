@@ -24,6 +24,8 @@
 #include "wanmgr_dhcp_client_events.h"
 #include "wanmgr_net_utils.h"
 #include "wanmgr_dhcpv6_apis.h"
+
+extern WANMGR_DATA_ST gWanMgrDataBase;
 #ifdef FEATURE_MAPE
 #include "wanmgr_map_apis.h"
 #endif
@@ -154,8 +156,22 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     break;
 
                 case DHCP_CLIENT_STOPPED:
-                    CcspTraceInfo(("%s-%d : DHCPv4 client stopped for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                    pVirtIf->IP.Dhcp4cStatus = DHCPC_STOPPED;
+                    CcspTraceInfo(("%s-%d : DHCPv4 client stopped for %s (Dhcp4cStatus=%d)\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Dhcp4cStatus));
+                    if (pVirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+                    {
+                        /* Client was stopped externally (not by WanManager).
+                         * WanManager_StopDhcpv4Client sets Dhcp4cStatus=STOPPED
+                         * synchronously before any event arrives, so DHCPC_STARTED
+                         * here means the stop was NOT initiated by WanManager.
+                         * Restart the client to maintain IPv4 connectivity. */
+                        pVirtIf->IP.Dhcp4cStatus = DHCPC_STOPPED;
+                        CcspTraceInfo(("%s-%d : SELFHEAL - Restarting DHCPv4 client for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                        WanManager_StartDhcpv4Client(pVirtIf, gWanMgrDataBase.IfaceCtrl.pIface[pVirtIf->baseIfIdx].data.Name, gWanMgrDataBase.IfaceCtrl.pIface[pVirtIf->baseIfIdx].data.IfaceType);
+                    }
+                    else
+                    {
+                        pVirtIf->IP.Dhcp4cStatus = DHCPC_STOPPED;
+                    }
                     break;
 
                 case DHCP_CLIENT_FAILED:
@@ -217,8 +233,22 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     break;
 
                 case DHCP_CLIENT_STOPPED:
-                    CcspTraceInfo(("%s-%d : DHCPv6 client stopped for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
-                    pVirtIf->IP.Dhcp6cStatus = DHCPC_STOPPED;
+                    CcspTraceInfo(("%s-%d : DHCPv6 client stopped for %s (Dhcp6cStatus=%d)\n", __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->IP.Dhcp6cStatus));
+                    if (pVirtIf->IP.Dhcp6cStatus == DHCPC_STARTED)
+                    {
+                        /* Client was stopped externally (not by WanManager).
+                         * WanManager_StopDhcpv6Client sets Dhcp6cStatus=STOPPED
+                         * synchronously before any event arrives, so DHCPC_STARTED
+                         * here means the stop was NOT initiated by WanManager.
+                         * Restart the client to maintain IPv6 connectivity. */
+                        pVirtIf->IP.Dhcp6cStatus = DHCPC_STOPPED;
+                        CcspTraceInfo(("%s-%d : SELFHEAL - Restarting DHCPv6 client for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+                        WanManager_StartDhcpv6Client(pVirtIf, gWanMgrDataBase.IfaceCtrl.pIface[pVirtIf->baseIfIdx].data.IfaceType);
+                    }
+                    else
+                    {
+                        pVirtIf->IP.Dhcp6cStatus = DHCPC_STOPPED;
+                    }
                     break;
 
                 case DHCP_CLIENT_FAILED:
