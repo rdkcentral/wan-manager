@@ -202,6 +202,11 @@ ANSC_STATUS wanmgr_handle_dhcpv4_event_data(DML_VIRTUAL_IFACE* pVirtIf)
             snprintf(value, sizeof(value), "%d", pDhcpcInfo->upstreamCurrRate);
             sysevent_set(sysevent_fd, sysevent_token, name, value, 0);
 
+#ifndef FEATURE_RDKB_DHCP_MANAGER
+            snprintf(name, sizeof(name), SYSEVENT_IPV4_LEASE_TIME, pDhcpcInfo->dhcpcInterface);
+            snprintf(value, sizeof(value), "%d", pDhcpcInfo->leaseTime);
+            sysevent_set(sysevent_fd, sysevent_token, name, value, 0);
+#endif
 
 #if !defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
             if (pDhcpcInfo->isTimeOffsetAssigned)
