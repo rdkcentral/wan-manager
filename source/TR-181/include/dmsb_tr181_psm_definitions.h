@@ -119,5 +119,6 @@
 #define PSM_MARKING_SKBPORT                  "dmsb.wanmanager.if.%d.Marking.%s.SKBPort"
 #define PSM_MARKING_SKBMARK                  "dmsb.wanmanager.if.%d.Marking.%s.SKBMark"
 #define PSM_MARKING_ETH_PRIORITY_MASK        "dmsb.wanmanager.if.%d.Marking.%s.EthernetPriorityMark"
+#define PSM_MARKING_DSCPMARK                 "dmsb.wanmanager.if.%d.Marking.%d.DSCPMark"
 
 #endif
