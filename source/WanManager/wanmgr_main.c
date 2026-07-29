@@ -79,6 +79,7 @@
 #include <telemetry_busmessage_sender.h>
 #endif
 
+#include "wanmgr_utils.h"
 cap_user appcaps;
 
 extern char*                                pComponentName;
@@ -281,6 +282,33 @@ int main(int argc, char* argv[])
     extern ANSC_HANDLE bus_handle;
     char *subSys            = NULL;
     DmErr_t    err;
+
+    CcspTraceInfo(("2222222222222222222222222222222222222222\n"));
+
+#if 1
+    char checkfile[]="/tmp/okfile.txt";
+   if(access(checkfile, F_OK) == 0)
+   {
+         //WOW factor-start
+    CcspTraceError(("ZARUNLOG: TraceZZZZZZZZZZZZZZZZZZ: %s %d \n", __FUNCTION__, __LINE__));
+    CcspTraceError(("ZARUNLOG: TraceLOGZZZZZZZZZZZZZZZ: %s %d \n", __FUNCTION__, __LINE__));
+#if 0
+    CcspTraceError(("ZARUNLOG: TraceLOG securSYS default dev eth0: %s %d \n", __FUNCTION__, __LINE__));
+     v_secure_system("ip -6 route del default dev eth0");
+    CcspTraceError(("ZARUNLOG: TraceLOG securSYS scope flush eth0: %s %d \n", __FUNCTION__, __LINE__));
+     v_secure_system("ip -6 addr flush scope global dev eth0");
+    CcspTraceError(("ZARUNLOG: TraceLOG  BLOCKING default dev eth0: %s %d \n", __FUNCTION__, __LINE__));
+     util_runCommandInShellBlocking("ip -6 route del default dev eth0");//,"ip -6 route del default dev eth0");
+    CcspTraceError(("ZARUNLOG: TraceLOG  BLOCKING  scope eth0: %s %d \n", __FUNCTION__, __LINE__));
+     util_runCommandInShellBlocking("ip -6 addr flush scope global dev eth0");//,"ip -6 addr flush scope global dev eth0");
+#endif
+  }
+   else{
+    CcspTraceError(("YARUNLOG: TraceLOG: %s %d \n", __FUNCTION__, __LINE__));
+  }
+#endif
+
+
 
     CcspTraceInfo(("NonRoot feature is enabled, dropping root privileges for RdkWanManager Process\n"));
     init_capability();
