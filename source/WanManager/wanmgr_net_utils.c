@@ -852,10 +852,6 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody
         return ANSC_STATUS_FAILURE;
     }
 
-    //The sharing ratio cannot be zero, a value of zero means the sharing ratio is 1
-    if (dhcp6cMAPTMsgBody->ratio == 0)
-        dhcp6cMAPTMsgBody->ratio = 1;
-
 #ifdef FEATURE_MAPT_DEBUG
     WanManager_UpdateMaptLogFile(dhcp6cMAPTMsgBody);
 #endif
@@ -894,6 +890,9 @@ ANSC_STATUS WanManager_VerifyMAPTConfiguration(ipc_map_data_t *dhcp6cMAPTMsgBody
 #endif
         MaptConfig->isPSIDComputed = TRUE;
     }
+
+    /* Ownership moved from DHCPManager: Compute ratio after psidLen is resolved */
+    dhcp6cMAPTMsgBody->ratio = (MaptConfig->psidLen > 0) ? (1 << MaptConfig->psidLen) : 1;
 
     inet_pton(AF_INET, dhcp6cMAPTMsgBody->ruleIPv4Prefix, &(result));
 
