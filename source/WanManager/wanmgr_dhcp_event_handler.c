@@ -23,6 +23,7 @@
 #include "wanmgr_interface_sm.h"
 #include "wanmgr_dhcp_client_events.h"
 #include "wanmgr_net_utils.h"
+#include "wanmgr_dhcpv6_apis.h"
 #ifdef FEATURE_MAPE
 #include "wanmgr_map_apis.h"
 #endif
@@ -83,12 +84,18 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
 #ifdef FEATURE_MAPT
         "| maptAssigned        : %-40d |\n"
 #endif
+#ifdef FEATURE_DSLITE_V2
+        "| aftrName            : %-40s |\n"
+#endif
         "=================================================================\n",
         leaseInfo->ifname, leaseInfo->address, leaseInfo->nameserver, leaseInfo->nameserver1,
         leaseInfo->domainName, leaseInfo->sitePrefix, leaseInfo->prefixPltime, leaseInfo->prefixVltime,
         leaseInfo->addrAssigned, leaseInfo->prefixAssigned, leaseInfo->domainNameAssigned, leaseInfo->mapeAssigned
 #ifdef FEATURE_MAPT
         , leaseInfo->maptAssigned
+#endif
+#ifdef FEATURE_DSLITE_V2
+        , leaseInfo->aftr
 #endif
     ));
 
@@ -104,6 +111,21 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->prefixAssigned = leaseInfo->prefixAssigned;
     pDhcpv6Data->domainNameAssigned = leaseInfo->domainNameAssigned;
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
+#ifdef FEATURE_DSLITE_V2
+    strncpy(pDhcpv6Data->aftr, leaseInfo->aftr, sizeof(pDhcpv6Data->aftr) - 1);
+#endif
+    pDhcpv6Data->addrConstructedFromIAPD = false;
+    if(!pDhcpv6Data->addrAssigned && pDhcpv6Data->prefixAssigned)
+    {
+        /* In an IPv6 lease, if only IAPD is received and we never received IANA, 
+         * We can use the received IAPD to construct a Ipv6 /128 address which can be used for management and voice ...
+         * If we reach this point, only IAPD has been received. Calculate Wan Ipv6 address 
+         */
+
+        CcspTraceInfo(("IANA is not assigned by DHCPV6. Constructing WAN address from the IAPD for Wan Interface \n"));
+        wanmgr_construct_wan_address_from_IAPD(pDhcpv6Data);
+    }
+
 }
 
 /*
@@ -209,7 +231,7 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     //TODO: Check for sysevents
                     if(pVirtIf->IP.Ipv6Data.prefixAssigned == TRUE)
                     {
-                        WanManager_Ipv6PrefixUtil(pVirtIf->Name, SET_LFT, pVirtIf->IP.Ipv6Data.prefixPltime, pVirtIf->IP.Ipv6Data.prefixVltime);
+                        WanManager_Ipv6AddrUtil(pVirtIf, SET_LFT);
                         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_RADVD_RESTART, NULL, 0);
                     }
                     CcspTraceInfo(("%s-%d : DHCPv6 lease renewed for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
@@ -265,6 +287,14 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                             WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_MAPE_STOP);
                         }
                     }
+#ifdef FEATURE_DSLITE_V2
+                    if (WanMgr_DSLite_isEndpointNameChanged(pVirtIf, leaseInfo->aftr))
+                    {
+                        WanMgr_DSLite_UpdateEndPointName(pVirtIf, leaseInfo->aftr);
+                        pVirtIf->DSLite.Changed = TRUE; // sm checks this flag to take action
+                        CcspTraceInfo(("DS-Lite Endpoint name has been changed\n"));
+                    }
+#endif
 
                     char param_name[256] = {0};
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Address",  pVirtIf->baseIfIdx+1, pVirtIf->VirIfIdx+1);

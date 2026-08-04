@@ -67,6 +67,7 @@ extern int WanMgr_TriggerPrimaryDnsConnectivityRestart(void);
 #endif
 #endif
 
+
 static int isDefaultGatewayAdded = 0; //global varibale for default route status.
 static int lan_wan_started = 0;
 static int ipv4_connection_up = 0;
@@ -75,10 +76,6 @@ static void check_lan_wan_ready();
 static int set_default_conf_entry();
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 int mapt_feature_enable_changed = FALSE;
-#endif
-
-#if defined(FEATURE_IPOE_HEALTH_CHECK) && defined(IPOE_HEALTH_CHECK_LAN_SYNC_SUPPORT)
-lanState_t lanState = LAN_STATE_RESET;
 #endif
 
 #if defined(_DT_WAN_Manager_Enable_)
@@ -177,6 +174,7 @@ ANSC_STATUS wanmgr_sysevents_ipv4Info_set(const ipc_dhcpv4_data_t* dhcp4Info, co
 
     sysevent_set(sysevent_fd, sysevent_token,SYSEVENT_IPV4_TIME_ZONE, dhcp4Info->timeZone, 0);
 
+#ifndef FEATURE_RDKB_DHCP_MANAGER
     snprintf(name,sizeof(name),SYSEVENT_IPV4_DHCP_SERVER,dhcp4Info->dhcpcInterface);
     sysevent_set(sysevent_fd, sysevent_token,name, dhcp4Info->dhcpServerId,0);
 
@@ -186,6 +184,7 @@ ANSC_STATUS wanmgr_sysevents_ipv4Info_set(const ipc_dhcpv4_data_t* dhcp4Info, co
     snprintf(name,sizeof(name), SYSEVENT_IPV4_LEASE_TIME, dhcp4Info->dhcpcInterface);
     snprintf(value, sizeof(value), "%u",dhcp4Info->leaseTime);
     sysevent_set(sysevent_fd, sysevent_token,name, value, 0);
+#endif
 
     return ANSC_STATUS_SUCCESS;
 }
@@ -278,7 +277,7 @@ if ( TRUE == UseWANMACForManagementServices )
     }
 
     sysevent_set(sysevent_fd, sysevent_token,SYSEVENT_IPV4_TIME_ZONE, dhcp4Info->timeZone, 0);
-
+#ifndef FEATURE_RDKB_DHCP_MANAGER
     snprintf(name,sizeof(name),SYSEVENT_IPV4_DHCP_SERVER,dhcp4Info->ifname);
     sysevent_set(sysevent_fd, sysevent_token,name, dhcp4Info->dhcpServerId,0);
 
@@ -288,7 +287,7 @@ if ( TRUE == UseWANMACForManagementServices )
     snprintf(name,sizeof(name), SYSEVENT_IPV4_LEASE_TIME, dhcp4Info->ifname);
     snprintf(value, sizeof(value), "%u",dhcp4Info->leaseTime);
     sysevent_set(sysevent_fd, sysevent_token,name, value, 0);
-
+#endif
 #endif
     return ANSC_STATUS_SUCCESS;
 }
@@ -620,9 +619,10 @@ static void *WanManagerSyseventHandler(void *args)
     async_id_t primary_v6ipaddress_asyncid;
 #endif
 #endif
-
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_IPV6_TOGGLE, &default_route_change_event_asyncid);
+
+
 #if defined (_HUB4_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     sysevent_set_options(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_ULA_ADDRESS, TUPLE_FLAG_EVENT);
     sysevent_setnotification(sysevent_msg_fd, sysevent_msg_token, SYSEVENT_ULA_ADDRESS, &lan_ula_address_event_asyncid);
@@ -1218,7 +1218,6 @@ int Force_IPv6_toggle (char* wanInterface)
     }
 
     isDefaultGatewayAdded = 1; //Reset isDefaultGatewayAdded flag;
-    
     return ret;
 }
 

@@ -49,7 +49,7 @@
     #define ULOGF
 #endif
 
-#define COSA_DML_DHCPV6_SERVER_IFNAME                 CFG_TR181_DHCPv6_SERVER_IfName
+#define COSA_DML_DHCPV6_SERVER_IFNAME                 "brlan0"
 
 #define COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME           "tr_"DML_DHCP_CLIENT_IFNAME"_dhcpv6_client_v6pref"
 #define COSA_DML_DHCPV6C_PREF_IAID_SYSEVENT_NAME      "tr_"DML_DHCP_CLIENT_IFNAME"_dhcpv6_client_pref_iaid"
@@ -352,6 +352,29 @@ void _get_shell_output(FILE *fp, char * out, int len);
  * @return RETURN_OK on success else RETURN_ERR
  ************************************************************************************/
 int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf);
+
+/**
+ * @brief Constructs a WAN IPv6 address from the received IAPD (IA Prefix Delegation).
+ *
+ * This function extracts the IPv6 prefix and its length from the given IAPD data. It then derives
+ * a WAN IPv6 /128 address from the first available /64 within the delegated prefix and assigns the
+ * constructed WAN address to the specified WAN interface.
+ *
+ * @param[in] pIpv6DataNew Pointer to the WANMGR_IPV6_DATA structure.
+ *
+ * @return
+ * - 0 on success.
+ * - -1 on failure (e.g., invalid prefix format, prefix length > 64, or system command failure).
+ *
+ * @note The function requires a delegated prefix length of 64 or less so that a /64 can be used or
+ *       derived from the IAPD. If the prefix length is greater than 64, it logs an error and returns -1.
+ *
+ * ### Example:
+ * Given an IAPD of "2a06:5906:13:d000::/56", the function may construct the following addresses:
+ * - First /64 derived from the IAPD: "2a06:5906:13:d000::/64"
+ * - WAN IPv6 Address: "2a06:5906:13:d000::1/128"
+ */
+int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew);
 
 ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pstAddrEvent);
 
