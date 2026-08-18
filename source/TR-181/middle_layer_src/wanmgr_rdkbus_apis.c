@@ -2055,19 +2055,11 @@ ANSC_STATUS Update_Interface_Status()
                  * In Gateway Mode, CurrentActiveInterface should be an actual virtual Interface Name
                  * In Modem/Extender Mode, CurrentActiveInterface should be always Mesh Interface Name
                  */
-
                 if(pWanIfaceData->Selection.Status == WAN_IFACE_ACTIVE)
                 {
                     snprintf(newIface->CurrentActive, sizeof(newIface->CurrentActive), "%s", (devMode == GATEWAY_MODE) ? p_VirtIf->Name : MESH_IFNAME);
 #ifdef RBUS_BUILD_FLAG_ENABLE
                     snprintf(CurrentWanStatus,sizeof(CurrentWanStatus), "%s", (p_VirtIf->Status == WAN_IFACE_STATUS_UP)?"Up":"Down");
-#endif
-#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
-                    if (devMode == GATEWAY_MODE)
-                    {
-                        /* Update Only for Gateway mode. Wan IP Interface entry not added in PAM for MODEM_MODE */
-                        WanMgr_RdkBus_setWanIpInterfaceData(p_VirtIf);
-                    }
 #endif
                 }
                 else if(pWanIfaceData->Selection.Status == WAN_IFACE_SELECTED)
@@ -2195,12 +2187,26 @@ ANSC_STATUS Update_Interface_Status()
         {
             if(strcmp(pWanDmlData->CurrentActiveInterface,CurrentActiveInterface) != 0 )
             {
+                CcspTraceInfo(("%s %d -CurrentActiveInterface changed from [%s] to [%s] and DevMode=%d\n",__FUNCTION__,__LINE__,pWanDmlData->CurrentActiveInterface,CurrentActiveInterface, devMode));
                 strncpy(prevCurrentActiveInterface,pWanDmlData->CurrentActiveInterface, sizeof(prevCurrentActiveInterface) - 1);
                 memset(pWanDmlData->CurrentActiveInterface, 0, sizeof(pWanDmlData->CurrentActiveInterface));
                 strncpy(pWanDmlData->CurrentActiveInterface,CurrentActiveInterface, sizeof(pWanDmlData->CurrentActiveInterface) - 1);
 #ifdef RBUS_BUILD_FLAG_ENABLE
                 publishCurrentActiveInf = TRUE;
 #endif //RBUS_BUILD_FLAG_ENABLE
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
+                    if (devMode == GATEWAY_MODE)
+                    {
+                        DML_VIRTUAL_IFACE *pVirtIf = WanMgr_GetVIfByName_VISM_running_locked (CurrentActiveInterface);
+                        if (pVirtIf)
+                        {
+                           CcspTraceInfo (("%s: %d - Calling WanMgr_RdkBus_setWanIpInterfaceData\n", __FUNCTION__, __LINE__));
+                           /* Update Only for Gateway mode. Wan IP Interface entry not added in PAM for MODEM_MODE */
+                           WanMgr_RdkBus_setWanIpInterfaceData(pVirtIf);
+                           WanMgr_VirtualIfaceData_release (pVirtIf);
+                       }
+                    }
+#endif
             }
         }
         else
