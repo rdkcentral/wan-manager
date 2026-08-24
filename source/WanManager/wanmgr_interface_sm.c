@@ -852,6 +852,8 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
     char v6nameserver1[BUFLEN_128];
     char v6nameserver2[BUFLEN_128]; 
     bool resolv_conf_changed = FALSE;
+    char currentDomain[BUFLEN_64] = {0};
+    char desiredDomain[BUFLEN_64] = {0};
 
     if (deviceMode == GATEWAY_MODE)
     {
@@ -868,8 +870,12 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
     sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_PRIMARY, v6nameserver1, sizeof(v6nameserver1));
     sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_SECONDARY, v6nameserver2, sizeof(v6nameserver2));
 
+    // save current domain name
+    sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_IPV4_DOMAIN, currentDomain, sizeof(currentDomain));
+
     CcspTraceInfo(("%s %d: v4nameserver1 = %s v4nameserver2 = %s\n", __FUNCTION__, __LINE__, v4nameserver1, v4nameserver2));
     CcspTraceInfo(("%s %d: v6nameserver1 = %s v6nameserver2 = %s\n", __FUNCTION__, __LINE__, v6nameserver1, v6nameserver2));
+    CcspTraceInfo(("%s %d: current domain name = %s\n", __FUNCTION__, __LINE__, currentDomain));
 
     if (addIPv4 == FALSE && addIPv6 == FALSE)
     {
@@ -893,6 +899,10 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
             fclose(fp);
             Update_Interface_Status();
         }
+
+        // clear domain name sysevent
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV4_DOMAIN, "", 0);
+
         // new and curr nameservers are different, so apply configuration
         CcspTraceInfo(("%s %d: Setting %s\n", __FUNCTION__, __LINE__, SYSEVENT_DHCP_SERVER_RESTART));
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_DHCP_SERVER_RESTART, NULL, 0);
@@ -1015,11 +1025,29 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_SECONDARY, "", 0);
     }
 
+    // update domain name
+    if (addIPv4)
+    {
+        if (p_VirtIf->IP.Ipv4Data.domain[0] != '\0')
+        {
+           snprintf(desiredDomain, sizeof(desiredDomain), "%s", p_VirtIf->IP.Ipv4Data.domain);
+           CcspTraceInfo(("%s %d: Domain received from WAN = \"%s\"\n", __FUNCTION__, __LINE__, desiredDomain));
+        }
+        else
+        {
+           CcspTraceInfo(("%s %d: Domain is not received from WAN\n", __FUNCTION__, __LINE__));
+        }
+    }
+    /* else desiredDomain stays "" - covers: IPv4 is DOWN */
+
+    CcspTraceInfo(("%s %d: Setting dhcp_domain sysevent = \"%s\"\n",  __FUNCTION__, __LINE__, desiredDomain));
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV4_DOMAIN, desiredDomain, 0);
 
     if ( strcmp(p_VirtIf->IP.Ipv4Data.dnsServer, v4nameserver1) || strcmp(p_VirtIf->IP.Ipv4Data.dnsServer1, v4nameserver2)
+        || strcmp(desiredDomain, currentDomain)
         || strcmp(p_VirtIf->IP.Ipv6Data.nameserver, v6nameserver1) || strcmp (p_VirtIf->IP.Ipv6Data.nameserver1, v6nameserver2))
     {
-        // new and curr nameservers are differen, so apply configuration
+        // new and curr nameservers/domains are different, so apply configuration
         CcspTraceInfo(("%s %d: Setting %s\n", __FUNCTION__, __LINE__, SYSEVENT_DHCP_SERVER_RESTART));
         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_DHCP_SERVER_RESTART, NULL, 0);
     }
