@@ -164,7 +164,6 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     break;
 
                 case DHCP_LEASE_RENEW:
-                    // TODO: Check for sysevents
                     pVirtIf->IP.Ipv4Renewed = TRUE;
                     CcspTraceInfo(("%s-%d : DHCPv4 lease renewed for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
@@ -228,10 +227,9 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
 
                 case DHCP_LEASE_RENEW:
                     pVirtIf->IP.Ipv6Renewed = TRUE;
-                    //TODO: Check for sysevents
                     if(pVirtIf->IP.Ipv6Data.prefixAssigned == TRUE)
                     {
-                        WanManager_Ipv6AddrUtil(pVirtIf, SET_LFT);
+                        //TODO: Check lifetime update for the IANA and IAPD on the network interfaces and DHCPv6 stateful server conf.
                         sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_RADVD_RESTART, NULL, 0);
                     }
                     CcspTraceInfo(("%s-%d : DHCPv6 lease renewed for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
@@ -301,7 +299,6 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv6Data.address,RBUS_STRING);
                     snprintf(param_name, sizeof(param_name), "Device.X_RDK_WanManager.Interface.%d.VirtualInterface.%d.IP.IPv6Prefix",  pVirtIf->baseIfIdx+1, pVirtIf->VirIfIdx+1);
                     WanMgr_Rbus_EventPublishHandler(param_name, pVirtIf->IP.Ipv6Data.sitePrefix,RBUS_STRING);
-                    //TODO: Check for sysevents
                     break;
 
                 default:
