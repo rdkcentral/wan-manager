@@ -581,6 +581,24 @@ rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop
                 ret = RBUS_ERROR_INVALID_INPUT;
             }
         }
+        else if(strstr(name, WANMGR_INFACE_ALIASNAME_SUFFIX))
+        {
+            if (type == RBUS_STRING)
+            {
+                char AliasName[64] = {0};
+                char param_name[256] = {0};
+                strncpy(AliasName, rbusValue_GetString(value, NULL), sizeof(AliasName)-1);
+                _ansc_sprintf(param_name, PSM_WANMANAGER_IF_ALIAS, index);
+                strncpy(pWanDmlIface->AliasName, AliasName, sizeof(pWanDmlIface->AliasName)-1);
+                WanMgr_RdkBus_SetParamValuesToDB(param_name, AliasName);
+                CcspTraceInfo(("%s-%d : Interface AliasName changed to %s\n", __FUNCTION__, __LINE__, AliasName));
+            }
+            else
+            {
+                ret = RBUS_ERROR_INVALID_INPUT;
+            }
+        }
+
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
     }
     return ret;
