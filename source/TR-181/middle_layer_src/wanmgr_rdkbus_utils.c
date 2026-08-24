@@ -967,6 +967,73 @@ ANSC_STATUS WanMgr_RdkBus_setDhcpv6DnsServerInfo(void)
     return retStatus;
 }
 #if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
+/* WanMgr_RdkBus_GetEthLinkInstanceForIfname()
+ * Finds the Device.Ethernet.Link.{i} instance associated with the active interface
+ * name from PSM EthLink entries. */
+
+#define PSM_ETHLINK_ROOT "dmsb.EthLink."
+#define PSM_ETHLINK_NAME_FMT "dmsb.EthLink.%d.Name"
+
+static ANSC_STATUS WanMgr_RdkBus_GetEthLinkInstanceForIfname (const char *ifname, INT *piInstanceNumber)
+{
+  char acParamName[BUFLEN_256] = { 0 };
+  unsigned int ulNumInstance = 0;
+  unsigned int *pInstanceArray = NULL;
+  unsigned int ulRecordType = 0;
+  unsigned int i = 0;
+  char *pValue = NULL;
+  int ret;
+
+  if ((ifname == NULL) || (piInstanceNumber == NULL))
+  {
+      CcspTraceError (("%s: Invalid arguments. ifname=%p piInstanceNumber=%p\n", __FUNCTION__, ifname, piInstanceNumber));
+      return ANSC_STATUS_FAILURE;
+  }
+
+  *piInstanceNumber = -1;
+  ret = PsmGetNextLevelInstances (bus_handle, g_Subsystem, PSM_ETHLINK_ROOT, &ulNumInstance, &pInstanceArray);
+  if ((ret != CCSP_SUCCESS) || (pInstanceArray == NULL))
+  {
+      CcspTraceError (("%s: PsmGetNextLevelInstances failed ret=%d numInstances=%u instanceArray=%p\n", __FUNCTION__, ret, ulNumInstance, pInstanceArray));
+      return ANSC_STATUS_FAILURE;
+  }
+  CcspTraceInfo (("%s: Found %u EthLink instances in PSM\n", __FUNCTION__, ulNumInstance));
+
+  for (i = 0; i < ulNumInstance; i++)
+  {
+      memset (acParamName, 0, sizeof (acParamName));
+      snprintf (acParamName, sizeof (acParamName), PSM_ETHLINK_NAME_FMT, pInstanceArray[i]);
+
+      pValue = NULL;
+      ulRecordType = 0;
+      ret = PSM_Get_Record_Value2 (bus_handle, g_Subsystem, acParamName, &ulRecordType, &pValue);
+
+      if ((ret != CCSP_SUCCESS) || (pValue == NULL) || (ulRecordType != ccsp_string))
+      {
+          CcspTraceError (("%s: Failed to read PSM key %s ret=%d recordType=%u value=%p\n",  __FUNCTION__, acParamName, ret, ulRecordType, pValue));
+          if (pValue)
+          {
+              ((CCSP_MESSAGE_BUS_INFO *)bus_handle)->freefunc (pValue);
+          }
+          continue;
+      }
+
+      if (strcmp (pValue, ifname) == 0)
+      {
+          *piInstanceNumber = pInstanceArray[i];
+          CcspTraceInfo (("%s: Match found. ifname='%s' instance=%d\n", __FUNCTION__, ifname, *piInstanceNumber));
+          ((CCSP_MESSAGE_BUS_INFO *)bus_handle)->freefunc (pValue);
+          AnscFreeMemory (pInstanceArray);
+          return ANSC_STATUS_SUCCESS;
+      }
+      ((CCSP_MESSAGE_BUS_INFO *)bus_handle)->freefunc (pValue);
+    }
+
+    CcspTraceError (("%s: No EthLink instance found for ifname='%s'\n", __FUNCTION__, ifname));
+    AnscFreeMemory (pInstanceArray);
+    return ANSC_STATUS_FAILURE;
+}
+
 ANSC_STATUS WanMgr_RdkBus_setWanIpInterfaceData(DML_VIRTUAL_IFACE*  pVirtIf)
 {
     ANSC_STATUS retStatus = ANSC_STATUS_SUCCESS;
@@ -980,6 +1047,24 @@ ANSC_STATUS WanMgr_RdkBus_setWanIpInterfaceData(DML_VIRTUAL_IFACE*  pVirtIf)
     {
         retStatus = WanMgr_RdkBus_SetParamValues( PAM_COMPONENT_NAME, PAM_DBUS_PATH, dmQuery, pVirtIf->VLAN.CurrentVlan, ccsp_string, TRUE );
         CcspTraceInfo(("%s %d - Updating %s => %s\n", __FUNCTION__, __LINE__,dmQuery,pVirtIf->VLAN.CurrentVlan));
+    }
+    else
+    {
+        /* EthWAN:
+         * Resolves the Ethernet Link instance i for the active WAN interface (eg: ethWAN) and updates
+         * Device.IP.Interface.X.LowerLayers to point to the corresponding Device.Ethernet.Link.{i}. */
+        INT ethLinkInst = -1;
+        if ( (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_GetEthLinkInstanceForIfname(pVirtIf->Name, &ethLinkInst)) && (ethLinkInst > 0) )
+        {
+            char ethLinkPath[BUFLEN_64] = {0};
+            snprintf(ethLinkPath, sizeof(ethLinkPath), "Device.Ethernet.Link.%d", ethLinkInst);
+            retStatus = WanMgr_RdkBus_SetParamValues( PAM_COMPONENT_NAME, PAM_DBUS_PATH, dmQuery, ethLinkPath, ccsp_string, TRUE );
+            CcspTraceInfo(("%s %d - Updating %s => %s\n", __FUNCTION__, __LINE__, dmQuery, ethLinkPath));
+        }
+        else
+        {
+            CcspTraceWarning(("%s %d - Failed to resolve Device.Ethernet.Link instance for '%s'; %s not updated\n", __FUNCTION__, __LINE__, pVirtIf->Name, dmQuery));
+        }
     }
     return retStatus;
 }
