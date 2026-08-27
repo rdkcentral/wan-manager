@@ -1035,6 +1035,25 @@ ANSC_STATUS WanMgr_WanIfaceMarkingInit ()
                             token = strtok( NULL, "-" );
                             continue;
                         }
+
+                        //Get DSCPMark from PSM
+                        memset( acPSMQuery, 0, sizeof( acPSMQuery ) );
+                        memset( acPSMValue, 0, sizeof( acPSMValue ) );
+
+                        snprintf( acPSMQuery, sizeof( acPSMQuery ), PSM_MARKING_DSCPMARK, ulIfInstanceNumber, acTmpMarkingData );
+                        if ( ( CCSP_SUCCESS == DmlWanGetPSMRecordValue( acPSMQuery, acPSMValue ) ) && \
+                             ( strlen( acPSMValue ) > 0 ) )
+                        {
+                            snprintf( p_Marking->DSCPMark, sizeof( p_Marking->DSCPMark ), "%s", acPSMValue );
+                        }
+                        else
+                        {
+                            WanMgr_RemoveMarkingEntryFromPSMList(acOldMarkingList, acTmpMarkingData, ulIfInstanceNumber);
+                            CcspTraceInfo(("%s %d - PSM entry for DSCPMark Failed. Don't add Marking table Entry for token: (%s)\n", __FUNCTION__, __LINE__, token));
+                            token = strtok( NULL, "-" );
+                            continue;
+                        }
+
                     /* Insert into marking table */
                     snprintf(aTableName, sizeof(aTableName), MARKING_TABLE, ulIfInstanceNumber);
                     if (CCSP_SUCCESS == CcspBaseIf_AddTblRow(bus_handle,WAN_COMPONENT_NAME,WAN_DBUS_PATH, 0, aTableName,&ulInstanceNumber))

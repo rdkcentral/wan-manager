@@ -2833,6 +2833,20 @@ ULONG Marking_GetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, char
         }
     }
 
+    if (strcmp(ParamName, "DSCPMark") == 0)
+    {
+        if ( AnscSizeOfString(p_Marking->DSCPMark) < *pUlSize)
+        {
+            AnscCopyString(pValue, p_Marking->DSCPMark);
+            return 0;
+        }
+        else
+        {
+            *pUlSize = AnscSizeOfString(p_Marking->DSCPMark)+1;
+            return 1;
+        }
+    }
+
     /* CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName)); */
     return -1;
 }
@@ -2994,6 +3008,12 @@ BOOL Marking_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, char*
         ret = TRUE;
     }
 
+    if (strcmp(ParamName, "DSCPMark") == 0)
+    {
+        AnscCopyString(p_Marking->DSCPMark, pString);
+        ret = TRUE;
+    }
+
     /* CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName)); */
     return ret;
 }
@@ -3072,6 +3092,7 @@ ULONG Marking_Commit(ANSC_HANDLE hInsContext)
             p_Marking->SKBPort = 0;
             p_Marking->SKBMark = 0;
             p_Marking->EthernetPriorityMark = -1;
+            memset( p_Marking->DSCPMark, 0, sizeof( p_Marking->DSCPMark ) );
         }
     }
     else
