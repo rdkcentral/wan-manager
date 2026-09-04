@@ -157,7 +157,7 @@ typedef struct _idm_invoke_method_Params
     char param_value[2048];
     uint timeout;
     enum dataType_e type;
-    rbusMethodAsyncHandle_t asyncHandle;
+    rbusMethodAsyncRespHandler_t asyncHandle;
 }idm_invoke_method_Params_t;
 
 /***********************************************************************
