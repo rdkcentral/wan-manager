@@ -104,6 +104,18 @@ void WanManager_DoSystemAction(const char* from, char *cmd);
  * @return status of system() call.
  ***************************************************************************/
 int WanManager_DoSystemActionWithStatus(const char* from, char *cmd);
+
+/***************************************************************************
+ * @brief Validates that a candidate network interface name only contains
+ *        characters that are safe to embed in shell commands (ifconfig/ip/etc).
+ *        Used at DML/RBUS/webconfig set boundaries to reject names that could
+ *        otherwise be used for shell command injection.
+ * @param name candidate interface name string
+ * @return true if name is non-empty, within IFNAMSIZ bounds and made up only
+ *         of [A-Za-z0-9._:-] characters; false otherwise.
+ ***************************************************************************/
+bool WanManager_IsValidIfaceName(const char *name);
+
 /***************************************************************************
  * @brief API used to collect all the zombie processes
  * @param pid pid of the application

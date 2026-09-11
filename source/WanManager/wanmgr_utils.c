@@ -691,6 +691,42 @@ int WanManager_DoSystemActionWithStatus(const char *from, char *cmd)
     return util_runCommandInShellBlocking(cmd);
 }
 
+bool WanManager_IsValidIfaceName(const char *name)
+{
+    size_t len;
+    size_t i;
+
+    if (IS_EMPTY_STRING(name))
+    {
+        return false;
+    }
+
+    len = strlen(name);
+
+    /* Linux kernel interface names are limited to IFNAMSIZ-1 (15) characters */
+    if (len > 15)
+    {
+        return false;
+    }
+
+    /* leading '-' could be parsed as a command option by downstream CLI tools */
+    if (name[0] == '-')
+    {
+        return false;
+    }
+
+    for (i = 0; i < len; i++)
+    {
+        if (!isalnum((unsigned char)name[i]) && name[i] != '.' && name[i] != '-' &&
+            name[i] != '_' && name[i] != ':')
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void WanManager_DoSystemAction(const char *from, char *cmd)
 {
     if (RETURN_OK != WanManager_DoSystemActionWithStatus(from, cmd))

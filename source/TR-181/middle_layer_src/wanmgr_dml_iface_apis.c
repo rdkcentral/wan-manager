@@ -330,8 +330,15 @@ BOOL WanIf_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, char* p
             /* check the parameter name and set the corresponding value */
             if (strcmp(ParamName, "Name") == 0)
             {
-                AnscCopyString(pWanDmlIface->Name, pString);
-                ret = TRUE;
+                if (WanManager_IsValidIfaceName(pString))
+                {
+                    AnscCopyString(pWanDmlIface->Name, pString);
+                    ret = TRUE;
+                }
+                else
+                {
+                    CcspTraceError(("%s %d - Rejected invalid interface name '%s'\n", __FUNCTION__, __LINE__, pString));
+                }
             }
 
             if (strcmp(ParamName, "CustomConfigPath") == 0)
@@ -1186,11 +1193,18 @@ BOOL WanIfCfg_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, char
             /* check the parameter name and set the corresponding value */
             if (strcmp(ParamName, "Name") == 0)
             {
-                AnscCopyString(pWanDmlIface->VirtIfList->Name, pString);
+                if (WanManager_IsValidIfaceName(pString))
+                {
+                    AnscCopyString(pWanDmlIface->VirtIfList->Name, pString);
 #if defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_)
-                WanMgr_SetRestartWanInfo(WAN_NAME_PARAM_NAME, pWanDmlIface->uiIfaceIdx, pString);
+                    WanMgr_SetRestartWanInfo(WAN_NAME_PARAM_NAME, pWanDmlIface->uiIfaceIdx, pString);
 #endif
-                ret = TRUE;
+                    ret = TRUE;
+                }
+                else
+                {
+                    CcspTraceError(("%s %d - Rejected invalid interface name '%s'\n", __FUNCTION__, __LINE__, pString));
+                }
             }
 
             WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
