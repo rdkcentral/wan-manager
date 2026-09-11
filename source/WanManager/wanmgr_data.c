@@ -1265,6 +1265,14 @@ ANSC_STATUS WanMgr_UpdatePrevData ()
             WanMgr_RestartUpdateCfg_Bool (WAN_ENABLE_OPER_STATUS_MONITOR_PARAM_NAME, uiLoopCount, &pWanIfaceData->MonitorOperStatus);
             WanMgr_RestartUpdateCfg (WAN_CUSTOM_CONFIG_PATH_PARAM_NAME, uiLoopCount, pWanIfaceData->CustomConfigPath, sizeof(pWanIfaceData->CustomConfigPath));
             WanMgr_RestartUpdateCfg (WAN_NAME_PARAM_NAME, uiLoopCount, pWanIfaceData->VirtIfList->Name, sizeof(pWanIfaceData->VirtIfList->Name));
+            if (!WanManager_IsValidIfaceName(pWanIfaceData->VirtIfList->Name))
+            {
+                if (pWanIfaceData->VirtIfList->Name[0] != '\0')
+                {
+                    CcspTraceError(("%s %d - Discarding invalid interface name '%s' restored from boot info db\n", __FUNCTION__, __LINE__, pWanIfaceData->VirtIfList->Name));
+                }
+                memset(pWanIfaceData->VirtIfList->Name, 0, sizeof(pWanIfaceData->VirtIfList->Name));
+            }
 #endif            
             WanMgr_GetBaseInterfaceStatus(pWanIfaceData);
             
