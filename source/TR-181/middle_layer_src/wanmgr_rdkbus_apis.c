@@ -286,7 +286,14 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_NAME, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    AnscCopyString(pVirtIf->Name, param_value);
+    if (WanManager_IsValidIfaceName(param_value))
+    {
+        AnscCopyString(pVirtIf->Name, param_value);
+    }
+    else if (param_value[0] != '\0')
+    {
+        CcspTraceError(("%s %d - Discarding invalid interface name '%s' loaded from PSM\n", __FUNCTION__, __LINE__, param_value));
+    }
 
     _ansc_memset(param_name, 0, sizeof(param_name));
     _ansc_memset(param_value, 0, sizeof(param_value));

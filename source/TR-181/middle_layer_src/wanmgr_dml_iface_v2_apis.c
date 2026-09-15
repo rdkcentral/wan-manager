@@ -405,8 +405,15 @@ BOOL WanIf_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, char* p
             /* check the parameter name and set the corresponding value */
             if (strcmp(ParamName, "Name") == 0)
             {
-                AnscCopyString(pWanDmlIface->Name, pString);
-                ret = TRUE;
+                if (WanManager_IsValidIfaceName(pString))
+                {
+                    AnscCopyString(pWanDmlIface->Name, pString);
+                    ret = TRUE;
+                }
+                else
+                {
+                    CcspTraceError(("%s %d - Rejected invalid interface name '%s'\n", __FUNCTION__, __LINE__, pString));
+                }
             }
 #if !RBUS_BUILD_FLAG_ENABLE
             if (strcmp(ParamName, "Alias") == 0)
@@ -1782,11 +1789,18 @@ BOOL WanVirtualIf_SetParamStringValue(ANSC_HANDLE hInsContext, char* ParamName, 
         /* check the parameter name and set the corresponding value */
         if (strcmp(ParamName, "Name") == 0)
         {
-            AnscCopyString(p_VirtIf->Name, pString);
+            if (WanManager_IsValidIfaceName(pString))
+            {
+                AnscCopyString(p_VirtIf->Name, pString);
 #if defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_)
-            WanMgr_SetRestartWanInfo(WAN_NAME_PARAM_NAME, p_VirtIf->VirIfIdx, pString);
+                WanMgr_SetRestartWanInfo(WAN_NAME_PARAM_NAME, p_VirtIf->VirIfIdx, pString);
 #endif
-            ret = TRUE;
+                ret = TRUE;
+            }
+            else
+            {
+                CcspTraceError(("%s %d - Rejected invalid interface name '%s'\n", __FUNCTION__, __LINE__, pString));
+            }
         }
         WanMgr_VirtualIfaceData_release(p_VirtIf);
     }
