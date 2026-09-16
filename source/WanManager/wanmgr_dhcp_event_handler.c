@@ -186,6 +186,8 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
 
                     copyDhcpv4Data(&(pVirtIf->IP.Ipv4Data), &(eventData->lease.v4));
                     pVirtIf->IP.Ipv4Changed = TRUE;
+                    CcspTraceInfo(("%s %d - IPv4 - RestartConnectivityCheck triggered. \n", __FUNCTION__, __LINE__));
+                    pVirtIf->IP.RestartConnectivityCheck = TRUE;
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
 
                     char param_name[256] = {0};
@@ -238,6 +240,8 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     DHCP_MGR_IPV6_MSG* leaseInfo = &(eventData->lease.v6);
                     copyDhcpv6Data(&(pVirtIf->IP.Ipv6Data), leaseInfo);
                     pVirtIf->IP.Ipv6Changed = TRUE;
+                    CcspTraceInfo(("%s %d - IPv6 - RestartConnectivityCheck triggered. \n", __FUNCTION__, __LINE__));
+                    pVirtIf->IP.RestartConnectivityCheck = TRUE;
                     //TODO : WAN ip creation from IA_PD if required. address assignment on LAN bridge.
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_IPV6_UP);
 

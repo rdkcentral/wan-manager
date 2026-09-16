@@ -1892,8 +1892,11 @@ static ANSC_STATUS WanMgr_StartConnectivityCheck(WanMgr_IfaceSM_Controller_t* pW
     if(pVirtIf->IP.ConnectivityCheckType == WAN_CONNECTIVITY_TYPE_TAD)
     {
         CcspTraceInfo(("%s %d ConnectivityCheck Type is TAD \n", __FUNCTION__, __LINE__));
-        WanMgr_Configure_TAD_WCC( pVirtIf, (pVirtIf->IP.ConnectivityCheckRunning && pVirtIf->IP.RestartConnectivityCheck) ? WCC_RESTART : WCC_START);
-        pVirtIf->IP.ConnectivityCheckRunning = TRUE;    
+        if ( WanMgr_Configure_TAD_WCC( pVirtIf, (pVirtIf->IP.ConnectivityCheckRunning && pVirtIf->IP.RestartConnectivityCheck) ? WCC_RESTART : WCC_START) == ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s %d - Successfully configured TAD WCC for interface %s \n", __FUNCTION__, __LINE__, pVirtIf->Name));
+            pVirtIf->IP.ConnectivityCheckRunning = TRUE;    
+        }
     }
     else if(pVirtIf->IP.ConnectivityCheckType == WAN_CONNECTIVITY_TYPE_IHC)
     {
