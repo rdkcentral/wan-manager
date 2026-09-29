@@ -84,6 +84,9 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
 #ifdef FEATURE_MAPT
         "| maptAssigned        : %-40d |\n"
 #endif
+#ifdef FEATURE_DSLITE_V2
+        "| aftrName            : %-40s |\n"
+#endif
         "=================================================================\n",
         leaseInfo->ifname, leaseInfo->address, leaseInfo->nameserver, leaseInfo->nameserver1,
         leaseInfo->domainName, leaseInfo->sitePrefix, leaseInfo->prefixPltime, leaseInfo->prefixVltime,
