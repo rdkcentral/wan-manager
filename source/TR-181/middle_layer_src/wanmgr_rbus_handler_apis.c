@@ -1960,9 +1960,10 @@ ANSC_STATUS WanMgr_Configure_TAD_WCC(DML_VIRTUAL_IFACE *p_VirtIf,  WCC_EVENT Eve
     int                      iErrorCode     = 0;
 
 
-    if(Event != WCC_STOP && ((p_VirtIf->IP.Ipv4Data.dnsServer[0] == '\0') && (p_VirtIf->IP.Ipv4Data.dnsServer1[0] == '\0') &&
-      (p_VirtIf->IP.Ipv6Data.nameserver[0] == '\0') && (p_VirtIf->IP.Ipv6Data.nameserver1[0] == '\0')) ||
-      ((p_VirtIf->IP.Ipv6RA.acDefaultGw[0] == '\0') && (p_VirtIf->IP.Ipv4Data.gateway[0] == '\0')))
+    if (Event != WCC_STOP &&
+        (((p_VirtIf->IP.Ipv4Data.dnsServer[0] == '\0') && (p_VirtIf->IP.Ipv4Data.dnsServer1[0] == '\0') &&
+          (p_VirtIf->IP.Ipv6Data.nameserver[0] == '\0') && (p_VirtIf->IP.Ipv6Data.nameserver1[0] == '\0')) ||
+         ((p_VirtIf->IP.Ipv6RA.acDefaultGw[0] == '\0') && (p_VirtIf->IP.Ipv4Data.gateway[0] == '\0'))))
     {
         CcspTraceError(("%s %d: DNS servers are not configured. (TAD) DNS health check not triggered\n",__FUNCTION__, __LINE__));
         return ANSC_STATUS_FAILURE;
