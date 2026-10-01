@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <ifaddrs.h>
+#include <linux/if_addr.h>
 #include <sys/syscall.h>
 #include "wanmgr_interface_sm.h"
 #include "wanmgr_utils.h"
@@ -1033,6 +1034,51 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
 }
 
 
+static int WanMgr_IsIpv6DADComplete(const char *ifName)
+{
+    char address[33] = {0};
+    char device[64] = {0};
+    char line[BUFLEN_128] = {0};
+    int addressFound = 0;
+    int dadIncomplete = 0;
+    unsigned int ifIndex = 0;
+    unsigned int prefixLength = 0;
+    unsigned int scope = 0;
+    unsigned int flags = 0;
+    FILE *fp = NULL;
+
+    if (ifName == NULL || ifName[0] == '\0')
+    {
+        return 0;
+    }
+
+    fp = fopen("/proc/net/if_inet6", "r");
+
+    if (fp == NULL)
+    {
+        CcspTraceError(("%s %d - Failed to open /proc/net/if_inet6: %s\n",
+                       __FUNCTION__, __LINE__, strerror(errno)));
+        return 0;
+    }
+
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
+        if (sscanf(line, "%32s %x %x %x %x %63s", address, &ifIndex,
+                   &prefixLength, &scope, &flags, device) == 6 &&
+            strcmp(device, ifName) == 0)
+        {
+            addressFound = 1;
+            if ((flags & (IFA_F_TENTATIVE | IFA_F_DADFAILED)) != 0)
+            {
+                dadIncomplete = 1;
+            }
+        }
+    }
+
+    fclose(fp);
+    return addressFound && !dadIncomplete;
+}
+
 /**
  * @brief Checks if the IPv6 address is ready to use.
  *
@@ -1060,30 +1106,13 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
 
     for(int i=0; i<15; i++) 
     {
-        buffer[0] = '\0';
-        if(dad_flag == 0) 
+        if (WanMgr_IsIpv6DADComplete(p_VirtIf->Name))
         {
-            if ((fp_dad = v_secure_popen("r","ip address show dev %s tentative", p_VirtIf->Name))) 
-            {
-                if(fp_dad != NULL) 
-                {
-                    fgets(buffer, BUFLEN_256, fp_dad);
-                    if(strlen(buffer) == 0 ) 
-                    {
-                        dad_flag = 1;
-                    }
-                    v_secure_pclose(fp_dad);
-                }
-            }
-        }
-        if(dad_flag == 0) 
-        {
-            sleep(1);
-        }
-        else 
-        {
+            dad_flag = 1;
             break;
         }
+
+        sleep(1);
     }
 
     buffer[0] = '\0';
@@ -1892,8 +1921,11 @@ static ANSC_STATUS WanMgr_StartConnectivityCheck(WanMgr_IfaceSM_Controller_t* pW
     if(pVirtIf->IP.ConnectivityCheckType == WAN_CONNECTIVITY_TYPE_TAD)
     {
         CcspTraceInfo(("%s %d ConnectivityCheck Type is TAD \n", __FUNCTION__, __LINE__));
-        WanMgr_Configure_TAD_WCC( pVirtIf, (pVirtIf->IP.ConnectivityCheckRunning && pVirtIf->IP.RestartConnectivityCheck) ? WCC_RESTART : WCC_START);
-        pVirtIf->IP.ConnectivityCheckRunning = TRUE;    
+        if ( WanMgr_Configure_TAD_WCC( pVirtIf, (pVirtIf->IP.ConnectivityCheckRunning && pVirtIf->IP.RestartConnectivityCheck) ? WCC_RESTART : WCC_START) == ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s %d - Successfully configured TAD WCC for interface %s \n", __FUNCTION__, __LINE__, pVirtIf->Name));
+            pVirtIf->IP.ConnectivityCheckRunning = TRUE;    
+        }
     }
     else if(pVirtIf->IP.ConnectivityCheckType == WAN_CONNECTIVITY_TYPE_IHC)
     {
