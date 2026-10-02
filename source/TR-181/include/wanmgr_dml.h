@@ -266,6 +266,7 @@ typedef struct _DML_MARKING
     UINT       SKBPort;
     UINT       SKBMark;
     INT        EthernetPriorityMark;
+    CHAR       DSCPMark[BUFLEN_64];
 } DML_MARKING;
 
 typedef struct _DATAMODEL_MARKING
