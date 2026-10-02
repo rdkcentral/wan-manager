@@ -413,13 +413,13 @@ int WanManager_RestartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceT
     {
         CcspTraceInfo(("%s %d - Successfully set [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
         pVirtIf->IP.Dhcp6cStatus = DHCPC_STARTED;
-        CcspTraceInfo(("%s %d - ReStarted dhcpv4 client on interface %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
+        pVirtIf->IP.Dhcp6cPid = 1; // Set a dummy value to indicate dhcp client is started
+        CcspTraceInfo(("%s %d - ReStarted dhcpv6 client on interface %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
     }
     else
     {
         CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
     }
-    pVirtIf->IP.Dhcp4cPid = 1; //Set a dummy value to indicate dhcp client is started
     return 0;
 #endif
     // Stop the DHCPv6 client

@@ -2385,13 +2385,20 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
         wan_transition_ipv4_down(pWanIfaceCtrl);
     }
 
+    /* Delayed DHCP_LEASE_DEL and DHCPC_STOPPED events can clear the IPv6 and
+     * DHCPv6 statuses after WanManager has started a new client. If the
+     * interface then goes down (for example, during an ONT connect/disconnect),
+     * stop the running client because its socket is no longer valid.
+     * Same issue can happen for ipv4 case also.
+     */
+
     if(p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP)
     {
         wan_transition_ipv6_down(pWanIfaceCtrl);
     }
 
     /* Stops DHCPv4 client */
-    if(p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED)
+    if(p_VirtIf->IP.Dhcp4cStatus == DHCPC_STARTED || p_VirtIf->IP.Dhcp4cPid > 0)
     {
         // v4 config is teared down if already configured, stop DHCPv4 client if running without RELEASE
         CcspTraceInfo(("%s %d: Stopping DHCP v4\n", __FUNCTION__, __LINE__));
@@ -2399,7 +2406,7 @@ static eWanState_t wan_transition_physical_interface_down(WanMgr_IfaceSM_Control
     }
 
     /* Stops DHCPv6 client */
-    if(p_VirtIf->IP.Dhcp6cStatus == DHCPC_STARTED)
+    if(p_VirtIf->IP.Dhcp6cStatus == DHCPC_STARTED || p_VirtIf->IP.Dhcp6cPid > 0)
     {
         // v6 config is teared down if already configured, stop DHCPv6 client if running without RELEASE
         CcspTraceInfo(("%s %d: Stopping DHCP v6\n", __FUNCTION__, __LINE__));
