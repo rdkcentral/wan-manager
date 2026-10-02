@@ -55,6 +55,7 @@
 #define SYSEVENT_FIELD_IPV4_DNS_SECONDARY     "ipv4_dns_1"
 #define SYSEVENT_IPV4_GW_NUMBER "ipv4_%s_gw_number"
 #define SYSEVENT_IPV4_GW_ADDRESS "ipv4_%s_gw_0"
+#define SYSEVENT_IPV4_DOMAIN "dhcp_domain"
 #define SYSEVENT_VENDOR_CLASS "vendor_class"
 #define SYSEVENT_IPV4_DEFAULT_ROUTER "default_router"
 #define SYSEVENT_IPV4_TIME_OFFSET "ipv4-timeoffset"
