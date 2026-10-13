@@ -211,7 +211,7 @@ static ANSC_STATUS WanManager_ClearDHCPData(DML_VIRTUAL_IFACE * pVirtIf);
  * lan ipv6 address ready to use.
  * @return RETURN_OK on success else RETURN_ERR
  *************************************************************************************/
-static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf);
+static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE IfaceType);
 
 #ifdef FEATURE_DSLITE_V2
 /*************************************************************************************
@@ -1111,6 +1111,30 @@ static int WanMgr_IsIpv6DADComplete(const char *ifName)
     return addressFound && !dadIncomplete;
 }
 
+/*
+ * Force the kernel to restart Duplicate Address Detection (DAD) for the WAN IPv6
+ * address by removing it and adding it back on the same interface.
+ */
+static void WanMgr_Ipv6DadRecovery_ReaddAddress(DML_VIRTUAL_IFACE* p_VirtIf)
+{
+    char cmdLine[BUFLEN_256] = {0};
+
+    if (p_VirtIf->IP.Ipv6Data.address[0] == '\0')
+    {
+        return;
+    }
+
+    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+    WanManager_DoSystemActionWithStatus("checkIpv6AddressIsReadyToUse: DAD recovery - delete address", cmdLine);
+
+    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+    if (WanManager_DoSystemActionWithStatus("checkIpv6AddressIsReadyToUse: DAD recovery - re-add address", cmdLine) != 0)
+    {
+        CcspTraceError(("%s %d - Failed to re-add IPv6 address %s on '%s' during DAD recovery\n",
+                       __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
+    }
+}
+
 /**
  * @brief Checks if the IPv6 address is ready to use.
  *
@@ -1118,13 +1142,17 @@ static int WanMgr_IsIpv6DADComplete(const char *ifName)
  * failure, and verifies that a default route is present.
  * If the default route is missing, it triggers a Router Solicitation.
  *
+ * If DAD does not complete within 15 seconds, the address is deleted and re-added to force
+ * a fresh DAD cycle. If DAD still hasn't completed 15 seconds after that, the DHCPv6 client
+ * is restarted on the interface to recover.
+ *
  * @param p_VirtIf Pointer to the virtual interface structure.
+ * @param IfaceType Type of the base WAN interface, needed to restart the DHCPv6 client.
  * @return int 0 on success, negative value on failure.
  */
-static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
+static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE IfaceType)
 {
     char buffer[BUFLEN_256] = {0};
-    FILE *fp_dad       = NULL;
     FILE *fp_route     = NULL;
     int dad_flag       = 0;
     int route_flag     = 0;
@@ -1147,6 +1175,38 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
         sleep(1);
     }
 
+    if (dad_flag == 0 && p_VirtIf->IP.Ipv6DadRecoveryAttempted == FALSE)
+    {
+        CcspTraceError(("%s %d - DAD check failed for %s on '%s' after 15 sec, deleting and re-adding the address to recover\n",
+                       __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
+
+        WanMgr_Ipv6DadRecovery_ReaddAddress(p_VirtIf);
+        p_VirtIf->IP.Ipv6DadRecoveryAttempted = TRUE;
+
+        for(int i=0; i<15; i++)
+        {
+            if (WanMgr_IsIpv6DADComplete(p_VirtIf->Name))
+            {
+                dad_flag = 1;
+                break;
+            }
+
+            sleep(1);
+        }
+
+        if (dad_flag == 0)
+        {
+            CcspTraceError(("%s %d - DAD still failing for %s on '%s' after address recovery, restarting DHCPv6 client with release\n",
+                           __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
+            WanManager_RestartDhcpv6Client(p_VirtIf, IfaceType);
+        }
+    }
+
+    if (dad_flag == 1)
+    {
+        p_VirtIf->IP.Ipv6DadRecoveryAttempted = FALSE;
+    }
+
     buffer[0] = '\0';
     char cmd[128];
     snprintf(cmd, sizeof(cmd), "ip -6 ro show default dev %s", p_VirtIf->Name);
@@ -1160,7 +1220,6 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf)
         }
     }
 
-    //if DAD failed on WAN interface, log an ERROR message and continue with the WAN process.
     if(dad_flag == 0 || route_flag == 0) 
     {
         CcspTraceError(("%s %d dad_flag[%s] route_flag[%s] Failed \n", __FUNCTION__, __LINE__, dad_flag ? "SUCCESS" : "FAILED", route_flag ? "SUCCESS" : "FAILED"));
@@ -1754,7 +1813,7 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
      * On a lease change the address is flushed and re-added, which restarts DAD;
      * restarting sshd/dropbear while the address is still tentative makes the bind
      * fail with "Cannot assign requested address", leaving reverse SSH IPv4-only. */
-    if (checkIpv6AddressIsReadyToUse(p_VirtIf) != RETURN_OK)
+    if (checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) != RETURN_OK)
     {
         CcspTraceError(("%s %d - IPv6 address not ready (DAD/route) on %s before restarting services\n",
                        __FUNCTION__, __LINE__, p_VirtIf->Name));
@@ -4185,7 +4244,7 @@ static eWanState_t wan_state_obtaining_ip_addresses(WanMgr_IfaceSM_Controller_t*
                 p_VirtIf->IP.Ipv6Changed = FALSE;
                 return WAN_STATE_OBTAINING_IP_ADDRESSES;
             }
-            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) == RETURN_OK)
             {
                 return wan_transition_ipv6_up(pWanIfaceCtrl);
             }
@@ -4256,7 +4315,7 @@ static eWanState_t wan_state_standby(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl)
                 }
                 p_VirtIf->IP.Ipv6Changed = FALSE;
             }
-            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) == RETURN_OK)
             {
                 ret = wan_transition_ipv6_up(pWanIfaceCtrl);
                 CcspTraceInfo((" %s %d - IPv6 Address Assigned to Bridge Yet.\n", __FUNCTION__, __LINE__));
@@ -4365,7 +4424,7 @@ static eWanState_t wan_state_ipv4_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             p_VirtIf->IP.Ipv6Changed = FALSE;
             return WAN_STATE_IPV4_LEASED;
         }
-        if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+        if (checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) == RETURN_OK)
         {
             return wan_transition_ipv6_up(pWanIfaceCtrl);
         }
@@ -4473,7 +4532,7 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     }
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
     else if (pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
-             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6AddressIsReadyToUse(p_VirtIf) ==RETURN_OK)
+             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) ==RETURN_OK)
               || (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE && p_VirtIf->Status == WAN_IFACE_STATUS_UP && p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)))
     {
         CcspTraceInfo(("%s %d - calling wan_transition_map_up \n", __FUNCTION__, __LINE__));
@@ -4500,7 +4559,7 @@ static eWanState_t wan_state_ipv6_leased(WanMgr_IfaceSM_Controller_t* pWanIfaceC
     {
         if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_DOWN)
         {
-            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) == RETURN_OK)
             {
                 return wan_transition_dslite_up(pWanIfaceCtrl);
             }
@@ -4628,7 +4687,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
     }
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46) || defined(FEATURE_MAPE)
     else if (pInterface->Selection.Status == WAN_IFACE_ACTIVE &&
-             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6AddressIsReadyToUse(p_VirtIf) ==RETURN_OK)
+             ((p_VirtIf->EnableMAPT == TRUE && p_VirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP && checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) ==RETURN_OK)
               || (p_VirtIf->MAP.dhcp6cMAPparameters.mapType == MAP_TYPE_MAPE && p_VirtIf->Status == WAN_IFACE_STATUS_UP && p_VirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP)))
     {
         CcspTraceInfo(("%s %d - calling wan_transition_map_up \n", __FUNCTION__, __LINE__));
@@ -4655,7 +4714,7 @@ static eWanState_t wan_state_dual_stack_active(WanMgr_IfaceSM_Controller_t* pWan
     {
         if (p_VirtIf->DSLite.Status == WAN_IFACE_DSLITE_STATE_DOWN)
         {
-            if (checkIpv6AddressIsReadyToUse(p_VirtIf) == RETURN_OK)
+            if (checkIpv6AddressIsReadyToUse(p_VirtIf, pInterface->IfaceType) == RETURN_OK)
             {
                 return wan_transition_dslite_up(pWanIfaceCtrl);
             }
