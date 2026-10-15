@@ -201,11 +201,13 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
 {
     ANSC_STATUS ret = ANSC_STATUS_FAILURE;
     struct ifaddrmsg *ifa = NLMSG_DATA(nlh);
-    char ifname[IF_NAMESIZE],
-         ipv6_addr[INET6_ADDRSTRLEN];
+    char ifname[IF_NAMESIZE] = {0},
+         ipv6_addr[INET6_ADDRSTRLEN] = {0};
     unsigned int  prefix_length = 0,
                   pref_lifetime = 0,
                   valid_lifetime = 0;
+    /* ifa_flags only carries the low 8 bits, the IFA_FLAGS attribute below carries all 32 */
+    unsigned int  addr_flags = ifa->ifa_flags;
     IPv6NetLinkAddrEvent stAddrEvent;
 
     //Allow only for Global Scope
@@ -245,7 +247,16 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
                                                     __FUNCTION__, __LINE__,
                                                     ci->ifa_prefered, ci->ifa_valid));
         }
+        if (rta->rta_type == IFA_FLAGS) {
+            addr_flags = *(unsigned int *)RTA_DATA(rta);
+        }
     }
+
+    CcspTraceInfo(("%s-%d [ADDR EVENT] flags=0x%08x%s%s%s%s\n", __FUNCTION__, __LINE__, addr_flags,
+                   (addr_flags & IFA_F_TENTATIVE)  ? " TENTATIVE"  : "",
+                   (addr_flags & IFA_F_DADFAILED)  ? " DADFAILED"  : "",
+                   (addr_flags & IFA_F_DEPRECATED) ? " DEPRECATED" : "",
+                   (addr_flags & IFA_F_PERMANENT)  ? " PERMANENT"  : ""));
 
     if (nlh->nlmsg_type == RTM_NEWADDR) 
     {
@@ -259,6 +270,15 @@ static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh)
 
        CcspTraceInfo(("%s-%d [ADDR EVENT] RTM_NEWADDR (new/updated address) for '%s' interface, Info 'NEWADDR|%s|%u|%u|%u'\n", __FUNCTION__, __LINE__, ifname, ipv6_addr, prefix_length, pref_lifetime, valid_lifetime));
        WanMgr_Handle_Dhcpv6_NetLink_Address_Event(&stAddrEvent);
+
+       /* The kernel reports a DAD failure as an RTM_NEWADDR carrying IFA_F_DADFAILED, not as a separate event.
+        * Recovery is handled by checkIpv6AddressIsReadyToUse() in the interface state machine, not here. */
+       if ((addr_flags & IFA_F_DADFAILED) && (ipv6_addr[0] != '\0'))
+       {
+           CcspTraceError(("%s-%d [ADDR EVENT] DAD FAILED for address %s/%u on '%s' interface, flags=0x%08x\n",
+                           __FUNCTION__, __LINE__, ipv6_addr, prefix_length, ifname, addr_flags));
+       }
+
        ret = ANSC_STATUS_SUCCESS;
     } 
     else if (nlh->nlmsg_type == RTM_DELADDR) 
