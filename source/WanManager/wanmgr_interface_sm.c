@@ -1115,7 +1115,7 @@ static int WanMgr_IsIpv6DADComplete(const char *ifName)
  * Force the kernel to restart Duplicate Address Detection (DAD) for the WAN IPv6
  * address by removing it and adding it back on the same interface.
  */
-static void WanMgr_Ipv6DadRecovery_ReaddAddress(DML_VIRTUAL_IFACE* p_VirtIf)
+static void WanMgr_Ipv6DadRecovery_ReConfigureAddress(DML_VIRTUAL_IFACE* p_VirtIf)
 {
     char cmdLine[BUFLEN_256] = {0};
 
@@ -1180,7 +1180,7 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE 
         CcspTraceError(("%s %d - DAD check failed for %s on '%s' after 15 sec, deleting and re-adding the address to recover\n",
                        __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
 
-        WanMgr_Ipv6DadRecovery_ReaddAddress(p_VirtIf);
+        WanMgr_Ipv6DadRecovery_ReConfigureAddress(p_VirtIf);
         p_VirtIf->IP.Ipv6DadRecoveryAttempted = TRUE;
 
         for(int i=0; i<15; i++)
