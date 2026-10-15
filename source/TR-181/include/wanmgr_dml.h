@@ -409,6 +409,7 @@ typedef struct _DML_WANIFACE_IP
     BOOL                        Ipv6Changed;
     BOOL                        Ipv4Renewed;
     BOOL                        Ipv6Renewed;
+    BOOL                        Ipv6DadRecoveryAttempted; /**< TRUE once the WAN IPv6 address has been deleted/re-added during the current DAD failure cycle */
     WANMGR_IPV4_DATA            Ipv4Data;
     WANMGR_IPV6_DATA            Ipv6Data;
     WANMGR_IPV6_RA_DATA         Ipv6RA;

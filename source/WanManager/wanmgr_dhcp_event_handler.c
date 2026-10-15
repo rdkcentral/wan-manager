@@ -240,6 +240,7 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     DHCP_MGR_IPV6_MSG* leaseInfo = &(eventData->lease.v6);
                     copyDhcpv6Data(&(pVirtIf->IP.Ipv6Data), leaseInfo);
                     pVirtIf->IP.Ipv6Changed = TRUE;
+                    pVirtIf->IP.Ipv6DadRecoveryAttempted = FALSE; // new lease/address, allow a fresh DAD recovery cycle
                     CcspTraceInfo(("%s %d - IPv6 - RestartConnectivityCheck triggered. \n", __FUNCTION__, __LINE__));
                     pVirtIf->IP.RestartConnectivityCheck = TRUE;
                     //TODO : WAN ip creation from IA_PD if required. address assignment on LAN bridge.
