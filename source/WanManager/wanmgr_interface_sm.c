@@ -35,6 +35,7 @@
 #include "wanmgr_net_utils.h"
 #include "wanmgr_dhcpv4_apis.h"
 #include "wanmgr_dhcpv6_apis.h"
+#include "wanmgr_network_monitor.h"
 #ifdef FEATURE_MAPE
 #include "wanmgr_map_apis.h"
 #include "wanmgr_mape.h"
@@ -1205,6 +1206,8 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE 
     if (dad_flag == 1)
     {
         p_VirtIf->IP.Ipv6DadRecoveryAttempted = FALSE;
+        /* IPv6 is up with DAD success, the ND capture is no longer needed */
+        WanMgr_NdMonitor_Stop(p_VirtIf->Name);
     }
 
     buffer[0] = '\0';
