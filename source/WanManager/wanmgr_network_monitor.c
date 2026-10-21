@@ -20,6 +20,7 @@
 /* ---- Include Files ---------------------------------------- */
 #include <unistd.h>
 #include <time.h>
+#include <strings.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <linux/netlink.h>
@@ -28,6 +29,7 @@
 #include <linux/filter.h>
 #include <net/if_arp.h>
 #include <net/if.h>
+#include <ifaddrs.h>
 #include <net/ethernet.h>
 #include <netpacket/packet.h>
 #include <netinet/in.h>
@@ -120,6 +122,25 @@ static bool g_toggle_flag = TRUE;
  * the capture window itself: it closes this many seconds after it was started, whether or
  * not the state machine has asked for it to stop. */
 #define ND_MON_MAX_CAPTURE_SEC      300
+/* Operator driven override, so a capture can be run on demand for as long as it is needed
+ * (e.g. to watch a manual 'ndisc6' probe or an 'ip -6 addr add' DAD run) without having to
+ * wait for the DHCPv6 client to restart. While it is set it replaces the interfaces asked
+ * for by the state machine and suspends the capture window entirely:
+ *   sysevent set wanmgr_nd_capture "vdsl0 ptm0"  -> capture both, with no time limit
+ *   sysevent set wanmgr_nd_capture ""            -> back to the automatic behaviour */
+#define SYSEVENT_ND_CAPTURE         "wanmgr_nd_capture"
+#define ND_MON_SYSEVENT_POLL_SEC    2
+/* The RDK logger silently truncates each message at ~320 characters. A fully decoded NA
+ * needs more than that, and what fell off the end was the tail of the line: the option
+ * dump, the packet type and the interface. Losing the interface made the same frame seen
+ * on both the virtual and the base device look like two identical duplicates. The decoded
+ * packet is therefore emitted in chunks small enough that the logger always keeps them,
+ * so no field is lost however many ND options a packet carries. */
+#define ND_MON_LOG_CHUNK            240
+/* Cache of the capture interface's own IPv6 addresses, used only to explain why a
+ * solicitation for one of them is never answered on the wire */
+#define ND_MON_LOCAL_ADDR_MAX       16
+#define ND_MON_LOCAL_ADDR_REFRESH   5
 
 #if defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)
 #define SYSEVENT_MAP_BR_IPV6_PREFIX "map_br_ipv6_prefix"
@@ -142,6 +163,7 @@ static bool g_toggle_flag = TRUE;
 static void parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len); // Parse the route entries
 static ANSC_STATUS parse_addrattr(struct nlmsghdr *nlh); // Parse the interface address entries
 static ANSC_STATUS isDefaultGatewaypresent(struct nlmsghdr* nlmsgHdr); // check for default gateway
+static time_t NetMonitor_MonotonicSec(void); // steady clock, unaffected by NTP stepping the wall clock
 static void NetMonitor_InitNdMonitorSlots(void); // mark every ICMPv6 ND capture slot as closed
 static void NetMonitor_ApplyNdMonitorRequest(void); // start/stop the ICMPv6 ND capture on request
 static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot); // parse the captured ICMPv6 NS/NA packets
@@ -463,6 +485,25 @@ static void netMonitor_SyseventInit()
        usleep(50000);
     }
         CcspTraceInfo(("%s-%d: Started \n", __FUNCTION__, __LINE__));
+}
+
+/* All ICMPv6 ND capture timing is measured with this rather than with time(NULL).
+ *
+ * time(NULL) follows CLOCK_REALTIME, which NTP is free to step. On a CPE the clock is
+ * typically wrong at boot and gets corrected a minute or two later, and that correction
+ * is a forward jump of arbitrary size. Measuring the capture window against it meant a
+ * single NTP step could retire a 300 sec window after only a few seconds of real time,
+ * closing the listeners long before the traffic they were opened for appeared.
+ * CLOCK_MONOTONIC cannot be stepped, so the window always lasts as long as it claims. */
+static time_t NetMonitor_MonotonicSec(void)
+{
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+    {
+        return time(NULL); // should not happen, a steadily increasing value is all that matters
+    }
+    return ts.tv_sec;
 }
 
 static void NetMonitor_ProcessNetlinkRouteMonitorFd()
@@ -1140,7 +1181,7 @@ void WanMgr_NdMonitor_Start(const char *ifname, const char *baseIfname)
      * interfaces cannot keep pushing the deadline out and extend the capture forever */
     if (changed || (ndMonitorDeadline == 0))
     {
-        ndMonitorDeadline = time(NULL) + ND_MON_MAX_CAPTURE_SEC;
+        ndMonitorDeadline = NetMonitor_MonotonicSec() + ND_MON_MAX_CAPTURE_SEC;
         ndMonitorStopNoted = FALSE;
     }
     pthread_mutex_unlock(&ndMonitorMutex);
@@ -1168,7 +1209,7 @@ void WanMgr_NdMonitor_Stop(const char *ifname)
     {
         report = !ndMonitorStopNoted;
         ndMonitorStopNoted = TRUE;
-        remaining = ndMonitorDeadline - time(NULL);
+        remaining = ndMonitorDeadline - NetMonitor_MonotonicSec();
     }
     pthread_mutex_unlock(&ndMonitorMutex);
 
@@ -1178,6 +1219,108 @@ void WanMgr_NdMonitor_Stop(const char *ifname)
                        __FUNCTION__, __LINE__, (ifname != NULL) ? ifname : "any interface",
                        (remaining > 0) ? (long)remaining : 0L));
     }
+}
+
+/* Splits the SYSEVENT_ND_CAPTURE value ("vdsl0", "vdsl0,ptm0", "vdsl0 ptm0", ...) into
+ * interface names. Returns FALSE when the value is empty or an explicit off token, which
+ * is what hands control back to the interface state machine. */
+static bool NetMonitor_ParseManualNdRequest(const char *value, char out[ND_MON_MAX_IFACES][IF_NAMESIZE])
+{
+    const char *p = value;
+    int n = 0;
+
+    for (int i = 0; i < ND_MON_MAX_IFACES; i++)
+    {
+        out[i][0] = '\0';
+    }
+
+    if (value == NULL)
+    {
+        return FALSE;
+    }
+
+    while ((*p != '\0') && (n < ND_MON_MAX_IFACES))
+    {
+        size_t len = 0;
+
+        while ((*p == ',') || (*p == ' ') || (*p == '\t') || (*p == '\n') || (*p == '\r'))
+        {
+            p++;
+        }
+        while ((p[len] != '\0') && (p[len] != ',') && (p[len] != ' ') &&
+               (p[len] != '\t') && (p[len] != '\n') && (p[len] != '\r'))
+        {
+            len++;
+        }
+        if (len == 0)
+        {
+            break; // trailing separators only
+        }
+        if (len >= IF_NAMESIZE)
+        {
+            len = IF_NAMESIZE - 1;
+        }
+        memcpy(out[n], p, len);
+        out[n][len] = '\0';
+        p += len;
+        n++;
+    }
+
+    if (n == 0)
+    {
+        return FALSE;
+    }
+
+    if ((n == 1) && ((strcasecmp(out[0], "stop") == 0) || (strcasecmp(out[0], "off") == 0) ||
+                     (strcasecmp(out[0], "false") == 0) || (strcmp(out[0], "0") == 0)))
+    {
+        out[0][0] = '\0';
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Polls the operator override. The sysevent round trip is throttled because this runs from
+ * the monitor loop, which spins every LOOP_TIMEOUT. */
+static bool NetMonitor_GetManualNdRequest(char out[ND_MON_MAX_IFACES][IF_NAMESIZE], time_t now)
+{
+    static time_t lastPoll = 0;
+    static bool   active = FALSE;
+    static char   cached[ND_MON_MAX_IFACES][IF_NAMESIZE] = {{0}};
+
+    if ((sysevent_nwm_fd >= 0) && ((lastPoll == 0) || ((now - lastPoll) >= ND_MON_SYSEVENT_POLL_SEC)))
+    {
+        char parsed[ND_MON_MAX_IFACES][IF_NAMESIZE] = {{0}};
+        char value[(IF_NAMESIZE * ND_MON_MAX_IFACES) + 16] = {0};
+        bool wasActive = active;
+
+        lastPoll = now;
+        if (sysevent_get(sysevent_nwm_fd, sysevent_token, SYSEVENT_ND_CAPTURE, value, sizeof(value)) != 0)
+        {
+            value[0] = '\0';
+        }
+        active = NetMonitor_ParseManualNdRequest(value, parsed);
+
+        if ((active != wasActive) || (memcmp(parsed, cached, sizeof(cached)) != 0))
+        {
+            if (active)
+            {
+                CcspTraceInfo(("%s-%d [ND MONITOR] Manual capture requested via '%s' on '%s' and '%s', "
+                               "every NS/NA will be logged with no time limit until the sysevent is cleared\n",
+                               __FUNCTION__, __LINE__, SYSEVENT_ND_CAPTURE,
+                               parsed[0], (parsed[1][0] != '\0') ? parsed[1] : "<none>"));
+            }
+            else if (wasActive)
+            {
+                CcspTraceInfo(("%s-%d [ND MONITOR] Manual capture cleared via '%s', returning to the interface state machine request\n",
+                               __FUNCTION__, __LINE__, SYSEVENT_ND_CAPTURE));
+            }
+        }
+        memcpy(cached, parsed, sizeof(cached));
+    }
+
+    memcpy(out, cached, sizeof(cached));
+    return active;
 }
 
 /* Opens, rebinds or closes the capture socket of a single slot to match its request */
@@ -1235,15 +1378,23 @@ static void NetMonitor_ApplyNdMonitorSlot(NdMonitorSlot_t *slot, const char *req
 static void NetMonitor_ApplyNdMonitorRequest(void)
 {
     char reqIfname[ND_MON_MAX_IFACES][IF_NAMESIZE] = {{0}};
-    time_t now = time(NULL);
+    char manualIfname[ND_MON_MAX_IFACES][IF_NAMESIZE] = {{0}};
+    time_t now = NetMonitor_MonotonicSec();
     bool heartbeat = FALSE;
     bool expired = FALSE;
+    bool manual = FALSE;
+
+    /* An operator driven capture overrides the state machine request and is not bounded by
+     * the capture window, so an on demand NS/NA trace can be left running for as long as the
+     * test needs. It is read before the window is evaluated so that a manual capture cannot
+     * be retired by a deadline that was armed for an earlier, automatic one. */
+    manual = NetMonitor_GetManualNdRequest(manualIfname, now);
 
     pthread_mutex_lock(&ndMonitorMutex);
     /* The capture window closes a fixed time after it was started, whether or not the
      * state machine asked for it to stop. This is what bounds the log volume, since every
      * captured NS/NA is logged. */
-    if ((ndMonitorReqIfname[0][0] != '\0') && (now >= ndMonitorDeadline))
+    if (!manual && (ndMonitorReqIfname[0][0] != '\0') && (now >= ndMonitorDeadline))
     {
         for (int i = 0; i < ND_MON_MAX_IFACES; i++)
         {
@@ -1259,10 +1410,16 @@ static void NetMonitor_ApplyNdMonitorRequest(void)
     }
     pthread_mutex_unlock(&ndMonitorMutex);
 
+    if (manual)
+    {
+        memcpy(reqIfname, manualIfname, sizeof(reqIfname));
+    }
+
     if (expired)
     {
-        CcspTraceInfo(("%s-%d [ND MONITOR] Capture window of %d sec has elapsed, closing the listeners\n",
-                       __FUNCTION__, __LINE__, ND_MON_MAX_CAPTURE_SEC));
+        CcspTraceInfo(("%s-%d [ND MONITOR] Capture window of %d sec has elapsed, closing the listeners. "
+                       "Run \"sysevent set %s '<ifname> <base ifname>'\" to capture every NS/NA on demand\n",
+                       __FUNCTION__, __LINE__, ND_MON_MAX_CAPTURE_SEC, SYSEVENT_ND_CAPTURE));
     }
 
     /* Heartbeat so the logs can distinguish "fd is open but no matching traffic was seen"
@@ -1279,14 +1436,110 @@ static void NetMonitor_ApplyNdMonitorRequest(void)
 
         if (heartbeat && (slot->fd >= 0))
         {
-            CcspTraceInfo(("%s-%d [ND MONITOR] Still listening on '%s' (ifindex=%u, fd=%d), %lu ND packet(s) captured so far\n",
-                           __FUNCTION__, __LINE__, slot->ifname, slot->ifindex, slot->fd, slot->pktSeen));
+            CcspTraceInfo(("%s-%d [ND MONITOR] Still listening on '%s' (ifindex=%u, fd=%d) in %s mode, %lu ND packet(s) captured so far\n",
+                           __FUNCTION__, __LINE__, slot->ifname, slot->ifindex, slot->fd,
+                           manual ? "manual" : "automatic", slot->pktSeen));
             NetMonitor_LogNdSocketStats(slot, "Periodic");
             NetMonitor_LogIcmp6DevStats(slot, "Periodic");
         }
 
         NetMonitor_ApplyNdMonitorSlot(slot, reqIfname[i], now);
     }
+}
+
+/* TRUE when addr is configured on ifname itself.
+ *
+ * Soliciting an address that the box owns produces no NA on the wire: the reply is
+ * destined for another of our own addresses, so the kernel routes it through the
+ * loopback path and the frame never reaches the device a packet socket is bound to.
+ * That is indistinguishable from a lost NA unless the capture says so explicitly.
+ * The lookup is cached because it is only needed to annotate the log. */
+static bool NetMonitor_IsLocalIfaceAddr(const char *ifname, const struct in6_addr *addr, time_t now)
+{
+    static time_t          lastRefresh = 0;
+    static char            cachedIf[IF_NAMESIZE] = {0};
+    static struct in6_addr cache[ND_MON_LOCAL_ADDR_MAX];
+    static int             cacheCount = 0;
+
+    if ((strcmp(cachedIf, ifname) != 0) || ((now - lastRefresh) >= ND_MON_LOCAL_ADDR_REFRESH))
+    {
+        struct ifaddrs *ifaList = NULL;
+
+        cacheCount = 0;
+        snprintf(cachedIf, sizeof(cachedIf), "%s", ifname);
+        lastRefresh = now;
+
+        if (getifaddrs(&ifaList) == 0)
+        {
+            for (struct ifaddrs *it = ifaList; (it != NULL) && (cacheCount < ND_MON_LOCAL_ADDR_MAX); it = it->ifa_next)
+            {
+                if ((it->ifa_addr != NULL) && (it->ifa_addr->sa_family == AF_INET6) &&
+                    (it->ifa_name != NULL) && (strcmp(it->ifa_name, ifname) == 0))
+                {
+                    cache[cacheCount++] = ((struct sockaddr_in6 *) it->ifa_addr)->sin6_addr;
+                }
+            }
+            freeifaddrs(ifaList);
+        }
+    }
+
+    for (int i = 0; i < cacheCount; i++)
+    {
+        if (IN6_ARE_ADDR_EQUAL(&cache[i], addr))
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/* Emits one decoded packet, split across as many log messages as it takes for the RDK
+ * logger to keep all of it. Splits are made on field boundaries so a value is never cut
+ * in half, and every chunk repeats the packet number so the parts stay correlated. */
+static void NetMonitor_LogNdPacket(bool isError, unsigned long seq, bool rx, const char *line)
+{
+    size_t len = strlen(line);
+    size_t off = 0;
+    int part = 0;
+
+    do
+    {
+        char chunk[ND_MON_LOG_CHUNK + 1];
+        size_t n = len - off;
+
+        if (n > ND_MON_LOG_CHUNK)
+        {
+            n = ND_MON_LOG_CHUNK;
+            while ((n > 1) && (line[off + n] != ' '))
+            {
+                n--; // back up to a field boundary
+            }
+            if (n <= 1)
+            {
+                n = ND_MON_LOG_CHUNK; // single oversized field, cut it rather than loop forever
+            }
+        }
+
+        memcpy(chunk, line + off, n);
+        chunk[n] = '\0';
+        off += n;
+        while ((off < len) && (line[off] == ' '))
+        {
+            off++;
+        }
+
+        if (isError)
+        {
+            CcspTraceError(("%s-%d [ND MONITOR] #%lu %s %s%s\n", __FUNCTION__, __LINE__,
+                            seq, rx ? "RX" : "TX", (part == 0) ? "" : "...cont ", chunk));
+        }
+        else
+        {
+            CcspTraceInfo(("%s-%d [ND MONITOR] #%lu %s %s%s\n", __FUNCTION__, __LINE__,
+                           seq, rx ? "RX" : "TX", (part == 0) ? "" : "...cont ", chunk));
+        }
+        part++;
+    } while (off < len);
 }
 
 static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
@@ -1399,10 +1652,12 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
             dadDefence = (!solicited && NetMonitor_IsAllNodesMulticast(&ip6->ip6_dst));
 
             snprintf(line, sizeof(line),
-                     "NA %s target=%s src=%s dst=%s src_mac=%s%s tgt_lladdr=%s flags=[R=%d S=%d O=%d] rsvd=0x%06x "
-                     "code=%u cksum=0x%04x hoplimit=%u tclass=0x%02x plen=%u caplen=%zd opts=[%s] pkttype=%s if=%s(idx=%u)",
+                     "NA %s if=%s(idx=%u) pkttype=%s target=%s src=%s dst=%s src_mac=%s%s tgt_lladdr=%s "
+                     "flags=[R=%d S=%d O=%d] rsvd=0x%06x code=%u cksum=0x%04x hoplimit=%u tclass=0x%02x plen=%u caplen=%zd opts=[%s]",
                      dadDefence ? "(unsolicited to all-nodes, DAD defence pattern)" :
                                   (solicited ? "(solicited reply)" : "(unsolicited)"),
+                     slot->ifname, (unsigned int)sll.sll_ifindex,
+                     NetMonitor_PktTypeToStr(sll.sll_pkttype),
                      target, src, dst, srcMac, srcMacInfo, optMac,
                      (flags & ND_NA_FLAG_ROUTER)   ? 1 : 0,
                      solicited                     ? 1 : 0,
@@ -1411,8 +1666,7 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
                      icmp6->icmp6_code, ntohs(icmp6->icmp6_cksum),
                      (unsigned int)ip6->ip6_hlim,
                      (unsigned int)((ntohl(ip6->ip6_flow) >> 20) & 0xff),
-                     ntohs(ip6->ip6_plen), len, optList,
-                     NetMonitor_PktTypeToStr(sll.sll_pkttype), slot->ifname, (unsigned int)sll.sll_ifindex);
+                     ntohs(ip6->ip6_plen), len, optList);
         }
         else if (icmp6->icmp6_type == ND_NEIGHBOR_SOLICIT)
         {
@@ -1442,9 +1696,12 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
             }
 
             snprintf(line, sizeof(line),
-                     "NS %s target=%s src=%s dst=%s%s src_mac=%s%s src_lladdr=%s "
-                     "code=%u cksum=0x%04x hoplimit=%u tclass=0x%02x plen=%u caplen=%zd opts=[%s] pkttype=%s if=%s(idx=%u)",
-                     kind, target, src, dst,
+                     "NS %s if=%s(idx=%u) pkttype=%s target=%s src=%s dst=%s%s src_mac=%s%s src_lladdr=%s "
+                     "code=%u cksum=0x%04x hoplimit=%u tclass=0x%02x plen=%u caplen=%zd opts=[%s]",
+                     kind,
+                     slot->ifname, (unsigned int)sll.sll_ifindex,
+                     NetMonitor_PktTypeToStr(sll.sll_pkttype),
+                     target, src, dst,
                      /* A DAD probe or a resolution NS must go to the solicited-node group of its
                       * own target, so a mismatch points at a spoofed or misdirected packet */
                      (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) && !solicitedNodeDst) ? "[!not target's solicited-node group]" : "",
@@ -1452,8 +1709,7 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
                      icmp6->icmp6_code, ntohs(icmp6->icmp6_cksum),
                      (unsigned int)ip6->ip6_hlim,
                      (unsigned int)((ntohl(ip6->ip6_flow) >> 20) & 0xff),
-                     ntohs(ip6->ip6_plen), len, optList,
-                     NetMonitor_PktTypeToStr(sll.sll_pkttype), slot->ifname, (unsigned int)sll.sll_ifindex);
+                     ntohs(ip6->ip6_plen), len, optList);
 
             /* RFC 4861 Section 4.3: a DAD probe must not carry a source link-layer address
              * option, since there is no source address to associate it with */
@@ -1461,6 +1717,18 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
             {
                 CcspTraceError(("%s-%d [ND MONITOR] DAD probe for %s on '%s' carries a source link-layer option (%s), which RFC 4861 forbids\n",
                                 __FUNCTION__, __LINE__, target, slot->ifname, optMac));
+            }
+
+            /* Soliciting one of our own addresses (e.g. "ndisc6 <our address> <our iface>")
+             * is answered internally, so the absence of an NA here is expected rather than
+             * a missed capture. Say so, otherwise it reads as a hole in the capture. */
+            if (!isDad && !rx &&
+                NetMonitor_IsLocalIfaceAddr(slot->ifname, &ns->nd_ns_target, NetMonitor_MonotonicSec()))
+            {
+                CcspTraceInfo(("%s-%d [ND MONITOR] NS #%lu solicits %s, which is a local address of '%s'. The kernel answers "
+                               "from the loopback path, so no NA for it is transmitted on the interface and none can be captured. "
+                               "Solicit a remote neighbour (e.g. the default gateway) to see an NA on the wire\n",
+                               __FUNCTION__, __LINE__, slot->pktSeen, target, slot->ifname));
             }
         }
         else
@@ -1471,14 +1739,7 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
         }
 
         /* A hop limit other than 255 means the packet was not generated on-link (RFC 4861 Section 11.2) */
-        if ((rx && dadDefence) || (ip6->ip6_hlim != 255))
-        {
-            CcspTraceError(("%s-%d [ND MONITOR] #%lu %s %s\n", __FUNCTION__, __LINE__, slot->pktSeen, rx ? "RX" : "TX", line));
-        }
-        else
-        {
-            CcspTraceInfo(("%s-%d [ND MONITOR] #%lu %s %s\n", __FUNCTION__, __LINE__, slot->pktSeen, rx ? "RX" : "TX", line));
-        }
+        NetMonitor_LogNdPacket(((rx && dadDefence) || (ip6->ip6_hlim != 255)), slot->pktSeen, rx, line);
     }
 }
 

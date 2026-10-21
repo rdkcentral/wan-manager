@@ -35,7 +35,13 @@ ANSC_STATUS WanMgr_StartNetWorkMonitor( void );
  *
  * The capture runs for a fixed window (5 minutes) starting from this call and then
  * closes itself. Every NS/NA it sees is logged in full, nothing is rate limited away,
- * so the window is what bounds the log volume.
+ * so the window is what bounds the log volume. The window is measured on a monotonic
+ * clock, so an NTP correction of the wall clock cannot retire it early.
+ *
+ * For ad hoc debugging the window can be bypassed entirely from the console, which
+ * captures every NS/NA on the given interfaces, with no time limit, until cleared:
+ *   sysevent set wanmgr_nd_capture "vdsl0 ptm0"
+ *   sysevent set wanmgr_nd_capture ""
  *
  * On platforms where the WAN runs over a virtual interface the kernel may transmit
  * the ND frames on the base interface instead, so both can be captured at once.
