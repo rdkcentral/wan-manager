@@ -33,20 +33,33 @@ ANSC_STATUS WanMgr_StartNetWorkMonitor( void );
  * be attributed to a real duplicate, an ND proxy or a router answering for the
  * address. Called by the interface state machine when the DHCPv6 client starts.
  *
- * The capture stops on its own if it is not stopped within a few minutes.
+ * The capture runs for a fixed window (5 minutes) starting from this call and then
+ * closes itself. Every NS/NA it sees is logged in full, nothing is rate limited away,
+ * so the window is what bounds the log volume.
  *
- * @param ifname Interface to capture on, e.g. the virtual interface name.
+ * On platforms where the WAN runs over a virtual interface the kernel may transmit
+ * the ND frames on the base interface instead, so both can be captured at once.
+ *
+ * @param ifname     Interface to capture on, e.g. the virtual interface name 'vdsl0'.
+ * @param baseIfname Base interface of @p ifname, e.g. 'ptm0'. Captured in addition to
+ *                   @p ifname. May be NULL, empty or equal to @p ifname, in which case
+ *                   only @p ifname is captured.
  */
-void WanMgr_NdMonitor_Start( const char *ifname );
+void WanMgr_NdMonitor_Start( const char *ifname, const char *baseIfname );
 
 /**
- * @brief Stops the ICMPv6 Neighbour Discovery capture started for an interface.
+ * @brief Records that the ICMPv6 Neighbour Discovery capture is no longer required.
  *
- * Called by the interface state machine once DAD has succeeded, or when the
- * DHCPv6 client is stopped. The request is ignored if the capture is currently
- * running for a different interface.
+ * Called by the interface state machine once DAD has succeeded, or when the DHCPv6
+ * client is stopped. The request is ignored if the capture is currently running for
+ * a different interface.
  *
- * @param ifname Interface the capture was started for, NULL to stop unconditionally.
+ * This does not tear the capture down. The state machine reaches its own DAD verdict
+ * before the kernel has necessarily finished DAD for the global address, and closing
+ * the socket in that gap discards the very NS/NA this capture exists for. The capture
+ * instead runs to the end of the window opened by WanMgr_NdMonitor_Start().
+ *
+ * @param ifname Interface the capture was started for, NULL to match unconditionally.
  */
 void WanMgr_NdMonitor_Stop( const char *ifname );
 

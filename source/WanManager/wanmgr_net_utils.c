@@ -397,8 +397,38 @@ int WanManager_Ipv6AddrUtil(DML_VIRTUAL_IFACE* p_VirtIf,Ipv6OperType opr)
 }
 
 
+/* Resolves the name of the base interface a virtual interface runs on, e.g. 'ptm0' for 'vdsl0'.
+ * The buffer is left empty if the base interface cannot be resolved. */
+static void WanManager_GetBaseIfName(DML_VIRTUAL_IFACE* pVirtIf, char *baseIfName, size_t baseIfNameLen)
+{
+    WanMgr_Iface_Data_t* pWanDmlIfaceData = NULL;
+
+    if ((baseIfName == NULL) || (baseIfNameLen == 0))
+    {
+        return;
+    }
+    baseIfName[0] = '\0';
+
+    if (pVirtIf == NULL)
+    {
+        return;
+    }
+
+    pWanDmlIfaceData = WanMgr_GetIfaceData_locked(pVirtIf->baseIfIdx);
+    if (pWanDmlIfaceData == NULL)
+    {
+        CcspTraceError(("%s %d: Failed to get base interface data of '%s' (baseIfIdx=%u)\n",
+                        __FUNCTION__, __LINE__, pVirtIf->Name, pVirtIf->baseIfIdx));
+        return;
+    }
+    snprintf(baseIfName, baseIfNameLen, "%s", pWanDmlIfaceData->data.Name);
+    WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
+}
+
 int WanManager_RestartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceType)
 {
+    char baseIfName[64] = {0};
+
     if (pVirtIf == NULL)
     {
         CcspTraceError(("%s %d: Invalid args \n", __FUNCTION__, __LINE__));
@@ -408,7 +438,8 @@ int WanManager_RestartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceT
     CcspTraceInfo(("%s %d: Restarting dhcpv6 client for interface %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
 
     /* A restart is also used to recover from a DAD failure, keep capturing the ND exchange */
-    WanMgr_NdMonitor_Start(pVirtIf->Name);
+    WanManager_GetBaseIfName(pVirtIf, baseIfName, sizeof(baseIfName));
+    WanMgr_NdMonitor_Start(pVirtIf->Name, baseIfName);
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
     char dmlName[256] = {0};
 
@@ -446,6 +477,8 @@ int WanManager_RestartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceT
 
 int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceType)
 {
+    char baseIfName[64] = {0};
+
     if (pVirtIf == NULL)
     {
         CcspTraceError(("%s %d: Invalid args \n", __FUNCTION__, __LINE__));
@@ -454,7 +487,8 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
 
     /* Capture the ICMPv6 ND exchange until DAD succeeds, so that a DAD failure on the
      * address obtained here can be attributed to the node that defended it */
-    WanMgr_NdMonitor_Start(pVirtIf->Name);
+    WanManager_GetBaseIfName(pVirtIf, baseIfName, sizeof(baseIfName));
+    WanMgr_NdMonitor_Start(pVirtIf->Name, baseIfName);
 
     // Send RS(Solicited) request when IPv6 source as SLAAC to comply RA(Solicited) response
     if ( DML_WAN_IP_SOURCE_SLAAC == pVirtIf->IP.IPv6Source )

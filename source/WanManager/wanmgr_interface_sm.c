@@ -1176,7 +1176,7 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE 
         sleep(1);
     }
 
-    if (dad_flag == 0 && p_VirtIf->IP.Ipv6DadRecoveryAttempted == FALSE)
+   /* if (dad_flag == 0 && p_VirtIf->IP.Ipv6DadRecoveryAttempted == FALSE)
     {
         CcspTraceError(("%s %d - DAD check failed for %s on '%s' after 15 sec, deleting and re-adding the address to recover\n",
                        __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
@@ -1201,7 +1201,7 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE 
                            __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
             WanManager_RestartDhcpv6Client(p_VirtIf, IfaceType);
         }
-    }
+    }*/
 
     if (dad_flag == 1)
     {
