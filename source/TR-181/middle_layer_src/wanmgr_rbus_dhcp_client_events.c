@@ -242,7 +242,7 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
     }
 }
 
-void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
+int WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     char eventName[64] = {0};
@@ -254,10 +254,11 @@ void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
     if(rc != RBUS_ERROR_SUCCESS)
     {
         CcspTraceError(("%s %d - Failed to Subscribe %s, Error=%s \n", __FUNCTION__, __LINE__, eventName, rbusError_ToString(rc)));
-        return;
+        return RETURN_ERR;
     }
     
     CcspTraceInfo(("%s %d: Subscribed to %s  n", __FUNCTION__, __LINE__, eventName));
+    return RETURN_OK;
 }
 
 void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface)
