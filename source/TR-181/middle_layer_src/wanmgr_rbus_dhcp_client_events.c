@@ -242,7 +242,7 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
     }
 }
 
-void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
+static void WanMgr_DhcpSubscribeNow(const char *DhcpInterface)
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     char eventName[64] = {0};
@@ -260,7 +260,7 @@ void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
     CcspTraceInfo(("%s %d: Subscribed to %s  n", __FUNCTION__, __LINE__, eventName));
 }
 
-void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface)
+static void WanMgr_DhcpUnSubscribeNow(const char *DhcpInterface)
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     char eventName[64] = {0};
@@ -273,4 +273,107 @@ void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface)
     }
     
     CcspTraceInfo(("%s %d: UnSubscribed to %s  n", __FUNCTION__, __LINE__, eventName));
+}
+
+/*
+ * Subscribe/unsubscribe requests are queued and executed by a dedicated thread.
+ * Callers hold gDataMutex; rbusEvent_(Un)Subscribe takes an RBUS-internal lock that
+ * the RBUS dispatch thread may hold while waiting for gDataMutex (AB-BA deadlock).
+ */
+typedef struct DhcpSubReq
+{
+    bool subscribe;
+    char iface[64];
+    struct DhcpSubReq *next;
+} DhcpSubReq;
+
+static DhcpSubReq     *g_subHead = NULL;
+static DhcpSubReq     *g_subTail = NULL;
+static pthread_mutex_t g_subMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  g_subCond  = PTHREAD_COND_INITIALIZER;
+static bool            g_subWorkerStarted = false;
+
+static void* WanMgr_DhcpSubWorker(void *arg)
+{
+    (void)arg;
+    pthread_detach(pthread_self());
+
+    while (1)
+    {
+        pthread_mutex_lock(&g_subMutex);
+        while (g_subHead == NULL)
+        {
+            pthread_cond_wait(&g_subCond, &g_subMutex);
+        }
+        DhcpSubReq *req = g_subHead;
+        g_subHead = req->next;
+        if (g_subHead == NULL)
+        {
+            g_subTail = NULL;
+        }
+        pthread_mutex_unlock(&g_subMutex);
+
+        if (req->subscribe)
+        {
+            WanMgr_DhcpSubscribeNow(req->iface);
+        }
+        else
+        {
+            WanMgr_DhcpUnSubscribeNow(req->iface);
+        }
+        free(req);
+    }
+    return NULL;
+}
+
+static void WanMgr_DhcpSubEnqueue(const char *DhcpInterface, bool subscribe)
+{
+    if (DhcpInterface == NULL)
+    {
+        return;
+    }
+
+    DhcpSubReq *req = calloc(1, sizeof(*req));
+    if (req == NULL)
+    {
+        CcspTraceError(("%s %d - calloc failed\n", __FUNCTION__, __LINE__));
+        return;
+    }
+    req->subscribe = subscribe;
+    snprintf(req->iface, sizeof(req->iface), "%s", DhcpInterface);
+
+    pthread_mutex_lock(&g_subMutex);
+    if (!g_subWorkerStarted)
+    {
+        pthread_t tid;
+        if (pthread_create(&tid, NULL, WanMgr_DhcpSubWorker, NULL) != 0)
+        {
+            pthread_mutex_unlock(&g_subMutex);
+            CcspTraceError(("%s %d - Failed to create subscription worker\n", __FUNCTION__, __LINE__));
+            free(req);
+            return;
+        }
+        g_subWorkerStarted = true;
+    }
+    if (g_subTail != NULL)
+    {
+        g_subTail->next = req;
+    }
+    else
+    {
+        g_subHead = req;
+    }
+    g_subTail = req;
+    pthread_cond_signal(&g_subCond);
+    pthread_mutex_unlock(&g_subMutex);
+}
+
+void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
+{
+    WanMgr_DhcpSubEnqueue(DhcpInterface, true);
+}
+
+void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface)
+{
+    WanMgr_DhcpSubEnqueue(DhcpInterface, false);
 }
