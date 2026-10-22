@@ -164,17 +164,32 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     break;
 
                 case DHCP_LEASE_RENEW:
+                    if (pVirtIf->IP.Dhcp4cStatus != DHCPC_STARTED)
+                    {
+                        CcspTraceError(("%s-%d : DHCPv4 client is not started, ignoring event type %d for %s\n", __FUNCTION__, __LINE__, eventData->type, pVirtIf->Name));
+                        break;
+                    }
                     pVirtIf->IP.Ipv4Renewed = TRUE;
                     CcspTraceInfo(("%s-%d : DHCPv4 lease renewed for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_UP);
                     break;
 
                 case DHCP_LEASE_DEL:
+                    if (pVirtIf->IP.Dhcp4cStatus != DHCPC_STARTED)
+                    {
+                        CcspTraceError(("%s-%d : DHCPv4 client is not started, ignoring event type %d for %s\n", __FUNCTION__, __LINE__, eventData->type, pVirtIf->Name));
+                        break;
+                    }
                     CcspTraceInfo(("%s-%d : DHCPv4 lease expired for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_DOWN);
                     break;
 
                 case DHCP_LEASE_UPDATE:
+                    if (pVirtIf->IP.Dhcp4cStatus != DHCPC_STARTED)
+                    {
+                        CcspTraceError(("%s-%d : DHCPv4 client is not started, ignoring event type %d for %s\n", __FUNCTION__, __LINE__, eventData->type, pVirtIf->Name));
+                        break;
+                    }
                     CcspTraceInfo(("%s-%d : DHCPv4 lease updated for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     /* A gateway of 0.0.0.0 indicates a private lease used solely for
                      * validity and authentication of the WAN connection. This lease must
@@ -228,6 +243,11 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     break;
 
                 case DHCP_LEASE_RENEW:
+                    if (pVirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)
+                    {
+                        CcspTraceError(("%s-%d : DHCPv6 client is not started, ignoring event type %d for %s\n", __FUNCTION__, __LINE__, eventData->type, pVirtIf->Name));
+                        break;
+                    }
                     pVirtIf->IP.Ipv6Renewed = TRUE;
                     if(pVirtIf->IP.Ipv6Data.prefixAssigned == TRUE)
                     {
@@ -239,11 +259,21 @@ void WanMgr_ProcessDhcpClientEvent(DhcpEventThreadArgs *eventData)
                     break;
 
                 case DHCP_LEASE_DEL:
+                    if (pVirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)
+                    {
+                        CcspTraceError(("%s-%d : DHCPv6 client is not started, ignoring event type %d for %s\n", __FUNCTION__, __LINE__, eventData->type, pVirtIf->Name));
+                        break;
+                    }
                     CcspTraceInfo(("%s-%d : DHCPv6 lease expired for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     WanManager_UpdateInterfaceStatus(pVirtIf, WANMGR_IFACE_CONNECTION_IPV6_DOWN);
                     break;
 
                 case DHCP_LEASE_UPDATE:
+                    if (pVirtIf->IP.Dhcp6cStatus != DHCPC_STARTED)
+                    {
+                        CcspTraceError(("%s-%d : DHCPv6 client is not started, ignoring event type %d for %s\n", __FUNCTION__, __LINE__, eventData->type, pVirtIf->Name));
+                        break;
+                    }
                     CcspTraceInfo(("%s-%d : DHCPv6 lease updated for %s\n", __FUNCTION__, __LINE__, pVirtIf->Name));
                     DHCP_MGR_IPV6_MSG* leaseInfo = &(eventData->lease.v6);
                     copyDhcpv6Data(&(pVirtIf->IP.Ipv6Data), leaseInfo);

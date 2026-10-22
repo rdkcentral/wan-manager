@@ -476,8 +476,19 @@ int WanManager_StartDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, IFACE_TYPE IfaceTyp
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv6Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
 
+    // Retry if the subscription at SM start failed
+    if (pVirtIf->IP.Dhcp6SubscribedIface != TRUE)
+    {
+        if (WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface) == RETURN_OK)
+        {
+            pVirtIf->IP.Dhcp6SubscribedIface = TRUE;
+        }
+        else
+        {
+            CcspTraceError(("%s %d - Failed to subscribe the dhcp6 event \n", __FUNCTION__, __LINE__));
+        }
+    }
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv6Iface );
 
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName , "true", ccsp_boolean, TRUE))
@@ -556,7 +567,6 @@ ANSC_STATUS WanManager_StopDhcpv6Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
     {
         CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
     }
-    WanMgr_UnSubscribeDhcpClientEvents(pVirtIf->IP.DHCPv6Iface);
     return ANSC_STATUS_SUCCESS;
 #else
     if (is_release_required == STOP_DHCP_WITH_RELEASE)
@@ -595,7 +605,18 @@ int WanManager_StartDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, char* baseInterface
     snprintf( dmlName, sizeof(dmlName), "%s.Interface", pVirtIf->IP.DHCPv4Iface );
     WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, pVirtIf->Name, ccsp_string, TRUE);
     memset(dmlName, 0, sizeof(dmlName));
-    WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
+    // Retry if the subscription at SM start failed
+    if (pVirtIf->IP.Dhcp4SubscribedIface != TRUE)
+    {
+        if (WanMgr_SubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface) == RETURN_OK)
+        {
+            pVirtIf->IP.Dhcp4SubscribedIface = TRUE;
+        }
+        else
+        {
+            CcspTraceError(("%s %d - Failed to subscribe the dhcp4 event \n", __FUNCTION__, __LINE__));
+        }
+    }
     snprintf( dmlName, sizeof(dmlName), "%s.Enable", pVirtIf->IP.DHCPv4Iface );
     if (ANSC_STATUS_SUCCESS == WanMgr_RdkBus_SetParamValues(DHCPMGR_COMPONENT_NAME, DHCPMGR_DBUS_PATH, dmlName, "true", ccsp_boolean, TRUE))
     {
@@ -672,7 +693,6 @@ ANSC_STATUS WanManager_StopDhcpv4Client(DML_VIRTUAL_IFACE* pVirtIf, DHCP_RELEASE
     {
         CcspTraceInfo(("%s %d - Failed setting [%s] to DHCP Manager \n", __FUNCTION__, __LINE__, pVirtIf->Name));
     }
-    WanMgr_UnSubscribeDhcpClientEvents(pVirtIf->IP.DHCPv4Iface);
     if (IsReleaseNeeded == STOP_DHCP_WITH_RELEASE)
     {
         //TODO: sleep added to allow dhcpv4 client to send release before interface deconfig. This should be handled by dhcpmanager itself.

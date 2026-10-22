@@ -199,7 +199,7 @@ void WanMgr_Rbus_SubscribeWanReady();
 ANSC_STATUS WanMgr_Configure_TAD_WCC(DML_VIRTUAL_IFACE *pVirtIf, WCC_EVENT Event);
 
 #if  defined( FEATURE_RDKB_DHCP_MANAGER )
-void WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface);
+int WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface);
 void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface);
 #endif
 #endif
