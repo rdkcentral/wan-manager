@@ -17,13 +17,16 @@
  * limitations under the License.
 */
 
-
+#include <errno.h>
 #include "wanmgr_data.h"
 #include "wanmgr_rdkbus_apis.h"
 
 #ifdef FEATURE_DSLITE_V2
 #include "wanmgr_dslite.h"
 #endif
+
+#define GDATAMUTEX_TRYLOCK_MAX_RETRIES    80
+#define GDATAMUTEX_TRYLOCK_RETRY_DELAY_US 50000
 
 #if defined(WAN_MANAGER_UNIFICATION_ENABLED) && (defined (_XB6_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_RASPBERRYPI_))
 extern ANSC_STATUS WanMgr_CheckAndResetV2PSMEntries(UINT IfaceCount);
@@ -1297,8 +1300,21 @@ DML_VIRTUAL_IFACE* WanMgr_GetVirtIfDataByAlias_locked(char* Alias)
         return NULL;
     }
     UINT idx;
+	int attempts = 0;
+    int lockRc;
 
-    if(pthread_mutex_lock(&gWanMgrDataBase.gDataMutex) == 0)
+    while ((lockRc = pthread_mutex_trylock(&gWanMgrDataBase.gDataMutex)) == EBUSY)
+    {
+		if (++attempts >= GDATAMUTEX_TRYLOCK_MAX_RETRIES)
+        {
+			CcspTraceWarning(("%s %d: gDataMutex busy after %d retries, skipping (Alias=%s)\n",
+                                   __FUNCTION__, __LINE__, attempts, Alias));
+            return NULL;
+    	}
+        usleep(GDATAMUTEX_TRYLOCK_RETRY_DELAY_US);
+    }
+	
+    if(lockRc == 0)
     {
         WanMgr_IfaceCtrl_Data_t* pWanIfaceCtrl = &(gWanMgrDataBase.IfaceCtrl);
         if(pWanIfaceCtrl->pIface != NULL)
