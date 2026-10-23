@@ -1127,7 +1127,8 @@ static void WanMgr_Ipv6DadRecovery_ReConfigureAddress(DML_VIRTUAL_IFACE* p_VirtI
     snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
     WanManager_DoSystemActionWithStatus("checkIpv6AddressIsReadyToUse: DAD recovery - delete address", cmdLine);
 
-    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+    /* noprefixroute: see wanmgr_construct_wan_address_from_IAPD() */
+    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s noprefixroute", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
     if (WanManager_DoSystemActionWithStatus("checkIpv6AddressIsReadyToUse: DAD recovery - re-add address", cmdLine) != 0)
     {
         CcspTraceError(("%s %d - Failed to re-add IPv6 address %s on '%s' during DAD recovery\n",
@@ -1691,7 +1692,8 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
                        __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, 
                        p_VirtIf->Name));
         
-        snprintf(cmdStr, sizeof(cmdStr), "ip -6 addr add %s dev %s",
+        /* noprefixroute: see wanmgr_construct_wan_address_from_IAPD() */
+        snprintf(cmdStr, sizeof(cmdStr), "ip -6 addr add %s dev %s noprefixroute",
                  p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
         
         if (WanManager_DoSystemActionWithStatus("wan_setUpIPv6: Assign IPv6 address", cmdStr) != 0)

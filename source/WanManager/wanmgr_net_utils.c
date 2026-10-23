@@ -377,7 +377,9 @@ int WanManager_Ipv6AddrUtil(DML_VIRTUAL_IFACE* p_VirtIf,Ipv6OperType opr)
             if (strlen(p_VirtIf->IP.Ipv6Data.address) > 0)
             {
                 memset(cmdLine, 0, sizeof(cmdLine));
-                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr change %s dev %s valid_lft %d preferred_lft %d ", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime);
+                /* "addr change" replaces the address flags, so noprefixroute must be repeated or the
+                 * kernel drops it and restores the on-link route (see wanmgr_construct_wan_address_from_IAPD()) */
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr change %s dev %s noprefixroute valid_lft %d preferred_lft %d ", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.prefixVltime, p_VirtIf->IP.Ipv6Data.prefixPltime);
                 if (WanManager_DoSystemActionWithStatus("processDhcp6cStateChanged: ip -6 addr change L3IfName", (cmdLine)) != 0)
                     CcspTraceError(("failed to run cmd: %s", cmdLine));
 
