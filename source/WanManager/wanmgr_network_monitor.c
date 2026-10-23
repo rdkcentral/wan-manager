@@ -29,7 +29,6 @@
 #include <linux/filter.h>
 #include <net/if_arp.h>
 #include <net/if.h>
-#include <ifaddrs.h>
 #include <net/ethernet.h>
 #include <netpacket/packet.h>
 #include <netinet/in.h>
@@ -139,8 +138,6 @@ static bool g_toggle_flag = TRUE;
 #define ND_MON_LOG_CHUNK            240
 /* Cache of the capture interface's own IPv6 addresses, used only to explain why a
  * solicitation for one of them is never answered on the wire */
-#define ND_MON_LOCAL_ADDR_MAX       16
-#define ND_MON_LOCAL_ADDR_REFRESH   5
 
 #if defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)
 #define SYSEVENT_MAP_BR_IPV6_PREFIX "map_br_ipv6_prefix"
@@ -1154,6 +1151,7 @@ void WanMgr_NdMonitor_Start(const char *ifname, const char *baseIfname)
 {
     const char *requested[ND_MON_MAX_IFACES] = { ifname, baseIfname };
     bool changed = FALSE;
+    bool rearmed = FALSE;
 
     if ((ifname == NULL) || (ifname[0] == '\0'))
     {
@@ -1178,8 +1176,11 @@ void WanMgr_NdMonitor_Start(const char *ifname, const char *baseIfname)
         snprintf(ndMonitorReqIfname[i], sizeof(ndMonitorReqIfname[i]), "%s", name);
     }
     /* The window is anchored on the start, so repeated start requests for the same
-     * interfaces cannot keep pushing the deadline out and extend the capture forever */
-    if (changed || (ndMonitorDeadline == 0))
+     * interfaces cannot keep pushing the deadline out and extend the capture forever.
+     * A start that follows a stop is a new address cycle on the same interfaces (e.g. the
+     * WAN was torn down and re-acquired), which brings a new DAD run, so that re-arms it. */
+    rearmed = (!changed && (ndMonitorDeadline != 0) && ndMonitorStopNoted);
+    if (changed || (ndMonitorDeadline == 0) || rearmed)
     {
         ndMonitorDeadline = NetMonitor_MonotonicSec() + ND_MON_MAX_CAPTURE_SEC;
         ndMonitorStopNoted = FALSE;
@@ -1191,6 +1192,11 @@ void WanMgr_NdMonitor_Start(const char *ifname, const char *baseIfname)
         CcspTraceInfo(("%s-%d [ND MONITOR] ICMPv6 ND capture requested on '%s' and base interface '%s', capturing every NS/NA for the next %d sec\n",
                        __FUNCTION__, __LINE__, ifname,
                        (requested[1] != NULL) ? requested[1] : "<none>", ND_MON_MAX_CAPTURE_SEC));
+    }
+    else if (rearmed)
+    {
+        CcspTraceInfo(("%s-%d [ND MONITOR] ICMPv6 ND capture re-requested on '%s' after a stop (new address cycle), window re-armed for %d sec\n",
+                       __FUNCTION__, __LINE__, ifname, ND_MON_MAX_CAPTURE_SEC));
     }
 }
 
@@ -1447,50 +1453,52 @@ static void NetMonitor_ApplyNdMonitorRequest(void)
     }
 }
 
-/* TRUE when addr is configured on ifname itself.
+/* Looks up addr among this host's IPv6 addresses on ifname and returns its IFA_F_* flags
+ * (e.g. IFA_F_TENTATIVE, IFA_F_DADFAILED), or -1 if ifname does not own it.
  *
- * Soliciting an address that the box owns produces no NA on the wire: the reply is
- * destined for another of our own addresses, so the kernel routes it through the
- * loopback path and the frame never reaches the device a packet socket is bound to.
- * That is indistinguishable from a lost NA unless the capture says so explicitly.
- * The lookup is cached because it is only needed to annotate the log. */
-static bool NetMonitor_IsLocalIfaceAddr(const char *ifname, const struct in6_addr *addr, time_t now)
+ * The state is read fresh for every call rather than cached: an address leaves TENTATIVE
+ * (or enters DADFAILED) within milliseconds, and the whole point of the lookup is to tell
+ * those states apart. /proc/net/if_inet6 is used because, unlike getifaddrs(), it reports
+ * the flags. ND traffic is sparse, so the cost is negligible. */
+static int NetMonitor_GetLocalAddrFlags(const char *ifname, const struct in6_addr *addr)
 {
-    static time_t          lastRefresh = 0;
-    static char            cachedIf[IF_NAMESIZE] = {0};
-    static struct in6_addr cache[ND_MON_LOCAL_ADDR_MAX];
-    static int             cacheCount = 0;
+    static bool warned = FALSE;
+    char want[33];
+    char line[256];
+    char hexAddr[33];
+    char name[IF_NAMESIZE + 1];
+    unsigned int ifIndex, plen, scope, flags;
+    int result = -1;
+    FILE *fp;
 
-    if ((strcmp(cachedIf, ifname) != 0) || ((now - lastRefresh) >= ND_MON_LOCAL_ADDR_REFRESH))
+    for (int i = 0; i < 16; i++)
     {
-        struct ifaddrs *ifaList = NULL;
-
-        cacheCount = 0;
-        snprintf(cachedIf, sizeof(cachedIf), "%s", ifname);
-        lastRefresh = now;
-
-        if (getifaddrs(&ifaList) == 0)
-        {
-            for (struct ifaddrs *it = ifaList; (it != NULL) && (cacheCount < ND_MON_LOCAL_ADDR_MAX); it = it->ifa_next)
-            {
-                if ((it->ifa_addr != NULL) && (it->ifa_addr->sa_family == AF_INET6) &&
-                    (it->ifa_name != NULL) && (strcmp(it->ifa_name, ifname) == 0))
-                {
-                    cache[cacheCount++] = ((struct sockaddr_in6 *) it->ifa_addr)->sin6_addr;
-                }
-            }
-            freeifaddrs(ifaList);
-        }
+        snprintf(&want[i * 2], 3, "%02x", addr->s6_addr[i]);
     }
 
-    for (int i = 0; i < cacheCount; i++)
+    fp = fopen("/proc/net/if_inet6", "r");
+    if (fp == NULL)
     {
-        if (IN6_ARE_ADDR_EQUAL(&cache[i], addr))
+        if (!warned)
         {
-            return TRUE;
+            CcspTraceError(("%s-%d [ND MONITOR] Cannot open /proc/net/if_inet6 (%s), own-address/DAD-conflict annotations are disabled\n",
+                            __FUNCTION__, __LINE__, strerror(errno)));
+            warned = TRUE;
+        }
+        return -1;
+    }
+
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
+        if ((sscanf(line, "%32s %x %x %x %x %16s", hexAddr, &ifIndex, &plen, &scope, &flags, name) == 6) &&
+            (strcmp(name, ifname) == 0) && (strcasecmp(hexAddr, want) == 0))
+        {
+            result = (int)flags;
+            break;
         }
     }
-    return FALSE;
+    fclose(fp);
+    return result;
 }
 
 /* Emits one decoded packet, split across as many log messages as it takes for the RDK
@@ -1667,6 +1675,38 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
                      (unsigned int)ip6->ip6_hlim,
                      (unsigned int)((ntohl(ip6->ip6_flow) >> 20) & 0xff),
                      ntohs(ip6->ip6_plen), len, optList);
+
+            /* The kernel fails DAD on ANY received NA whose target is one of our tentative
+             * addresses (ndisc_recv_na -> addrconf_dad_failure), not only on a classic DAD
+             * defence. Name the sender explicitly and say which kind of answer it was. */
+            if (rx)
+            {
+                int ownFlags = NetMonitor_GetLocalAddrFlags(slot->ifname, &na->nd_na_target);
+
+                if ((ownFlags >= 0) && (ownFlags & (IFA_F_TENTATIVE | IFA_F_DADFAILED)))
+                {
+                    bool isRouter   = ((flags & ND_NA_FLAG_ROUTER) != 0);
+                    bool isOverride = ((flags & ND_NA_FLAG_OVERRIDE) != 0);
+
+                    CcspTraceError(("%s-%d [ND MONITOR] DAD CONFLICT SOURCE: NA #%lu on '%s' claims our address %s (flags now=0x%02x%s%s) "
+                                    "for lladdr %s, sent by %s src_mac=%s\n",
+                                    __FUNCTION__, __LINE__, slot->pktSeen, slot->ifname, target, (unsigned int)ownFlags,
+                                    (ownFlags & IFA_F_TENTATIVE) ? " TENTATIVE" : "",
+                                    (ownFlags & IFA_F_DADFAILED) ? " DADFAILED" : "",
+                                    optMac, src, srcMac));
+                    CcspTraceError(("%s-%d [ND MONITOR] DAD CONFLICT SOURCE: NA #%lu is %s\n",
+                                    __FUNCTION__, __LINE__, slot->pktSeen,
+                                    dadDefence ? "a DAD defence (unsolicited, to all-nodes): another node really holds the address" :
+                                    (solicited ? "a SOLICITED reply to an NS for this address (see our preceding TX NS), not a DAD defence" :
+                                                 "an unsolicited NA, not addressed as a DAD defence")));
+                    if (isRouter && !isOverride)
+                    {
+                        CcspTraceError(("%s-%d [ND MONITOR] DAD CONFLICT SOURCE: NA #%lu has R=1 O=0, the RFC 4861 7.2.8 proxy-ND "
+                                        "signature: the router answers for a prefix it routes, it is not a duplicate host\n",
+                                        __FUNCTION__, __LINE__, slot->pktSeen));
+                    }
+                }
+            }
         }
         else if (icmp6->icmp6_type == ND_NEIGHBOR_SOLICIT)
         {
@@ -1719,16 +1759,31 @@ static void NetMonitor_ProcessNdMonitorFd(NdMonitorSlot_t *slot)
                                 __FUNCTION__, __LINE__, target, slot->ifname, optMac));
             }
 
-            /* Soliciting one of our own addresses (e.g. "ndisc6 <our address> <our iface>")
-             * is answered internally, so the absence of an NA here is expected rather than
-             * a missed capture. Say so, otherwise it reads as a hole in the capture. */
-            if (!isDad && !rx &&
-                NetMonitor_IsLocalIfaceAddr(slot->ifname, &ns->nd_ns_target, NetMonitor_MonotonicSec()))
+            /* We are soliciting one of our own addresses. What that means depends on its state:
+             *  - usable: the reply is delivered over the loopback path, so no NA ever appears
+             *    on the wire and its absence is not a capture gap;
+             *  - tentative/DAD-failed: the address is not local yet, so traffic for it follows
+             *    the on-link route out of this interface and the kernel genuinely resolves it
+             *    here. Any neighbour that answers (e.g. an upstream router doing proxy ND) is
+             *    then indistinguishable from a duplicate and the kernel fails DAD. */
+            if (!isDad && !rx)
             {
-                CcspTraceInfo(("%s-%d [ND MONITOR] NS #%lu solicits %s, which is a local address of '%s'. The kernel answers "
-                               "from the loopback path, so no NA for it is transmitted on the interface and none can be captured. "
-                               "Solicit a remote neighbour (e.g. the default gateway) to see an NA on the wire\n",
-                               __FUNCTION__, __LINE__, slot->pktSeen, target, slot->ifname));
+                int ownFlags = NetMonitor_GetLocalAddrFlags(slot->ifname, &ns->nd_ns_target);
+
+                if ((ownFlags >= 0) && (ownFlags & (IFA_F_TENTATIVE | IFA_F_DADFAILED)))
+                {
+                    CcspTraceError(("%s-%d [ND MONITOR] NS #%lu resolves our OWN not-yet-usable address %s on '%s' (flags now=0x%02x%s%s): "
+                                    "traffic to it leaves via the on-link route, and ANY NA for it will fail DAD\n",
+                                    __FUNCTION__, __LINE__, slot->pktSeen, target, slot->ifname, (unsigned int)ownFlags,
+                                    (ownFlags & IFA_F_TENTATIVE) ? " TENTATIVE" : "",
+                                    (ownFlags & IFA_F_DADFAILED) ? " DADFAILED" : ""));
+                }
+                else if (ownFlags >= 0)
+                {
+                    CcspTraceInfo(("%s-%d [ND MONITOR] NS #%lu solicits %s, a usable local address of '%s': the kernel answers it "
+                                   "via loopback, so no NA can appear on the wire (not a capture gap)\n",
+                                   __FUNCTION__, __LINE__, slot->pktSeen, target, slot->ifname));
+                }
             }
         }
         else
