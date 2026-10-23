@@ -1675,9 +1675,14 @@ int wanmgr_construct_wan_address_from_IAPD(WANMGR_IPV6_DATA *pIpv6DataNew)
     pIpv6DataNew->addrCmd = IFADDRCONF_ADD;
 
     CcspTraceInfo(("%s %d Calculated WAN address %s/128\n", __FUNCTION__, __LINE__, pIpv6DataNew->address));
-    // Assign the /128 host address on the WAN interface
+    /* Assign the /128 host address on the WAN interface.
+     * noprefixroute: skip the on-link "<addr>/128 dev <wan>" route. It exists before DAD
+     * completes, so any packet to <addr> triggers an NS for our own address on the WAN and
+     * the upstream (proxy) NA fails our DAD. Dropping it is harmless: the "local <addr>"
+     * route (table local, added after DAD) still delivers traffic to us and is looked up
+     * before the main table, and outbound traffic uses the default route. */
     memset(cmdLine, 0, sizeof(cmdLine));
-    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s", pIpv6DataNew->address, pIpv6DataNew->ifname);
+    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s noprefixroute", pIpv6DataNew->address, pIpv6DataNew->ifname);
     if (WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine) != 0)
         CcspTraceError(("failed to run cmd: %s", cmdLine));
 
