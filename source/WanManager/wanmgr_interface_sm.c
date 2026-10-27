@@ -2223,6 +2223,17 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
 
     WanMgr_GetSelectedIPMode(p_VirtIf); //Get SelectedIPMode
 
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
+    if (p_VirtIf->IP.DHCPv6Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv6Iface) == RETURN_OK)
+    {
+        p_VirtIf->IP.Dhcp6SubscribedIface = TRUE;
+    }
+    if (p_VirtIf->IP.DHCPv4Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv4Iface) == RETURN_OK)
+    {
+        p_VirtIf->IP.Dhcp4SubscribedIface = TRUE;
+    }
+#endif
+
     CcspTraceInfo(("%s %d - Interface '%s' - TRANSITION START\n", __FUNCTION__, __LINE__, pInterface->Name));
 
     return WAN_STATE_PHY_CONFIGURING;
@@ -3537,7 +3548,20 @@ static eWanState_t wan_transition_exit(WanMgr_IfaceSM_Controller_t* pWanIfaceCtr
 
     WanMgr_ProcessTelemetryMarker(p_VirtIf,WAN_ERROR_WAN_DOWN);
     p_VirtIf->Interface_SM_Running = FALSE;
-    
+
+#if defined(FEATURE_RDKB_DHCP_MANAGER)
+    if (p_VirtIf->IP.Dhcp6SubscribedIface == TRUE)
+    {
+        WanMgr_UnSubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv6Iface);
+        p_VirtIf->IP.Dhcp6SubscribedIface = FALSE;
+    }
+    if (p_VirtIf->IP.Dhcp4SubscribedIface == TRUE)
+    {
+        WanMgr_UnSubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv4Iface);
+        p_VirtIf->IP.Dhcp4SubscribedIface = FALSE;
+    }
+#endif
+
     return WAN_STATE_EXIT;
 }
 
