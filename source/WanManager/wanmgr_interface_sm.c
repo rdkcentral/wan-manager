@@ -3285,7 +3285,12 @@ static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceC
             if (p_VirtIf->IP.ConnectivityCheckType == WAN_CONNECTIVITY_TYPE_TAD)
             {
                 p_VirtIf->IP.RestartConnectivityCheck = TRUE;
+                CcspTraceInfo(("%s %d - Restarting TAD connectivity check after MAP-T transition\n",
+                               __FUNCTION__, __LINE__));
                 WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
+                CcspTraceInfo(("%s %d - TAD connectivity check state after restart: running=%d restart=%d\n",
+                               __FUNCTION__, __LINE__, p_VirtIf->IP.ConnectivityCheckRunning,
+                               p_VirtIf->IP.RestartConnectivityCheck));
             }
 
 #if defined(IVI_KERNEL_SUPPORT)
