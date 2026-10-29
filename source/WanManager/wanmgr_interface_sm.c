@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <ifaddrs.h>
+#include <arpa/inet.h>
 #include <linux/if_addr.h>
 #include <sys/syscall.h>
 #include "wanmgr_interface_sm.h"
@@ -1066,13 +1067,37 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
 }
 
 
-static int WanMgr_IsIpv6DADComplete(const char *ifName)
+typedef enum
+{
+    WAN_IPV6_DAD_COMPLETE = 0,   /* address present, DAD succeeded */
+    WAN_IPV6_DAD_PENDING  = 1,   /* address missing or still tentative, keep waiting */
+    WAN_IPV6_DAD_FAILED   = 2    /* DADFAILED, final: the kernel never retries on its own */
+} WanIpv6DadResult_t;
+
+/**
+ * @brief Checks the DAD state of the WAN IPv6 address on an interface.
+ *
+ * Only ipv6Addr is checked; other addresses on the interface (e.g. link-local or a stale one)
+ * are ignored. If ipv6Addr is empty or invalid, all global scope addresses on ifName are checked.
+ *
+ * @param ifName   Name of the interface.
+ * @param ipv6Addr WAN IPv6 address to check, with or without a prefix length.
+ * @return WAN_IPV6_DAD_COMPLETE (0) if DAD completed.
+ * @return WAN_IPV6_DAD_PENDING (1) if the address is missing or still tentative, or the check could not be done.
+ * @return WAN_IPV6_DAD_FAILED (2) if DAD failed.
+ */
+static WanIpv6DadResult_t WanMgr_IsIpv6DADComplete(const char *ifName, const char *ipv6Addr)
 {
     char address[33] = {0};
     char device[64] = {0};
     char line[BUFLEN_128] = {0};
+    char failedAddr[INET6_ADDRSTRLEN] = {0};
+    char target[33] = {0};
+    struct in6_addr in6;
+    int matchTarget = 0;
     int addressFound = 0;
-    int dadIncomplete = 0;
+    int dadTentative = 0;
+    int dadFailed = 0;
     unsigned int ifIndex = 0;
     unsigned int prefixLength = 0;
     unsigned int scope = 0;
@@ -1081,7 +1106,29 @@ static int WanMgr_IsIpv6DADComplete(const char *ifName)
 
     if (ifName == NULL || ifName[0] == '\0')
     {
-        return 0;
+        return WAN_IPV6_DAD_PENDING;
+    }
+
+    if (ipv6Addr != NULL && ipv6Addr[0] != '\0')
+    {
+        char addrOnly[INET6_ADDRSTRLEN] = {0};
+        char *slash = NULL;
+
+        snprintf(addrOnly, sizeof(addrOnly), "%s", ipv6Addr);
+        if ((slash = strchr(addrOnly, '/')) != NULL)
+        {
+            *slash = '\0';
+        }
+
+        if (inet_pton(AF_INET6, addrOnly, &in6) == 1)
+        {
+            /* /proc/net/if_inet6 lists addresses as 32 lower-case hex digits */
+            for (int i = 0; i < 16; i++)
+            {
+                snprintf(&target[i * 2], 3, "%02x", in6.s6_addr[i]);
+            }
+            matchTarget = 1;
+        }
     }
 
     fp = fopen("/proc/net/if_inet6", "r");
@@ -1090,25 +1137,51 @@ static int WanMgr_IsIpv6DADComplete(const char *ifName)
     {
         CcspTraceError(("%s %d - Failed to open /proc/net/if_inet6: %s\n",
                        __FUNCTION__, __LINE__, strerror(errno)));
-        return 0;
+        return WAN_IPV6_DAD_PENDING;
     }
 
     while (fgets(line, sizeof(line), fp) != NULL)
     {
         if (sscanf(line, "%32s %x %x %x %x %63s", address, &ifIndex,
-                   &prefixLength, &scope, &flags, device) == 6 &&
-            strcmp(device, ifName) == 0)
+                   &prefixLength, &scope, &flags, device) != 6 ||
+            strcmp(device, ifName) != 0)
         {
-            addressFound = 1;
-            if ((flags & (IFA_F_TENTATIVE | IFA_F_DADFAILED)) != 0)
+            continue;
+        }
+
+        if (matchTarget ? (strcasecmp(address, target) != 0) : (scope != 0 /* not global */))
+        {
+            continue;
+        }
+
+        addressFound = 1;
+        if (flags & IFA_F_DADFAILED)
+        {
+            dadFailed = 1;
+            for (int i = 0; i < 16; i++)
             {
-                dadIncomplete = 1;
+                unsigned int byte = 0;
+                sscanf(&address[i * 2], "%2x", &byte);
+                in6.s6_addr[i] = (unsigned char)byte;
             }
+            inet_ntop(AF_INET6, &in6, failedAddr, sizeof(failedAddr));
+        }
+        else if (flags & IFA_F_TENTATIVE)
+        {
+            dadTentative = 1;
         }
     }
 
     fclose(fp);
-    return addressFound && !dadIncomplete;
+
+    if (dadFailed)
+    {
+        CcspTraceError(("%s %d - DAD FAILED for address %s on '%s'\n",
+                       __FUNCTION__, __LINE__, failedAddr, ifName));
+        return WAN_IPV6_DAD_FAILED;
+    }
+
+    return (addressFound && !dadTentative) ? WAN_IPV6_DAD_COMPLETE : WAN_IPV6_DAD_PENDING;
 }
 
 /*
@@ -1127,7 +1200,8 @@ static void WanMgr_Ipv6DadRecovery_ReConfigureAddress(DML_VIRTUAL_IFACE* p_VirtI
     snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
     WanManager_DoSystemActionWithStatus("checkIpv6AddressIsReadyToUse: DAD recovery - delete address", cmdLine);
 
-    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+    /* noprefixroute: see wanmgr_construct_wan_address_from_IAPD() */
+    snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr add %s/128 dev %s noprefixroute", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
     if (WanManager_DoSystemActionWithStatus("checkIpv6AddressIsReadyToUse: DAD recovery - re-add address", cmdLine) != 0)
     {
         CcspTraceError(("%s %d - Failed to re-add IPv6 address %s on '%s' during DAD recovery\n",
@@ -1142,9 +1216,9 @@ static void WanMgr_Ipv6DadRecovery_ReConfigureAddress(DML_VIRTUAL_IFACE* p_VirtI
  * failure, and verifies that a default route is present.
  * If the default route is missing, it triggers a Router Solicitation.
  *
- * If DAD does not complete within 15 seconds, the address is deleted and re-added to force
- * a fresh DAD cycle. If DAD still hasn't completed 15 seconds after that, the DHCPv6 client
- * is restarted on the interface to recover.
+ * If DAD fails (DADFAILED) or does not complete within 15 seconds, the address is deleted and
+ * re-added to force a fresh DAD cycle. If DAD still hasn't completed after that, the address is
+ * deleted and the DHCPv6 client is restarted with release.
  *
  * @param p_VirtIf Pointer to the virtual interface structure.
  * @param IfaceType Type of the base WAN interface, needed to restart the DHCPv6 client.
@@ -1154,6 +1228,7 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE 
 {
     char buffer[BUFLEN_256] = {0};
     FILE *fp_route     = NULL;
+    WanIpv6DadResult_t dad_state = WAN_IPV6_DAD_PENDING;
     int dad_flag       = 0;
     int route_flag     = 0;
 
@@ -1166,18 +1241,19 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE 
 
     for(int i=0; i<15; i++) 
     {
-        if (WanMgr_IsIpv6DADComplete(p_VirtIf->Name))
+        dad_state = WanMgr_IsIpv6DADComplete(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address);
+        /* Wait only while pending (tentative); complete or DADFAILED is final */
+        if (dad_state != WAN_IPV6_DAD_PENDING)
         {
-            dad_flag = 1;
             break;
         }
 
         sleep(1);
     }
 
-    if (dad_flag == 0 && p_VirtIf->IP.Ipv6DadRecoveryAttempted == FALSE)
+    if (dad_state != WAN_IPV6_DAD_COMPLETE && p_VirtIf->IP.Ipv6DadRecoveryAttempted == FALSE)
     {
-        CcspTraceError(("%s %d - DAD check failed for %s on '%s' after 15 sec, deleting and re-adding the address to recover\n",
+        CcspTraceError(("%s %d - DAD check failed for %s on '%s', deleting and re-adding the address to recover\n",
                        __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
 
         WanMgr_Ipv6DadRecovery_ReConfigureAddress(p_VirtIf);
@@ -1185,22 +1261,30 @@ static int checkIpv6AddressIsReadyToUse(DML_VIRTUAL_IFACE* p_VirtIf, IFACE_TYPE 
 
         for(int i=0; i<15; i++)
         {
-            if (WanMgr_IsIpv6DADComplete(p_VirtIf->Name))
+            dad_state = WanMgr_IsIpv6DADComplete(p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address);
+            if (dad_state != WAN_IPV6_DAD_PENDING)
             {
-                dad_flag = 1;
                 break;
             }
 
             sleep(1);
         }
 
-        if (dad_flag == 0)
+        if (dad_state != WAN_IPV6_DAD_COMPLETE)
         {
-            CcspTraceError(("%s %d - DAD still failing for %s on '%s' after address recovery, restarting DHCPv6 client with release\n",
+            char cmdLine[BUFLEN_256] = {0};
+
+            CcspTraceError(("%s %d - DAD still failing for %s on '%s' after address recovery, deleting the address and restarting DHCPv6 client with release\n",
                            __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
+
+            /* A DADFAILED address stays on the interface until deleted and would fail the next check too */
+            snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/128 dev %s", p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
+            WanManager_DoSystemActionWithStatus("checkIpv6AddressIsReadyToUse: DAD failed - delete address before release", cmdLine);
             WanManager_RestartDhcpv6Client(p_VirtIf, IfaceType);
         }
     }
+
+    dad_flag = (dad_state == WAN_IPV6_DAD_COMPLETE) ? 1 : 0;
 
     if (dad_flag == 1)
     {
@@ -1691,7 +1775,8 @@ static int wan_setUpIPv6(WanMgr_IfaceSM_Controller_t * pWanIfaceCtrl)
                        __FUNCTION__, __LINE__, p_VirtIf->IP.Ipv6Data.address, 
                        p_VirtIf->Name));
         
-        snprintf(cmdStr, sizeof(cmdStr), "ip -6 addr add %s dev %s",
+        /* noprefixroute: see wanmgr_construct_wan_address_from_IAPD() */
+        snprintf(cmdStr, sizeof(cmdStr), "ip -6 addr add %s dev %s noprefixroute",
                  p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name);
         
         if (WanManager_DoSystemActionWithStatus("wan_setUpIPv6: Assign IPv6 address", cmdStr) != 0)
