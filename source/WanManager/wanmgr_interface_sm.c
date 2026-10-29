@@ -3281,6 +3281,13 @@ static eWanState_t wan_transition_map_up(WanMgr_IfaceSM_Controller_t* pWanIfaceC
         {
             wan_transition_ipv4_down(pWanIfaceCtrl);
 
+            // Mark the interface for connectivity check restart and trigger the connectivity check
+            if (p_VirtIf->IP.ConnectivityCheckType == WAN_CONNECTIVITY_TYPE_TAD)
+            {
+                p_VirtIf->IP.RestartConnectivityCheck = TRUE;
+                WanMgr_StartConnectivityCheck(pWanIfaceCtrl);
+            }
+
 #if defined(IVI_KERNEL_SUPPORT)
             snprintf(cmdEnableIpv4Traffic,sizeof(cmdEnableIpv4Traffic),"ip ro rep default dev %s", p_VirtIf->Name);
 #elif defined(NAT46_KERNEL_SUPPORT)
