@@ -2180,6 +2180,28 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
         }
         else 
         {
+            char previousLanAddress[BUFLEN_48] = {0};
+            struct in6_addr previousAddress;
+            struct in6_addr newAddress;
+
+            sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_LAN_IPV6_ADDRESS,
+                         previousLanAddress, sizeof(previousLanAddress));
+            if (inet_pton(AF_INET6, previousLanAddress, &previousAddress) == 1 &&
+                (previousAddress.s6_addr[0] & 0xe0) == 0x20 && // IPv6 global unicast
+                inet_pton(AF_INET6, globalIP, &newAddress) == 1 &&
+                memcmp(&previousAddress, &newAddress, sizeof(previousAddress)) != 0)
+            {
+                snprintf(cmdLine, sizeof(cmdLine), "ip -6 addr del %s/64 dev %s",
+                         previousLanAddress, COSA_DML_DHCPV6_SERVER_IFNAME);
+                CcspTraceInfo(("%s %d - Removing previous LAN IPv6 address %s/64 from %s\n",
+                               __FUNCTION__, __LINE__, previousLanAddress, COSA_DML_DHCPV6_SERVER_IFNAME));
+                if (WanManager_DoSystemActionWithStatus(__FUNCTION__, cmdLine) != 0)
+                {
+                    CcspTraceError(("%s %d - Failed to remove previous LAN IPv6 address: %s\n",
+                                    __FUNCTION__, __LINE__, cmdLine));
+                }
+            }
+
             snprintf(pVirtIf->IP.Ipv6Data.pdIfAddress, sizeof(pVirtIf->IP.Ipv6Data.pdIfAddress), "%s/64", globalIP);
             /*This is for brlan0 interface */
             char pref_len[10] ={0};
