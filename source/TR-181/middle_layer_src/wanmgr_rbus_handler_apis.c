@@ -1959,6 +1959,19 @@ ANSC_STATUS WanMgr_Configure_TAD_WCC(DML_VIRTUAL_IFACE *p_VirtIf,  WCC_EVENT Eve
     pthread_t                threadId;
     int                      iErrorCode     = 0;
 
+    // Check if IPv6 is up but default gateway is not set, then send and receive RS for IPv6 connectivity check to ensure proper connectivity
+    CcspTraceInfo(("%s %d: Interface %s IPv6 status %d, default gateway %s\n",
+                   __FUNCTION__, __LINE__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Status,
+                   p_VirtIf->IP.Ipv6RA.acDefaultGw[0] ? p_VirtIf->IP.Ipv6RA.acDefaultGw : "(none)"));
+
+    if (p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP &&
+        p_VirtIf->IP.Ipv6RA.acDefaultGw[0] == '\0')
+    {
+        int rsResult = WanManager_send_and_receive_rs(p_VirtIf);
+        CcspTraceInfo(("%s %d: Router solicitation for interface %s returned %d; default gateway is now %s\n",
+                       __FUNCTION__, __LINE__, p_VirtIf->Name, rsResult,
+                       p_VirtIf->IP.Ipv6RA.acDefaultGw[0] ? p_VirtIf->IP.Ipv6RA.acDefaultGw : "(none)"));
+    }
 
     if (Event != WCC_STOP &&
         (((p_VirtIf->IP.Ipv4Data.dnsServer[0] == '\0') && (p_VirtIf->IP.Ipv4Data.dnsServer1[0] == '\0') &&
