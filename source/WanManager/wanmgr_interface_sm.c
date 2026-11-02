@@ -18,6 +18,8 @@
 */
 
 #include <unistd.h>
+#include <ctype.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
@@ -68,7 +70,6 @@
 
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
-
 
 #if defined(FEATURE_464XLAT)
 typedef enum
@@ -823,6 +824,118 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
     return;
 }
 
+/*
+ * is_nameserver_line()
+ * This function will check if the line is a nameserver line in /etc/resolv.conf
+ */
+static bool is_nameserver_line(const char *line)
+{
+    const char nameserver[] = "nameserver";
+
+    while (isspace((unsigned char)*line))
+    {
+        line++;
+    }
+
+    return (strncmp(line, nameserver, sizeof(nameserver) - 1) == 0) &&
+           ((line[sizeof(nameserver) - 1] == '\0') ||
+            isspace((unsigned char)line[sizeof(nameserver) - 1]));
+}
+
+/*
+ * prepare_resolv_conf_for_nameservers()
+ * This function will 
+    1. Removes existing nameserver lines from /etc/resolv.conf
+    2. Preserves all other content, including comments and configuration directives.
+    3. Truncates and rewrites the file with the preserved content.
+    4. Returns an open FILE * positioned at the end, allowing the caller to append new nameserver entries.
+ */
+static FILE *prepare_resolv_conf_for_nameservers(void)
+{
+    FILE *resolv_conf = fopen(RESOLV_CONF_FILE, "a+");
+    char *preserved_content = NULL;
+    size_t preserved_length = 0;
+    char *line = NULL;
+    size_t line_capacity = 0;
+    ssize_t line_length;
+
+    if (resolv_conf == NULL)
+    {
+        CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+        return NULL;
+    }
+
+    rewind(resolv_conf);
+    while ((line_length = getline(&line, &line_capacity, resolv_conf)) != -1)
+    {
+        if (!is_nameserver_line(line))
+        {
+            char *new_content = realloc(preserved_content, preserved_length + (size_t)line_length);
+
+            if (new_content == NULL)
+            {
+                CcspTraceError(("%s %d - Unable to preserve contents of %s\n",
+                                __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+                free(line);
+                free(preserved_content);
+                fclose(resolv_conf);
+                return NULL;
+            }
+
+            preserved_content = new_content;
+            memcpy(preserved_content + preserved_length, line, (size_t)line_length);
+            preserved_length += (size_t)line_length;
+        }
+    }
+
+    if (ferror(resolv_conf))
+    {
+        CcspTraceError(("%s %d - Unable to read %s\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+        free(line);
+        free(preserved_content);
+        fclose(resolv_conf);
+        return NULL;
+    }
+    free(line);
+
+    if ((fflush(resolv_conf) != 0) || (ftruncate(fileno(resolv_conf), 0) != 0))
+    {
+        CcspTraceError(("%s %d - Unable to update %s\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+        free(preserved_content);
+        fclose(resolv_conf);
+        return NULL;
+    }
+
+    if (fseek(resolv_conf, 0, SEEK_SET) != 0)
+    {
+        CcspTraceError(("%s %d - Unable to update %s\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+        free(preserved_content);
+        fclose(resolv_conf);
+        return NULL;
+    }
+
+    if ((preserved_length > 0) &&
+        (fwrite(preserved_content, 1, preserved_length, resolv_conf) != preserved_length))
+    {
+        CcspTraceError(("%s %d - Unable to restore contents of %s\n",
+                        __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+        free(preserved_content);
+        fclose(resolv_conf);
+        return NULL;
+    }
+
+    if ((preserved_length > 0) && (preserved_content[preserved_length - 1] != '\n') &&
+        (fputc('\n', resolv_conf) == EOF))
+    {
+        CcspTraceError(("%s %d - Unable to update %s\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+        free(preserved_content);
+        fclose(resolv_conf);
+        return NULL;
+    }
+
+    free(preserved_content);
+    return resolv_conf;
+}
 
 int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL addIPv6)
 {
@@ -857,9 +970,10 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
 
     if (deviceMode == GATEWAY_MODE)
     {
-        if((fp = fopen(RESOLV_CONF_FILE, "w+")) == NULL)
+        fp = prepare_resolv_conf_for_nameservers();
+        if (fp == NULL)
         {
-            CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+            CcspTraceError(("%s %d - Preparing %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
             return RETURN_ERR;
         }
     }
