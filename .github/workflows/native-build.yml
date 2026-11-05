@@ -1,4 +1,4 @@
-name: Build telco-voice-manager Component in Native Environment
+name: Build wan-manager Component in Native Environment
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
 
 jobs:
-  build-telco-voice-manager-on-pr:
-    name: Build telco-voice-manager component in github rdkcentral
+  build-wan-manager-on-pr:
+    name: Build wan-voice-manager component in github rdkcentral
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rdkcentral/docker-rdk-ci:latest
