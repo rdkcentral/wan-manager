@@ -1,0 +1,103 @@
+{
+  "_comment": "Component Build Configuration for Coverity/Native Builds",
+  "_version": "2.0",
+  "_description": "Defines dependencies and build settings for the native component",
+  "dependencies": {
+    "_comment": "External repositories needed by this component",
+    "repos": [
+      {
+        "name": "rdkb-halif-platform-headers",
+        "repo": "https://github.com/rdkcentral/rdkb-halif-platform.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "miscellaneous-broadband",
+        "repo": "https://github.com/rdkcentral/miscellaneous-broadband.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "source/dhcp_client_utils", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/TimeConv", "destination": "$HOME/usr/include/rdkb" }
+        ],
+        "build": {
+          "type": "commands",
+	      "commands": [
+            "mkdir -p $HOME/usr/lib",
+            "gcc -shared -fPIC source/TimeConv/time_conversion.c -o $HOME/usr/lib/libtime_conversion.so -I$HOME/usr/include/rdkb -I./source/TimeConv -D_GNU_SOURCE -w",
+		    "cp $HOME/usr/lib/libtime_conversion.so $HOME/usr/local/lib/"
+          ]
+        }
+      },
+      {
+        "name": "rdkb-halif-dhcp",
+        "repo": "https://github.com/rdkcentral/rdkb-halif-dhcp.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "common-library",
+        "repo": "https://github.com/rdkcentral/common-library.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "source/ccsp/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/components/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/custom", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/cosa/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/cosa/include/linux", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/cosa/include/linux", "destination": "$HOME/usr/include/rdkb/linux" },
+          { "source": "source/cosa/package/slap/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/debug_api/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/util_api/http/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/util_api/ansc/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/components/common/MessageBusHelper/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/components/common/PoamIrepFolder", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/dm_pack", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      }
+    ]
+  },
+  "native_component": {
+    "_comment": "Configuration for the main component being built",
+    "name": "wan-manager",
+    "include_path": "$HOME/usr/include/rdkb/",
+    "lib_output_path": "$HOME/usr/local/lib/",
+    "source_patches": [
+      {
+        "file": "config/RdkWanManager_v2.xml",
+        "type": "replace",
+        "search": "<?xml version=\"1.0\" encoding=\"utf-8\" ?>",
+        "replace": "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n<?define RBUS_BUILD_FLAG_ENABLE=True?>\n<?define FEATURE_RDKB_DHCP_MANAGER=True?>\n<?define FEATURE_MAPT=True?>"
+      }
+    ],
+    "build": {
+      "type": "autotools",
+      "configure_options_file": "cov_docker_script/configure_options.conf"
+    },
+    "pre_build_commands": [
+      {
+        "description": "Generate dm_pack_datamodel.c from RdkWanManager_v2.xml",
+        "command": "python3 $HOME/usr/include/rdkb/dm_pack_code_gen.py config/RdkWanManager_v2.xml source/WanManager/dm_pack_datamodel.c"
+      },
+      {
+        "description": "Restore the XML patched with the dm_pack defines",
+        "command": "git checkout -- config/RdkWanManager_v2.xml"
+      },
+      {
+        "description": "Dummy link-only libraries (not built natively)",
+        "command": "mkdir -p $HOME/usr/dummies"
+      },
+      {
+        "description": "Dummy link-only libraries (not built natively)",
+        "command": "touch $HOME/usr/dummies/libapi_dhcpv4c.so"
+      },
+      {
+        "description": "Dummy link-only libraries (not built natively)",
+        "command": "chmod -R +x $HOME/usr/dummies/"
+      }
+    ]
+  }
+}

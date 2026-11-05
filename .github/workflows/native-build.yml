@@ -1,0 +1,33 @@
+name: Build telco-voice-manager Component in Native Environment
+
+on:
+  push:
+    branches: [ main, 'sprint/**', 'release/**', develop ]
+  pull_request:
+    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, develop ]
+
+jobs:
+  build-telco-voice-manager-on-pr:
+    name: Build telco-voice-manager component in github rdkcentral
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rdkcentral/docker-rdk-ci:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: native build
+        run: |
+          # Trust the workspace
+          git config --global --add safe.directory '*'
+          # Pull the latest changes for the native build system
+          git submodule update --init --recursive --remote
+          # Build and install dependencies
+          chmod +x build_tools_workflows/cov_docker_script/setup_dependencies.sh
+          ./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
+          # Build component
+          chmod +x build_tools_workflows/cov_docker_script/build_native.sh
+          ./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.RDKCM_RDKE }}
