@@ -24,7 +24,13 @@
           }
         ],
         "build": {
-          "type": "autotools"
+          "type": "commands",
+          "commands": [
+            "autoreconf -fi",
+            "./configure",
+            "make -j$(nproc)",
+            "cp include/*.h $HOME/usr/include/rdkb/"
+          ]
         }
       },
       {
