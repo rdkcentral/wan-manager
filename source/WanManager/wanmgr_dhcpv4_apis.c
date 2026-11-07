@@ -83,6 +83,7 @@ static ANSC_STATUS wanmgr_dchpv4_get_ipc_msg_info(WANMGR_IPV4_DATA* pDhcpv4Data,
     memcpy(pDhcpv4Data->gateway, pIpcIpv4Data->gateway, BUFLEN_32);
     memcpy(pDhcpv4Data->dnsServer, pIpcIpv4Data->dnsServer, BUFLEN_64);
     memcpy(pDhcpv4Data->dnsServer1, pIpcIpv4Data->dnsServer1, BUFLEN_64);
+    snprintf(pDhcpv4Data->domain, sizeof(pDhcpv4Data->domain), "%s", pIpcIpv4Data->domain);
 #if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
     memcpy(pDhcpv4Data->timeZone, pIpcIpv4Data->timeZone, BUFLEN_64);
     pDhcpv4Data->isTimeOffsetAssigned = pIpcIpv4Data->isTimeOffsetAssigned;
@@ -146,6 +147,7 @@ ANSC_STATUS wanmgr_handle_dhcpv4_event_data(DML_VIRTUAL_IFACE* pVirtIf)
     if (strcmp(pVirtIf->IP.Ipv4Data.ip, pDhcpcInfo->ip) ||
       strcmp(pVirtIf->IP.Ipv4Data.mask, pDhcpcInfo->mask) ||
       strcmp(pVirtIf->IP.Ipv4Data.gateway, pDhcpcInfo->gateway) ||
+      strcmp(pVirtIf->IP.Ipv4Data.domain, pDhcpcInfo->domain) ||
       strcmp(pVirtIf->IP.Ipv4Data.dnsServer, pDhcpcInfo->dnsServer) ||
       strcmp(pVirtIf->IP.Ipv4Data.dnsServer1, pDhcpcInfo->dnsServer1))
     {
@@ -167,10 +169,11 @@ ANSC_STATUS wanmgr_handle_dhcpv4_event_data(DML_VIRTUAL_IFACE* pVirtIf)
 
     if (pDhcpcInfo->addressAssigned)
     {
-        CcspTraceInfo(("assigned ip=%s netmask=%s gateway=%s dns server=%s,%s leasetime = %d, rebindtime = %d, renewaltime = %d, dhcp state = %s mtu = %d\n",
+        CcspTraceInfo(("assigned ip=%s netmask=%s gateway=%s domain=%s dns server=%s,%s leasetime = %d, rebindtime = %d, renewaltime = %d, dhcp state = %s mtu = %d\n",
                      pDhcpcInfo->ip,
                      pDhcpcInfo->mask,
                      pDhcpcInfo->gateway,
+                     pDhcpcInfo->domain,
                      pDhcpcInfo->dnsServer,
                      pDhcpcInfo->dnsServer1,
                      pDhcpcInfo->leaseTime,
