@@ -47,7 +47,7 @@ rbusError_t WanMgr_Rbus_getHandler(rbusHandle_t handle, rbusProperty_t property,
 rbusError_t wanMgrDmlPublishEventHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* name, rbusFilter_t filter, int32_t interval, bool* autoPublish);
 rbusError_t WanMgr_Interface_GetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
 rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts);
-static void CPEInterface_AsyncMethodHandler( rbusHandle_t handle, char const* methodName, rbusError_t error, rbusObject_t params);
+static void CPEInterface_AsyncMethodHandler( rbusHandle_t handle, char const* methodName, rbusError_t error, rbusObject_t params, void* userData);
 static int WanMgr_Remote_IfaceData_index(const char *macAddress);
 
 rbusError_t WanMgr_rbusMethod_Iface_StartWan(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle);
@@ -996,7 +996,7 @@ Arguments:
     char param_value[2048]      : DM value
     uint timeout                : Timeout for async call back
     enum dataType_e type        : DM data type
-    rbusMethodAsyncHandle_t asyncHandle : Async call back handler pointer
+    rbusMethodAsyncRespHandler_t asyncHandle : Async call back handler pointer
 Return value:
     ANSC_STATUS
 
@@ -1042,7 +1042,7 @@ ANSC_STATUS WanMgr_IDM_Invoke(idm_invoke_method_Params_t *IDM_request)
     rbusObject_SetValue(inParams, "Operation", value);
     rbusValue_Release(value);
 
-    rc = rbusMethod_InvokeAsync(rbusHandle, X_RDK_REMOTE_INVOKE, inParams, IDM_request->asyncHandle, IDM_request->timeout);
+    rc = rbusMethod_InvokeAsync(rbusHandle, X_RDK_REMOTE_INVOKE, inParams, IDM_request->asyncHandle, IDM_request->timeout, NULL);
 
     rbusObject_Release(inParams);
     if(rc == RBUS_ERROR_SUCCESS)
@@ -1659,9 +1659,11 @@ static void CPEInterface_AsyncMethodHandler(
     rbusHandle_t handle,
     char const* methodName,
     rbusError_t error,
-    rbusObject_t params)
+    rbusObject_t params,
+    void* userData)
 {
     (void)handle;
+    (void)userData;
     int cpeInterfaceIndex = -1;
 
     CcspTraceInfo(("%s %d - asyncMethodHandler called: %s  error=%d\n", __FUNCTION__, __LINE__, methodName, error));
