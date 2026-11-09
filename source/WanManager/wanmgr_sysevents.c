@@ -359,6 +359,7 @@ void  wanmgr_setWanLedState(eWanState_t state)
 
     if(ipv4_state || ipv6_state || mapt_state || SetLinkUp)
     {
+        CcspTraceInfo(("%s %d: Setting LED event %s\n", __FUNCTION__, __LINE__, WAN_LINK_UP_STATE));
         wanmgr_sysevents_setWanState(WAN_LINK_UP_STATE);
     }
 
