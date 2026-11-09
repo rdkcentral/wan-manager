@@ -357,14 +357,15 @@ void  wanmgr_setWanLedState(eWanState_t state)
     if (valid_state == false)
         return;
 
+    if(ipv4_state || ipv6_state || mapt_state || SetLinkUp)
+    {
+        wanmgr_sysevents_setWanState(WAN_LINK_UP_STATE);
+    }
+
     memset (buff, 0, sizeof(buff));
     snprintf(buff, sizeof(buff) - 1, "ipv4_state:%s,ipv6_state:%s,mapt_state:%s", ipv4_state?"up":"down", ipv6_state?"up":"down", mapt_state?"up":"down");
     CcspTraceInfo(("%s %d: Setting LED event %s state to %s\n", __FUNCTION__, __LINE__, SYSEVENT_WAN_LED_STATE, buff));
     sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_LED_STATE, buff, 0);
-    if(SetLinkUp)
-    {
-        wanmgr_sysevents_setWanState(WAN_LINK_UP_STATE);
-    }
 }
 
 void wanmgr_sysevents_setWanState(const char * LedState)
