@@ -1,0 +1,260 @@
+{
+  "_comment": "Component Build Configuration for Coverity/Native Builds",
+  "_version": "2.0",
+  "_description": "Defines dependencies and build settings for the native component",
+  "dependencies": {
+    "_comment": "External repositories needed by this component",
+    "repos": [
+      {
+        "name": "rdkb-halif-platform-headers",
+        "repo": "https://github.com/rdkcentral/rdkb-halif-platform.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "safec",
+        "repo": "https://github.com/rurban/safeclib.git",
+        "branch": "master",
+        "header_paths": [
+          {
+            "source": "include",
+            "destination": "$HOME/usr/include/rdkb"
+          }
+        ],
+        "build": {
+          "type": "commands",
+          "commands": [
+            "autoreconf -fi",
+            "./configure",
+            "make -j$(nproc)",
+            "cp include/*.h $HOME/usr/include/rdkb/"
+          ]
+        }
+      },
+      {
+        "name": "common-library",
+        "repo": "https://github.com/rdkcentral/common-library.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "source/ccsp/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/components/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/custom", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/cosa/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/cosa/include/linux", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/cosa/include/linux", "destination": "$HOME/usr/include/rdkb/linux" },
+          { "source": "source/cosa/package/slap/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/debug_api/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/util_api/http/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/util_api/ansc/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/components/common/MessageBusHelper/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/ccsp/components/common/PoamIrepFolder", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/dm_pack", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "rdk_logger",
+        "repo": "https://github.com/rdkcentral/rdk_logger.git",
+        "branch": "v2.4.0",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ],
+        "build": {
+          "type": "autotools",
+          "configure_flags": "LOG4C_CFLAGS=\"-I$HOME/usr/log4c-dev/usr/include\" LOG4C_LIBS=\"-L$HOME/usr/log4c-dev/usr/lib/x86_64-linux-gnu -llog4c\""
+        }
+      },
+      {
+        "name": "json-c",
+        "repo": "https://github.com/json-c/json-c.git",
+        "branch": "master",
+        "build": {
+          "type": "commands",
+          "commands": [
+            "rm -rf build && cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$HOME/usr -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF -DBUILD_APPS=OFF -DDISABLE_EXTRA_LIBS=ON",
+            "cmake --build build -j$(nproc)",
+            "cmake --install build"
+          ]
+        }
+      },
+      {
+        "name": "cJSON",
+        "repo": "https://github.com/DaveGamble/cJSON.git",
+        "branch": "master",
+        "build": {
+          "type": "commands",
+          "commands": [
+            "cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$HOME/usr -DENABLE_CJSON_TEST=OFF -DBUILD_SHARED_LIBS=ON",
+            "cmake --build build -j$(nproc)",
+            "cmake --install build"
+          ]
+        }
+      },
+      {
+        "name": "msgpack-c",
+        "repo": "https://github.com/msgpack/msgpack-c.git",
+        "branch": "c_master",
+        "build": {
+          "type": "commands",
+          "commands": [
+            "cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$HOME/usr -DMSGPACK_BUILD_TESTS=OFF -DMSGPACK_BUILD_EXAMPLES=OFF",
+            "cmake --build build -j$(nproc)",
+            "cmake --install build"
+          ]
+        }
+      },
+      {
+        "name": "rbus",
+        "repo": "https://github.com/rdkcentral/rbus.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb/rbus" },
+          { "source": "src/rbus", "destination": "$HOME/usr/include/rdkb/rbus" },
+          { "source": "src/core", "destination": "$HOME/usr/include/rdkb/rbus" },
+          { "source": "src/rtmessage", "destination": "$HOME/usr/include/rdkb/rtmessage" }
+        ],
+        "build": {
+          "type": "cmake",
+          "build_dir": "build",
+          "cmake_flags": "-DCMAKE_INSTALL_PREFIX=$HOME/usr -DCMAKE_PREFIX_PATH=/usr -DBUILD_FOR_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug -DMSGPACK_LIBRARIES=$HOME/usr/lib/libmsgpack-c.so -DMSGPACK_INCLUDE_DIRS=$HOME/usr/include"
+        }
+      },
+      {
+        "name": "nanomsg",
+        "repo": "https://github.com/nanomsg/nanomsg.git",
+        "branch": "master",
+        "build": {
+          "type": "commands",
+          "commands": [
+            "cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$HOME/usr -DNN_TESTS=OFF -DNN_TOOLS=OFF -DNN_ENABLE_DOC=OFF",
+            "cmake --build build -j$(nproc)",
+            "cmake --install build"
+          ]
+        }
+      },
+      {
+        "name": "Utopia-headers",
+        "repo": "https://github.com/rdkcentral/utopia.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": "source/include/sysevent", "destination": "$HOME/usr/include/rdkb/sysevent" },
+          { "source": "source/sysevent/lib", "destination": "$HOME/usr/include/rdkb/sysevent" },
+          { "source": "source/include/syscfg", "destination": "$HOME/usr/include/rdkb/syscfg" },
+          { "source": "source/include", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "WebconfigFramework",
+        "repo": "https://github.com/rdkcentral/WebconfigFramework.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ],
+        "build": {
+          "type": "autotools",
+          "configure_flags": "CPPFLAGS=\"-I$HOME/usr/include/rdkb -I$HOME/usr/local/include -I$HOME/usr/include/rdkb/rtmessage -I$HOME/usr/include/rdkb/rbus\" LDFLAGS=\"-L$HOME/usr/local/lib -L$HOME/usr/lib\" LIBS=\"-lrbus -lrtMessage\""
+        }
+      },
+      {
+        "name": "rdk-libunpriv-headers",
+        "repo": "https://github.com/rdkcentral/rdk-libunpriv.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "source", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "telemetry-headers",
+        "repo": "https://github.com/rdkcentral/telemetry.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "libSyscallWrapper",
+        "repo": "https://github.com/rdkcentral/libSyscallWrapper.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "source", "destination": "$HOME/usr/include/rdkb" }
+        ],
+        "build": {
+          "type": "autotools",
+          "configure_flags": "CPPFLAGS=\"-I$HOME/usr/include/rdkb\" LDFLAGS=\"-L$HOME/usr/local/lib\""
+        }
+      },
+      {
+        "name": "miscellaneous-broadband",
+        "repo": "https://github.com/rdkcentral/miscellaneous-broadband.git",
+        "branch": "develop",
+        "header_paths": [
+          { "source": "source/dhcp_client_utils", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/TimeConv", "destination": "$HOME/usr/include/rdkb" }
+        ],
+        "build": {
+          "type": "commands",
+	      "commands": [
+            "mkdir -p $HOME/usr/lib",
+            "gcc -shared -fPIC source/TimeConv/time_conversion.c -o $HOME/usr/lib/libtime_conversion.so -I$HOME/usr/include/rdkb -I./source/TimeConv -D_GNU_SOURCE -w",
+		    "cp $HOME/usr/lib/libtime_conversion.so $HOME/usr/local/lib/"
+          ]
+        }
+      },
+      {
+        "name": "rdkb-halif-dhcp",
+        "repo": "https://github.com/rdkcentral/rdkb-halif-dhcp.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      }
+    ]
+  },
+  "native_component": {
+    "_comment": "Configuration for the main component being built",
+    "name": "wan-manager",
+    "include_path": "$HOME/usr/include/rdkb/",
+    "lib_output_path": "$HOME/usr/local/lib/",
+    "source_patches": [
+      {
+        "file": "$HOME/usr/include/rdkb/ccsp_message_bus.h",
+        "type": "replace",
+        "search": "typedef struct _CCSP_MESSAGE_BUS_CONNECTION",
+        "replace": "typedef struct DBusLoop DBusLoop;\n\ntypedef struct _CCSP_MESSAGE_BUS_CONNECTION"
+      },
+      {
+        "file": "config/RdkWanManager_v2.xml",
+        "type": "replace",
+        "search": "<?xml version=\"1.0\" encoding=\"utf-8\" ?>",
+        "replace": "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n<?define RBUS_BUILD_FLAG_ENABLE=True?>\n<?define FEATURE_RDKB_DHCP_MANAGER=True?>\n<?define FEATURE_MAPT=True?>"
+      }
+    ],
+    "build": {
+      "type": "autotools",
+      "configure_options_file": "cov_docker_script/configure_options.conf"
+    },
+    "pre_build_commands": [
+      {
+        "description": "Generate dm_pack_datamodel.c from RdkWanManager_v2.xml",
+        "command": "python3 $HOME/usr/include/rdkb/dm_pack_code_gen.py config/RdkWanManager_v2.xml source/WanManager/dm_pack_datamodel.c"
+      },
+      {
+        "description": "Restore the XML patched with the dm_pack defines",
+        "command": "git checkout -- config/RdkWanManager_v2.xml"
+      },
+      {
+        "description": "Dummy link-only libraries (not built natively)",
+        "command": "mkdir -p $HOME/usr/dummies"
+      },
+      {
+        "description": "Dummy link-only libraries (not built natively)",
+        "command": "touch $HOME/usr/dummies/libapi_dhcpv4c.so $HOME/usr/dummies/libsyscfg.so $HOME/usr/dummies/libsysevent.so $HOME/usr/dummies/libccsp_common.so $HOME/usr/dummies/libhal_platform.so $HOME/usr/dummies/libmsgpackc.so $HOME/usr/dummies/libprivilege.so"
+      },
+      {
+        "description": "Dummy link-only libraries (not built natively)",
+        "command": "chmod -R +x $HOME/usr/dummies/"
+      }
+    ]
+  }
+}
