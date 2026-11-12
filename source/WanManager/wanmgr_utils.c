@@ -28,6 +28,7 @@
 
 #include "wanmgr_utils.h"
 #include "ipc_msg.h"
+#include <stdio.h>
 
 /* amount of time to sleep between collect process attempt if timeout was specified. */
 #define COLLECT_WAIT_INTERVAL_MS 40
@@ -933,6 +934,7 @@ void WanManager_GetDateAndUptime( char *buffer, int *uptime )
     }
 
     snprintf( buffer, sizeof(buf)-1, "%s", buf);
+    printf("Test coverity workflow: %s\n");
 
     *uptime= info.uptime;
 }
