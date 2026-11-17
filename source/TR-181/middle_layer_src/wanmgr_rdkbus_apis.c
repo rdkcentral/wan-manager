@@ -1926,13 +1926,21 @@ void SortedInsert( struct IFACE_INFO** head_ref,  struct IFACE_INFO *new_node)
         current->next = new_node;
     }
 }
-int Update_Current_ActiveDNS(char* CurrentActiveDNS)
+int Update_Current_ActiveDNS(char* CurrentActiveDNS, size_t currentActiveDNSSize)
 {
     FILE *fp = NULL;
-    char buf[64] = {0};
+    char *line = NULL;
+    size_t lineCapacity = 0;
+    size_t currentLength = 0;
     char* token = NULL;
+    char* savePtr = NULL;
     
-    memset(CurrentActiveDNS,0,sizeof(CurrentActiveDNS));
+    if ((CurrentActiveDNS == NULL) || (currentActiveDNSSize == 0))
+    {
+        return RETURN_ERR;
+    }
+
+    CurrentActiveDNS[0] = '\0';
 
     if((fp = fopen(RESOLV_CONF_FILE, "r")) == NULL)
     {
@@ -1943,32 +1951,44 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS)
         return RETURN_ERR;
     }
 
-    while((fgets(buf, sizeof(buf), fp)) != NULL)
+    // read complete line
+    while(getline(&line, &lineCapacity, fp) != -1)
     {
-        token = strtok(buf, " ");
-        if(!strcmp(token,"nameserver"))
-    	{
-            token = strtok(NULL, " ");
-            if(strlen(token)>0)
+        savePtr = NULL;
+        // splits line into whitespace-separated tokens
+        token = strtok_r(line, " \t\r\n", &savePtr);
+        if ((token != NULL) && (strcmp(token, "nameserver") == 0))
+        {
+            token = strtok_r(NULL, " \t\r\n", &savePtr);
+            if ((token != NULL) && (token[0] != '\0'))
             {
-                if(strlen(CurrentActiveDNS) > 0 )
-	        	{
-                    strcat(CurrentActiveDNS,",");
+                int written = snprintf(CurrentActiveDNS + currentLength,
+                                       currentActiveDNSSize - currentLength,
+                                       "%s%s", (currentLength > 0) ? "," : "", token);
+
+                if ((written < 0) || ((size_t)written >= (currentActiveDNSSize - currentLength)))
+                {
+                    CcspTraceError(("%s %d - Active DNS list exceeds buffer size\n",
+                                    __FUNCTION__, __LINE__));
+                    free(line);
+                    fclose(fp);
+                    return RETURN_ERR;
                 }
-        		if(token[strlen(token)-1] == '\n')
-		        {
-                    token[strlen(token)-1] = '\0';
-        		}
-                strcat(CurrentActiveDNS,token);
+                currentLength += (size_t)written;
             }
-    	}
-        memset(buf, 0 , sizeof(buf));
-        token = NULL;
+        }
     }
-    if (fp != NULL)
+
+    if (ferror(fp))
     {
+        CcspTraceError(("%s %d - Unable to read %s\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+        free(line);
         fclose(fp);
-    }    
+        return RETURN_ERR;
+    }
+
+    free(line);
+    fclose(fp);
     return RETURN_OK;
 }
 
@@ -2158,7 +2178,7 @@ ANSC_STATUS Update_Interface_Status()
             strncpy(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus, sizeof(pWanDmlData->InterfaceIpStatus)-1);
         }
 
-    	if(RETURN_OK == Update_Current_ActiveDNS(CurrentActiveDNS))
+        if(RETURN_OK == Update_Current_ActiveDNS(CurrentActiveDNS, sizeof(CurrentActiveDNS)))
     	{
             if(strcmp(pWanDmlData->CurrentActiveDNS,CurrentActiveDNS) != 0)
             {

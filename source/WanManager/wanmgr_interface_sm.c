@@ -18,6 +18,7 @@
 */
 
 #include <unistd.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
@@ -68,7 +69,6 @@
 
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
-
 
 #if defined(FEATURE_464XLAT)
 typedef enum
@@ -823,7 +823,6 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
     return;
 }
 
-
 int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL addIPv6)
 {
 
@@ -857,9 +856,10 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
 
     if (deviceMode == GATEWAY_MODE)
     {
-        if((fp = fopen(RESOLV_CONF_FILE, "w+")) == NULL)
+        fp = prepare_resolv_conf_for_nameservers();
+        if (fp == NULL)
         {
-            CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+            CcspTraceError(("%s %d - Preparing %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
             return RETURN_ERR;
         }
     }
