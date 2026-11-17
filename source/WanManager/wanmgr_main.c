@@ -56,6 +56,7 @@
 #endif
 
 #include <syscfg/syscfg.h>
+#include <errno.h>
 #include "wanmgr_ssp_global.h"
 #include "wanmgr_core.h"
 #include "wanmgr_data.h"
@@ -368,6 +369,17 @@ int main(int argc, char* argv[])
 #endif //ENABLE_SD_NOTIFY
 
     /* Inform Webconfig framework if component is coming after crash */
+    /* Capture the previous process's marker before this process creates it. */
+    if (access("/tmp/wanmanager_initialized", F_OK) == 0)
+    {
+        gWanMgrRestarted = TRUE;
+    }
+    else if (errno != ENOENT)
+    {
+        gWanMgrRestarted = TRUE;
+        CcspTraceError(("%s: Failed to check /tmp/wanmanager_initialized: %s; assuming WAN Manager restarted\n",
+                       __FUNCTION__, strerror(errno)));
+    }
     check_component_crash("/tmp/wanmanager_initialized");
     int fd_ret = 0;
     fd_ret = creat("/tmp/wanmanager_initialized",S_IRUSR | S_IWUSR | S_IRGRP);
