@@ -177,4 +177,6 @@ ANSC_STATUS WanMgr_RestartUpdateCfg_Bool (const char * param, int idx, BOOL* out
 
 int sysctl_iface_set(const char *path, const char *ifname, const char *content);
 
+FILE *prepare_resolv_conf_for_nameservers(void);
+
 #endif /* _WANMGR_UTILS_H_ */
