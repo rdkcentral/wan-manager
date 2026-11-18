@@ -31,6 +31,8 @@
 #endif //RBUS_BUILD_FLAG_ENABLE
 #include "wanmgr_network_monitor.h"
 
+BOOL gWanMgrRestarted = FALSE;
+
 ANSC_STATUS WanMgr_Core_Init(void)
 {
     ANSC_STATUS retStatus = ANSC_STATUS_FAILURE;
