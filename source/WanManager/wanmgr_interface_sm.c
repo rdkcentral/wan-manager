@@ -25,6 +25,7 @@
 #include <linux/if_addr.h>
 #include <sys/syscall.h>
 #include "wanmgr_interface_sm.h"
+#include "wanmgr_core.h"
 #include "wanmgr_utils.h"
 #include "platform_hal.h"
 #include "wanmgr_sysevents.h"
@@ -2425,13 +2426,18 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     WanMgr_GetSelectedIPMode(p_VirtIf); //Get SelectedIPMode
 
 #if defined(FEATURE_RDKB_DHCP_MANAGER)
-    if (p_VirtIf->IP.DHCPv6Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv6Iface) == RETURN_OK)
+    /* After a WAN Manager crash or restart, defer DHCP event subscriptions
+     * until the corresponding DHCP client is started. */
+    if (gWanMgrRestarted == FALSE)
     {
-        p_VirtIf->IP.Dhcp6SubscribedIface = TRUE;
-    }
-    if (p_VirtIf->IP.DHCPv4Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv4Iface) == RETURN_OK)
-    {
-        p_VirtIf->IP.Dhcp4SubscribedIface = TRUE;
+        if (p_VirtIf->IP.DHCPv6Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv6Iface) == RETURN_OK)
+        {
+            p_VirtIf->IP.Dhcp6SubscribedIface = TRUE;
+        }
+        if (p_VirtIf->IP.DHCPv4Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv4Iface) == RETURN_OK)
+        {
+            p_VirtIf->IP.Dhcp4SubscribedIface = TRUE;
+        }
     }
 #endif
 
