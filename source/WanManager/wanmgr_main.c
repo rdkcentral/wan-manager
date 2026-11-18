@@ -57,6 +57,7 @@
 
 #include <syscfg/syscfg.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "wanmgr_ssp_global.h"
 #include "wanmgr_core.h"
 #include "wanmgr_data.h"
@@ -369,23 +370,28 @@ int main(int argc, char* argv[])
 #endif //ENABLE_SD_NOTIFY
 
     /* Inform Webconfig framework if component is coming after crash */
-    /* Capture the previous process's marker before this process creates it. */
-    if (access("/tmp/wanmanager_initialized", F_OK) == 0)
-    {
-        gWanMgrRestarted = TRUE;
-    }
-    else if (errno != ENOENT)
-    {
-        gWanMgrRestarted = TRUE;
-        CcspTraceError(("%s: Failed to check /tmp/wanmanager_initialized: %s; assuming WAN Manager restarted\n",
-                       __FUNCTION__, strerror(errno)));
-    }
     check_component_crash("/tmp/wanmanager_initialized");
-    int fd_ret = 0;
-    fd_ret = creat("/tmp/wanmanager_initialized",S_IRUSR | S_IWUSR | S_IRGRP);
-    if(fd_ret != -1)
+    /* Exclusive creation detects a previous marker without opening its target. */
+    int fd_ret = open("/tmp/wanmanager_initialized", O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
+                      S_IRUSR | S_IWUSR | S_IRGRP);
+    if (fd_ret != -1)
     {
-       close(fd_ret);
+        gWanMgrRestarted = FALSE;
+        if (close(fd_ret) != 0)
+        {
+            CcspTraceError(("%s: Failed to close /tmp/wanmanager_initialized: %s\n",
+                           __FUNCTION__, strerror(errno)));
+        }
+    }
+    else
+    {
+        int marker_errno = errno;
+        gWanMgrRestarted = TRUE;
+        if (marker_errno != EEXIST)
+        {
+            CcspTraceError(("%s: Failed to create /tmp/wanmanager_initialized: %s; assuming WAN Manager restarted\n",
+                           __FUNCTION__, strerror(marker_errno)));
+        }
     }
 
     //CORE INT

@@ -34,5 +34,9 @@ With `FEATURE_RDKB_DHCP_MANAGER`:
   subscription flag is not set. This also retries subscriptions that failed at
   state-machine startup. The flag is set only after a successful subscription.
 
-Marker detection occurs before the current process creates the marker, so the
-restart decision remains unchanged throughout that process's lifetime.
+The Webconfig crash check runs before marker creation. WAN Manager then creates
+the marker atomically with `O_CREAT | O_EXCL`: successful creation indicates cold
+boot, while `EEXIST` indicates a restart. Existing files and symlink targets are
+never opened or truncated by marker creation. Other creation errors are logged
+and conservatively treated as a restart. The restart decision remains unchanged
+throughout that process's lifetime.
