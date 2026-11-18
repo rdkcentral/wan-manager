@@ -377,6 +377,8 @@ int main(int argc, char* argv[])
     if (fd_ret != -1)
     {
         gWanMgrRestarted = FALSE;
+        CcspTraceInfo(("%s: Created /tmp/wanmanager_initialized; cold boot detected (gWanMgrRestarted=FALSE)\n",
+                       __FUNCTION__));
         if (close(fd_ret) != 0)
         {
             CcspTraceError(("%s: Failed to close /tmp/wanmanager_initialized: %s\n",
@@ -387,7 +389,12 @@ int main(int argc, char* argv[])
     {
         int marker_errno = errno;
         gWanMgrRestarted = TRUE;
-        if (marker_errno != EEXIST)
+        if (marker_errno == EEXIST)
+        {
+            CcspTraceInfo(("%s: /tmp/wanmanager_initialized already exists; WAN Manager restart detected (gWanMgrRestarted=TRUE)\n",
+                           __FUNCTION__));
+        }
+        else
         {
             CcspTraceError(("%s: Failed to create /tmp/wanmanager_initialized: %s; assuming WAN Manager restarted\n",
                            __FUNCTION__, strerror(marker_errno)));
