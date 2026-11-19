@@ -496,7 +496,7 @@ rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop
             }
             else
             {
-                ret = RBUS_ERROR_INVALID_INPUT;
+                ret = RBUS_ERROR_INVALID_PARAMETER_TYPE;
             }
         }
         else if(strstr(name, WANMGR_INFACE_WAN_LINKSTATUS_SUFFIX))
@@ -524,7 +524,7 @@ rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop
             }
             else
             {
-                ret = RBUS_ERROR_INVALID_INPUT;
+                ret = RBUS_ERROR_INVALID_PARAMETER_TYPE;
             }
         }
         else if(strstr(name, WANMGR_INFACE_WAN_STATUS_SUFFIX))
@@ -548,7 +548,7 @@ rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop
             }
             else
             {
-                ret = RBUS_ERROR_INVALID_INPUT;
+                ret = RBUS_ERROR_INVALID_PARAMETER_TYPE;
             }
         }
         else if(strstr(name, WANMGR_INFACE_WAN_ENABLE_SUFFIX))
@@ -578,7 +578,7 @@ rbusError_t WanMgr_Interface_SetHandler(rbusHandle_t handle, rbusProperty_t prop
             }
             else
             {
-                ret = RBUS_ERROR_INVALID_INPUT;
+                ret = RBUS_ERROR_INVALID_PARAMETER_TYPE;
             }
         }
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
