@@ -514,6 +514,12 @@
                                    <syntax>int</syntax>
                                    <writable>true</writable>
                                  </parameter>
+                                 <parameter>
+                                   <name>DSCPMark</name>
+                                   <type>string(64)</type>
+                                   <syntax>string</syntax>
+                                   <writable>true</writable>
+                                 </parameter>
                               </parameters>
                            </object>
                     </objects>
