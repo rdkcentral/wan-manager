@@ -23,8 +23,12 @@
 #include "wanmgr_dhcp_client_events.h"
 
 
-#define DHCP_MGR_DHCPv4_TABLE "Device.DHCPv4.Client"
-#define DHCP_MGR_DHCPv6_TABLE "Device.DHCPv6.Client"
+/* DHCP manager publishes its client events under Device.X_RDK_DHCPMgr so that the CCSP DHCP manager
+ * component stays the only owner of Device.DHCPv4.Client. and Device.DHCPv6.Client. */
+#define DHCP_MGR_DHCPv4_TABLE "Device.X_RDK_DHCPMgr.DHCPv4.Client"
+#define DHCP_MGR_DHCPv6_TABLE "Device.X_RDK_DHCPMgr.DHCPv6.Client"
+#define DHCP_MGR_DM_DHCPv4_TABLE "Device.DHCPv4.Client"
+#define DHCP_MGR_DM_DHCPv6_TABLE "Device.DHCPv6.Client"
 
 extern rbusHandle_t rbusHandle;
 
@@ -242,12 +246,54 @@ static void WanMgr_DhcpClientEventsHandler(rbusHandle_t handle, rbusEvent_t cons
     }
 }
 
+/* Converts a data model path such as Device.DHCPv4.Client.1 into the DHCP manager rbus event name
+ * Device.X_RDK_DHCPMgr.DHCPv4.Client.1.Events */
+static bool WanMgr_GetDhcpClientEventName(const char *DhcpInterface, char *eventName, size_t size)
+{
+    const char *dmTable = NULL;
+    const char *eventTable = NULL;
+    int len;
+
+    if (DhcpInterface == NULL)
+    {
+        return false;
+    }
+
+    if (strncmp(DhcpInterface, DHCP_MGR_DM_DHCPv4_TABLE, strlen(DHCP_MGR_DM_DHCPv4_TABLE)) == 0)
+    {
+        dmTable = DHCP_MGR_DM_DHCPv4_TABLE;
+        eventTable = DHCP_MGR_DHCPv4_TABLE;
+    }
+    else if (strncmp(DhcpInterface, DHCP_MGR_DM_DHCPv6_TABLE, strlen(DHCP_MGR_DM_DHCPv6_TABLE)) == 0)
+    {
+        dmTable = DHCP_MGR_DM_DHCPv6_TABLE;
+        eventTable = DHCP_MGR_DHCPv6_TABLE;
+    }
+    else
+    {
+        CcspTraceError(("%s %d: unexpected DHCP interface path %s\n", __FUNCTION__, __LINE__, DhcpInterface));
+        return false;
+    }
+
+    len = snprintf(eventName, size, "%s%s.Events", eventTable, DhcpInterface + strlen(dmTable));
+    if (len < 0 || (size_t)len >= size)
+    {
+        CcspTraceError(("%s %d: event name for %s does not fit in buffer\n", __FUNCTION__, __LINE__, DhcpInterface));
+        return false;
+    }
+
+    return true;
+}
+
 int WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
-    char eventName[64] = {0};
+    char eventName[128] = {0};
 
-    snprintf(eventName, sizeof(eventName), "%s.Events", DhcpInterface);
+    if (!WanMgr_GetDhcpClientEventName(DhcpInterface, eventName, sizeof(eventName)))
+    {
+        return RETURN_ERR;
+    }
     rbusEventSubscription_t subscription = {eventName, NULL, 0, 0, WanMgr_DhcpClientEventsHandler, NULL, NULL, NULL, true};
 
     rc = rbusEvent_SubscribeEx(rbusHandle, &subscription, 1, 60);
@@ -264,8 +310,12 @@ int WanMgr_SubscribeDhcpClientEvents(const char *DhcpInterface)
 void WanMgr_UnSubscribeDhcpClientEvents(const char *DhcpInterface)
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
-    char eventName[64] = {0};
-    snprintf(eventName, sizeof(eventName), "%s.Events", DhcpInterface);
+    char eventName[128] = {0};
+
+    if (!WanMgr_GetDhcpClientEventName(DhcpInterface, eventName, sizeof(eventName)))
+    {
+        return;
+    }
     rc = rbusEvent_Unsubscribe(rbusHandle, eventName);
     if(rc != RBUS_ERROR_SUCCESS)
     {
