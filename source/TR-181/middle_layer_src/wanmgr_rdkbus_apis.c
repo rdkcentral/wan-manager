@@ -123,7 +123,10 @@ int get_Wan_Interface_ParametersFromPSM(ULONG instancenum, DML_WAN_IFACE* p_Inte
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS)
     {
-        AnscCopyString(p_Interface->DisplayName, param_value);
+        snprintf(p_Interface->DisplayName,
+         sizeof(p_Interface->DisplayName),
+         "%s",
+         param_value);
     }
 
     _ansc_memset(param_name, 0, sizeof(param_name));
@@ -305,11 +308,20 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_PPP_INTERFACE, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    AnscCopyString(pVirtIf->PPP.Interface, param_value);
-    if(!strncmp(pVirtIf->PPP.Interface, PPP_INTERFACE_TABLE, strlen(PPP_INTERFACE_TABLE)))
+    if (retPsmGet == CCSP_SUCCESS)
     {
-        CcspTraceInfo(("%s %d Valid PPP interface is configured. Use PPP\n", __FUNCTION__, __LINE__));
-        pVirtIf->PPP.Enable = TRUE;
+        int len = snprintf(pVirtIf->PPP.Interface, sizeof(pVirtIf->PPP.Interface), "%s", param_value);
+        if (len < 0 || (size_t)len >= sizeof(pVirtIf->PPP.Interface))
+        {
+            CcspTraceError(("%s %d PPP interface value is too long\n", __FUNCTION__, __LINE__));
+            pVirtIf->PPP.Interface[0] = '\0';
+            pVirtIf->PPP.Enable = FALSE;
+        }
+        else if (!strncmp(pVirtIf->PPP.Interface, PPP_INTERFACE_TABLE, strlen(PPP_INTERFACE_TABLE)))
+        {
+            CcspTraceInfo(("%s %d Valid PPP interface is configured. Use PPP\n", __FUNCTION__, __LINE__));
+            pVirtIf->PPP.Enable = TRUE;
+        }
     }
 
     _ansc_memset(param_name, 0, sizeof(param_name));
@@ -1926,21 +1938,13 @@ void SortedInsert( struct IFACE_INFO** head_ref,  struct IFACE_INFO *new_node)
         current->next = new_node;
     }
 }
-int Update_Current_ActiveDNS(char* CurrentActiveDNS, size_t currentActiveDNSSize)
+int Update_Current_ActiveDNS(char* CurrentActiveDNS)
 {
     FILE *fp = NULL;
-    char *line = NULL;
-    size_t lineCapacity = 0;
-    size_t currentLength = 0;
+    char buf[64] = {0};
     char* token = NULL;
-    char* savePtr = NULL;
     
-    if ((CurrentActiveDNS == NULL) || (currentActiveDNSSize == 0))
-    {
-        return RETURN_ERR;
-    }
-
-    CurrentActiveDNS[0] = '\0';
+    memset(CurrentActiveDNS,0,sizeof(CurrentActiveDNS));
 
     if((fp = fopen(RESOLV_CONF_FILE, "r")) == NULL)
     {
@@ -1951,44 +1955,32 @@ int Update_Current_ActiveDNS(char* CurrentActiveDNS, size_t currentActiveDNSSize
         return RETURN_ERR;
     }
 
-    // read complete line
-    while(getline(&line, &lineCapacity, fp) != -1)
+    while((fgets(buf, sizeof(buf), fp)) != NULL)
     {
-        savePtr = NULL;
-        // splits line into whitespace-separated tokens
-        token = strtok_r(line, " \t\r\n", &savePtr);
-        if ((token != NULL) && (strcmp(token, "nameserver") == 0))
-        {
-            token = strtok_r(NULL, " \t\r\n", &savePtr);
-            if ((token != NULL) && (token[0] != '\0'))
+        token = strtok(buf, " ");
+        if(!strcmp(token,"nameserver"))
+    	{
+            token = strtok(NULL, " ");
+            if(strlen(token)>0)
             {
-                int written = snprintf(CurrentActiveDNS + currentLength,
-                                       currentActiveDNSSize - currentLength,
-                                       "%s%s", (currentLength > 0) ? "," : "", token);
-
-                if ((written < 0) || ((size_t)written >= (currentActiveDNSSize - currentLength)))
-                {
-                    CcspTraceError(("%s %d - Active DNS list exceeds buffer size\n",
-                                    __FUNCTION__, __LINE__));
-                    free(line);
-                    fclose(fp);
-                    return RETURN_ERR;
+                if(strlen(CurrentActiveDNS) > 0 )
+	        	{
+                    strcat(CurrentActiveDNS,",");
                 }
-                currentLength += (size_t)written;
+        		if(token[strlen(token)-1] == '\n')
+		        {
+                    token[strlen(token)-1] = '\0';
+        		}
+                strcat(CurrentActiveDNS,token);
             }
-        }
+    	}
+        memset(buf, 0 , sizeof(buf));
+        token = NULL;
     }
-
-    if (ferror(fp))
+    if (fp != NULL)
     {
-        CcspTraceError(("%s %d - Unable to read %s\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
-        free(line);
         fclose(fp);
-        return RETURN_ERR;
-    }
-
-    free(line);
-    fclose(fp);
+    }    
     return RETURN_OK;
 }
 
@@ -2178,7 +2170,7 @@ ANSC_STATUS Update_Interface_Status()
             strncpy(pWanDmlData->InterfaceIpStatus,InterfaceIpStatus, sizeof(pWanDmlData->InterfaceIpStatus)-1);
         }
 
-        if(RETURN_OK == Update_Current_ActiveDNS(CurrentActiveDNS, sizeof(CurrentActiveDNS)))
+    	if(RETURN_OK == Update_Current_ActiveDNS(CurrentActiveDNS))
     	{
             if(strcmp(pWanDmlData->CurrentActiveDNS,CurrentActiveDNS) != 0)
             {

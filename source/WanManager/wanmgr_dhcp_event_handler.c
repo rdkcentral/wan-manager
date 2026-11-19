@@ -100,11 +100,17 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     ));
 
     strncpy(pDhcpv6Data->ifname, leaseInfo->ifname, sizeof(pDhcpv6Data->ifname) - 1);
+    pDhcpv6Data->ifname[sizeof(pDhcpv6Data->ifname) - 1] = '\0';
     strncpy(pDhcpv6Data->address, leaseInfo->address, sizeof(pDhcpv6Data->address) - 1);
+    pDhcpv6Data->address[sizeof(pDhcpv6Data->address) - 1] = '\0';
     strncpy(pDhcpv6Data->nameserver, leaseInfo->nameserver, sizeof(pDhcpv6Data->nameserver) - 1);
+    pDhcpv6Data->nameserver[sizeof(pDhcpv6Data->nameserver) - 1] = '\0';
     strncpy(pDhcpv6Data->nameserver1, leaseInfo->nameserver1, sizeof(pDhcpv6Data->nameserver1) - 1);
+    pDhcpv6Data->nameserver1[sizeof(pDhcpv6Data->nameserver1) - 1] = '\0';
     strncpy(pDhcpv6Data->domainName, leaseInfo->domainName, sizeof(pDhcpv6Data->domainName) - 1);
+    pDhcpv6Data->domainName[sizeof(pDhcpv6Data->domainName) - 1] = '\0';
     strncpy(pDhcpv6Data->sitePrefix, leaseInfo->sitePrefix, sizeof(pDhcpv6Data->sitePrefix) - 1);
+    pDhcpv6Data->sitePrefix[sizeof(pDhcpv6Data->sitePrefix) - 1] = '\0';
     pDhcpv6Data->prefixPltime = leaseInfo->prefixPltime;
     pDhcpv6Data->prefixVltime = leaseInfo->prefixVltime;
     pDhcpv6Data->addrAssigned = leaseInfo->addrAssigned;
@@ -113,6 +119,7 @@ static void copyDhcpv6Data(WANMGR_IPV6_DATA* pDhcpv6Data, const DHCP_MGR_IPV6_MS
     pDhcpv6Data->ipv6_TimeOffset = leaseInfo->ipv6_TimeOffset;
 #ifdef FEATURE_DSLITE_V2
     strncpy(pDhcpv6Data->aftr, leaseInfo->aftr, sizeof(pDhcpv6Data->aftr) - 1);
+    pDhcpv6Data->aftr[sizeof(pDhcpv6Data->aftr) - 1] = '\0';
 #endif
     pDhcpv6Data->addrConstructedFromIAPD = false;
     if(!pDhcpv6Data->addrAssigned && pDhcpv6Data->prefixAssigned)

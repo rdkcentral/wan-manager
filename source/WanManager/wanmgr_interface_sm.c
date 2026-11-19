@@ -18,14 +18,12 @@
 */
 
 #include <unistd.h>
-#include <stdlib.h>
 #include <pthread.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <linux/if_addr.h>
 #include <sys/syscall.h>
 #include "wanmgr_interface_sm.h"
-#include "wanmgr_core.h"
 #include "wanmgr_utils.h"
 #include "platform_hal.h"
 #include "wanmgr_sysevents.h"
@@ -70,6 +68,7 @@
 
 #define POSTD_START_FILE "/tmp/.postd_started"
 #define SELECTED_MODE_TIMEOUT_SECONDS 10
+
 
 #if defined(FEATURE_464XLAT)
 typedef enum
@@ -824,6 +823,7 @@ void WanManager_UpdateInterfaceStatus(DML_VIRTUAL_IFACE* pVirtIf, wanmgr_iface_s
     return;
 }
 
+
 int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL addIPv6)
 {
 
@@ -857,10 +857,9 @@ int wan_updateDNS(WanMgr_IfaceSM_Controller_t* pWanIfaceCtrl, BOOL addIPv4, BOOL
 
     if (deviceMode == GATEWAY_MODE)
     {
-        fp = prepare_resolv_conf_for_nameservers();
-        if (fp == NULL)
+        if((fp = fopen(RESOLV_CONF_FILE, "w+")) == NULL)
         {
-            CcspTraceError(("%s %d - Preparing %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
+            CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
             return RETURN_ERR;
         }
     }
@@ -1365,7 +1364,7 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
 
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
-            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
+            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName) - 1);
     }
     else if(0 == strcmp("DATA", p_VirtIf->Alias))
     {
@@ -1373,7 +1372,7 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
 
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
-            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
+            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName) - 1);
 
         /* If there is a VOIP interface present, then do not update DATA vlan name to TelcoVoiceManager. */
         for(int virIf_id=0; virIf_id< pWanIfaceData->NoOfVirtIfs; virIf_id++)
@@ -2426,18 +2425,13 @@ static eWanState_t wan_transition_start(WanMgr_IfaceSM_Controller_t* pWanIfaceCt
     WanMgr_GetSelectedIPMode(p_VirtIf); //Get SelectedIPMode
 
 #if defined(FEATURE_RDKB_DHCP_MANAGER)
-    /* After a WAN Manager crash or restart, defer DHCP event subscriptions
-     * until the corresponding DHCP client is started. */
-    if (gWanMgrRestarted == FALSE)
+    if (p_VirtIf->IP.DHCPv6Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv6Iface) == RETURN_OK)
     {
-        if (p_VirtIf->IP.DHCPv6Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv6Iface) == RETURN_OK)
-        {
-            p_VirtIf->IP.Dhcp6SubscribedIface = TRUE;
-        }
-        if (p_VirtIf->IP.DHCPv4Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv4Iface) == RETURN_OK)
-        {
-            p_VirtIf->IP.Dhcp4SubscribedIface = TRUE;
-        }
+        p_VirtIf->IP.Dhcp6SubscribedIface = TRUE;
+    }
+    if (p_VirtIf->IP.DHCPv4Iface[0] != '\0' && WanMgr_SubscribeDhcpClientEvents(p_VirtIf->IP.DHCPv4Iface) == RETURN_OK)
+    {
+        p_VirtIf->IP.Dhcp4SubscribedIface = TRUE;
     }
 #endif
 
