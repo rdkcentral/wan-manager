@@ -948,7 +948,7 @@ static int _write_dibbler_sent_option_file(void)
         for (i=0; i<g_sent_option_num; i++)
         {
             if (g_sent_options[i].bEnabled)
-                fprintf(fp, "%lu:%d:%s\n",
+                fprintf(fp, "%lu:%zu:%s\n",
                         g_sent_options[i].Tag,
                         strlen((const char*)g_sent_options[i].Value)/2,
                         g_sent_options[i].Value);
