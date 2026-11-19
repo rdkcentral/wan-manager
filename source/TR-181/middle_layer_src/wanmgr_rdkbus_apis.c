@@ -123,7 +123,10 @@ int get_Wan_Interface_ParametersFromPSM(ULONG instancenum, DML_WAN_IFACE* p_Inte
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
     if (retPsmGet == CCSP_SUCCESS)
     {
-        AnscCopyString(p_Interface->DisplayName, param_value);
+        snprintf(p_Interface->DisplayName,
+         sizeof(p_Interface->DisplayName),
+         "%s",
+         param_value);
     }
 
     _ansc_memset(param_name, 0, sizeof(param_name));
@@ -305,11 +308,20 @@ int get_Virtual_Interface_FromPSM(ULONG instancenum, ULONG virtInsNum ,DML_VIRTU
     _ansc_memset(param_value, 0, sizeof(param_value));
     _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_PPP_INTERFACE, instancenum, (virtInsNum + 1));
     retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-    AnscCopyString(pVirtIf->PPP.Interface, param_value);
-    if(!strncmp(pVirtIf->PPP.Interface, PPP_INTERFACE_TABLE, strlen(PPP_INTERFACE_TABLE)))
+    if (retPsmGet == CCSP_SUCCESS)
     {
-        CcspTraceInfo(("%s %d Valid PPP interface is configured. Use PPP\n", __FUNCTION__, __LINE__));
-        pVirtIf->PPP.Enable = TRUE;
+        int len = snprintf(pVirtIf->PPP.Interface, sizeof(pVirtIf->PPP.Interface), "%s", param_value);
+        if (len < 0 || (size_t)len >= sizeof(pVirtIf->PPP.Interface))
+        {
+            CcspTraceError(("%s %d PPP interface value is too long\n", __FUNCTION__, __LINE__));
+            pVirtIf->PPP.Interface[0] = '\0';
+            pVirtIf->PPP.Enable = FALSE;
+        }
+        else if (!strncmp(pVirtIf->PPP.Interface, PPP_INTERFACE_TABLE, strlen(PPP_INTERFACE_TABLE)))
+        {
+            CcspTraceInfo(("%s %d Valid PPP interface is configured. Use PPP\n", __FUNCTION__, __LINE__));
+            pVirtIf->PPP.Enable = TRUE;
+        }
     }
 
     _ansc_memset(param_name, 0, sizeof(param_name));

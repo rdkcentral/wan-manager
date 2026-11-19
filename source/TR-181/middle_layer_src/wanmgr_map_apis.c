@@ -266,11 +266,22 @@ WanDmlMapDomGetCfg_Data
 
     if ((pVirtIf->MAP.MapeStatus == WAN_IFACE_MAPE_STATE_UP) || (pVirtIf->MAP.MaptStatus == WAN_IFACE_MAPT_STATE_UP))
     {
+        size_t interfaceLength = strnlen(pVirtIf->IP.Interface, sizeof(pDomCfg->WANInterface));
+        size_t prefixLength = strnlen(pVirtIf->MAP.dhcp6cMAPparameters.pdIPv6Prefix, sizeof(pDomCfg->IPv6Prefix));
+        size_t brPrefixLength = strnlen(pVirtIf->MAP.dhcp6cMAPparameters.brIPv6Prefix, sizeof(pDomCfg->BRIPv6Prefix));
+        if (interfaceLength >= sizeof(pDomCfg->WANInterface) ||
+            prefixLength >= sizeof(pDomCfg->IPv6Prefix) ||
+            brPrefixLength >= sizeof(pDomCfg->BRIPv6Prefix))
+        {
+            AnscTraceError(("%s:%d:: MAP domain interface or IPv6 prefix exceeds destination capacity\n", __FUNCTION__, __LINE__));
+            return ANSC_STATUS_FAILURE;
+        }
+
         AnscCopyString(pDomCfg->Alias, (mapType == MAP_TYPE_MAPE) ? "Domain_mape" : "Domain_mapt");
 	pDomCfg->bEnabled = ((mapType == MAP_TYPE_MAPE || mapType == MAP_TYPE_MAPT) && pVirtIf->Enable && (pVirtIf->MAP.dhcp6cMAPparameters.pdIPv6Prefix[0] != '\0'));
-	AnscCopyString(pDomCfg->WANInterface, pVirtIf->IP.Interface);
-        AnscCopyString(pDomCfg->IPv6Prefix, pVirtIf->MAP.dhcp6cMAPparameters.pdIPv6Prefix);
-        AnscCopyString(pDomCfg->BRIPv6Prefix, pVirtIf->MAP.dhcp6cMAPparameters.brIPv6Prefix);
+        memcpy(pDomCfg->WANInterface, pVirtIf->IP.Interface, interfaceLength + 1);
+        memcpy(pDomCfg->IPv6Prefix, pVirtIf->MAP.dhcp6cMAPparameters.pdIPv6Prefix, prefixLength + 1);
+        memcpy(pDomCfg->BRIPv6Prefix, pVirtIf->MAP.dhcp6cMAPparameters.brIPv6Prefix, brPrefixLength + 1);
         pDomCfg->DSCPMarkPolicy = 0;
 
         pDomCfg->IfaceEnable = TRUE;
@@ -750,7 +761,14 @@ WanDmlMapDomGetRule_Data
 
         snprintf(pMapRule->Alias, sizeof(pMapRule->Alias), "Rule_%lu", ulIndex + 1);
         AnscCopyString(pMapRule->Origin, "DHCPv6");
-        AnscCopyString(pMapRule->IPv6Prefix, pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv6Prefix);
+        int prefixLength = snprintf(pMapRule->IPv6Prefix, sizeof(pMapRule->IPv6Prefix),
+                                    "%s", pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv6Prefix);
+        if (prefixLength < 0 || (size_t)prefixLength >= sizeof(pMapRule->IPv6Prefix))
+        {
+            AnscTraceError(("%s:%d:: IPv6 rule prefix exceeds destination capacity\n", __FUNCTION__, __LINE__));
+            pMapRule->IPv6Prefix[0] = '\0';
+            return ANSC_STATUS_FAILURE;
+        }
         if (pVirtIf->MAP.dhcp6cMAPparameters.ruleIPv4Prefix[0] != '\0')
 	{
             // fetch IPv4Prefix in CIDR format for TR-181
