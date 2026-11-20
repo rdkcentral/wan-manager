@@ -278,4 +278,12 @@ int WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * pVirtIf);
 ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName, unsigned int uiTimeout);
 ANSC_STATUS WanManager_SendRS_And_ProcessRA(DML_VIRTUAL_IFACE *pVirtIf);
 
+#if defined(FEATURE_RDKB_MULTIWAN)
+void WanManager_ClearIfaceAlias(const char *iface);
+void WanManager_HandleWanChange(DML_WAN_IFACE *pInterface, DML_VIRTUAL_IFACE *p_VirtIf,
+                                DML_WAN_IFACE_IP_STATE_TYPE ip_state);
+void WanManager_UpdateDNS(DML_WAN_IFACE *pInterface, DML_VIRTUAL_IFACE *p_VirtIf,
+                          DML_WAN_IFACE_IP_STATE_TYPE ip_state);
+#endif /* FEATURE_RDKB_MULTIWAN */
+
 #endif // _WANMGR_NET_UTILS_H_

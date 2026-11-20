@@ -30,6 +30,7 @@ libCcspWanManager_middle_layer_src_la_SOURCES = wanmgr_plugin_main.c wanmgr_plug
 libCcspWanManager_middle_layer_src_la_LDFLAGS = -lccsp_common -lsyscfg -lsysevent -lpthread
 
 libCcspWanManager_middle_layer_src_la_CPPFLAGS += -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/rbus
+libCcspWanManager_middle_layer_src_la_CPPFLAGS += $(MULTIWAN_CFLAGS)
 libCcspWanManager_middle_layer_src_la_SOURCES += wanmgr_rbus_handler_apis.c
 libCcspWanManager_middle_layer_src_la_LDFLAGS += -lrbus
 

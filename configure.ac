@@ -125,6 +125,21 @@ AC_ARG_ENABLE([dslite_v2],
              [echo "DSLite support is disabled"])
 AM_CONDITIONAL(DSLITE_SUPPORT, test "x$DSLITE_SUPPORT_ENABLED" = xtrue)
 
+MULTIWAN_CFLAGS=""
+AC_ARG_ENABLE([multiwan],
+             AS_HELP_STRING([--enable-multiwan],[enable MultiWAN group policy (default is no)]),
+             [
+              case "${enableval}" in
+               yes) MULTIWAN_ENABLED=true
+                    MULTIWAN_CFLAGS="-DFEATURE_RDKB_MULTIWAN";;
+               no)  MULTIWAN_ENABLED=false;;
+               *) AC_MSG_ERROR([bad value ${enableval} for --enable-multiwan ]);;
+              esac
+             ],
+             [MULTIWAN_ENABLED=false])
+AM_CONDITIONAL(MULTIWAN_ENABLED, test "x$MULTIWAN_ENABLED" = xtrue)
+AC_SUBST(MULTIWAN_CFLAGS)
+
 dnl Checks for header files.
 AC_CHECK_HEADERS([limits.h memory.h stdlib.h string.h sys/socket.h unistd.h])
 
