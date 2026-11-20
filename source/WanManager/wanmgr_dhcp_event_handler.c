@@ -40,6 +40,7 @@ static void copyDhcpv4Data(WANMGR_IPV4_DATA* pDhcpv4Data, const DHCP_MGR_IPV4_MS
         "| gateway             : %-15s |\n"
         "| dnsServer           : %-15s |\n"
         "| dnsServer1          : %-15s |\n"
+        "| domainName          : %-15s |\n"
         "| timeZone            : %-15s |\n"
         "| mtuSize             : %-15u |\n"
         "| timeOffset          : %-15d |\n"
@@ -47,7 +48,7 @@ static void copyDhcpv4Data(WANMGR_IPV4_DATA* pDhcpv4Data, const DHCP_MGR_IPV4_MS
         "| upstreamCurrRate    : %-15u |\n"
         "=========================================\n",
         leaseInfo->ifname, leaseInfo->address, leaseInfo->netmask, leaseInfo->gateway,
-        leaseInfo->dnsServer, leaseInfo->dnsServer1, leaseInfo->timeZone, leaseInfo->mtuSize, leaseInfo->timeOffset,
+        leaseInfo->dnsServer, leaseInfo->dnsServer1, leaseInfo->cDomainName, leaseInfo->timeZone, leaseInfo->mtuSize, leaseInfo->timeOffset,
         leaseInfo->isTimeOffsetAssigned, leaseInfo->upstreamCurrRate));
 
     strncpy(pDhcpv4Data->ifname, leaseInfo->ifname, sizeof(pDhcpv4Data->ifname) - 1);
@@ -56,6 +57,7 @@ static void copyDhcpv4Data(WANMGR_IPV4_DATA* pDhcpv4Data, const DHCP_MGR_IPV4_MS
     strncpy(pDhcpv4Data->gateway, leaseInfo->gateway, sizeof(pDhcpv4Data->gateway) - 1);
     strncpy(pDhcpv4Data->dnsServer, leaseInfo->dnsServer, sizeof(pDhcpv4Data->dnsServer) - 1);
     strncpy(pDhcpv4Data->dnsServer1, leaseInfo->dnsServer1, sizeof(pDhcpv4Data->dnsServer1) - 1);
+    strncpy(pDhcpv4Data->domain, leaseInfo->cDomainName, sizeof(pDhcpv4Data->domain) - 1);
     strncpy(pDhcpv4Data->timeZone, leaseInfo->timeZone, sizeof(pDhcpv4Data->timeZone) - 1);
     pDhcpv4Data->mtuSize = leaseInfo->mtuSize;
     pDhcpv4Data->timeOffset = leaseInfo->timeOffset;
