@@ -30,6 +30,10 @@
 
 extern void *WanMgr_AutoWanSelectionProcess (void* arg);
 extern void *WanMgr_ParallelScanSelectionProcess (void* arg);
+#if defined(FEATURE_RDKB_MULTIWAN)
+extern void *WanMgr_MultiWanSelectionProcess (void* arg);
+extern void *WanMgr_SecWanSelectionProcess (void* arg);
+#endif
 
 /* SELECTION STATES */
 static WcFailOverState_t State_ScanningGroup (WanMgr_FailOver_Controller_t * pFailOverController);
@@ -275,6 +279,16 @@ static void WanMgr_FO_IfaceGroupMonitor()
                     case PARALLEL_SCAN: 
                         CcspTraceInfo(("%s %d - Creating PARALLEL_SCAN selection thread for Group(%d) \n", __FUNCTION__, __LINE__, (i+1)));
                         ret = pthread_create( &pWanIfaceGroup->ThreadId, NULL, &WanMgr_ParallelScanSelectionProcess, (void *)(i+1));
+                        break;
+#endif
+#if defined(FEATURE_RDKB_MULTIWAN)
+                    case MULTIWAN_MODE:
+                        CcspTraceInfo(("%s %d - Creating MULTIWAN_MODE selection thread for Group(%d) \n", __FUNCTION__, __LINE__, (i+1)));
+                        ret = pthread_create( &pWanIfaceGroup->ThreadId, NULL, &WanMgr_MultiWanSelectionProcess, (void *)(i+1));
+                        break;
+                    case SECWAN_MODE:
+                        CcspTraceInfo(("%s %d - Creating SECWAN_MODE selection thread for Group(%d) \n", __FUNCTION__, __LINE__, (i+1)));
+                        ret = pthread_create( &pWanIfaceGroup->ThreadId, NULL, &WanMgr_SecWanSelectionProcess, (void *)(i+1));
                         break;
 #endif
                     case AUTOWAN_MODE:

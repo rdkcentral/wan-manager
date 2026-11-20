@@ -3082,3 +3082,587 @@ ANSC_STATUS WanManager_Wait_Until_IPv6_LinkLocal_ReadyToUse(char *pInterfaceName
 
     return returnStatus;
 }
+
+#if defined(FEATURE_RDKB_MULTIWAN)
+/**************************************************************************************
+ * Built only with --enable-multiwan (-DFEATURE_RDKB_MULTIWAN).
+ **************************************************************************************/
+#define SECWAN_RESOLV_CONF_FILE           "/etc/resolv.conf"
+#define SECWAN_LOOPBACK_NS                "127.0.0.1"
+#define SECWAN_PRIMARY_GROUP              1
+#define SECWAN_SECONDARY_GROUP            2
+#define SECWAN_WAN_IFACE_ALIAS            "erouter0"
+
+/*
+ * True when no enabled Group1 iface has PHY UP (BackupWan-style primary down).
+ * Iface locks only.
+ */
+static BOOL WanMgr_NetUtils_IsPrimaryPhysicallyDown(void)
+{
+    UINT uiWanIdx = 0;
+    UINT uiTotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
+
+    for (uiWanIdx = 0; uiWanIdx < uiTotalIfaces; uiWanIdx++)
+    {
+        WanMgr_Iface_Data_t *pWanDmlIfaceData = WanMgr_GetIfaceData_locked(uiWanIdx);
+        DML_WAN_IFACE *pInterface = NULL;
+
+        if (pWanDmlIfaceData == NULL)
+        {
+            continue;
+        }
+
+        pInterface = &(pWanDmlIfaceData->data);
+        if ((pInterface->Selection.Enable == TRUE) &&
+            (pInterface->Selection.Group == SECWAN_PRIMARY_GROUP) &&
+            (pInterface->BaseInterfaceStatus == WAN_IFACE_PHY_STATUS_UP))
+        {
+            WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
+            return FALSE;
+        }
+        WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
+    }
+
+    return TRUE;
+}
+
+/**************************************************************************************
+ * @brief Clear ifalias on a WAN netdev (no-op if missing). Does not touch VirtIf->Name.
+ **************************************************************************************/
+void WanManager_ClearIfaceAlias(const char *iface)
+{
+    if ((iface == NULL) || (iface[0] == '\0'))
+    {
+        return;
+    }
+
+    if (if_nametoindex(iface) == 0)
+    {
+        return;
+    }
+
+    if (v_secure_system("ip link set %s alias %s", iface, "") != 0)
+    {
+        CcspTraceWarning(("%s:%d Failed to clear alias on [%s]\n",
+                          __FUNCTION__, __LINE__, iface));
+    }
+}
+
+/**************************************************************************************
+ * @brief Apply secondary (LTE) WAN as the active system WAN: ifname, sysevents, route.
+ *        Mirrors RdkWanManager secondary path without bonding / voice / privacy.
+ **************************************************************************************/
+void WanManager_HandleWanChange(DML_WAN_IFACE *pInterface, DML_VIRTUAL_IFACE *p_VirtIf,
+                                DML_WAN_IFACE_IP_STATE_TYPE ip_state)
+{
+    WanMgr_Config_Data_t *pWanConfigData = NULL;
+    DML_WANMGR_CONFIG *pWanDmlData = NULL;
+    CHAR gateway[BUFLEN_64] = {0};
+    CHAR subnet[BUFLEN_64] = {0};
+    const CHAR *ifName = NULL;
+    DEVICE_NETWORKING_MODE deviceMode = GATEWAY_MODE;
+
+    if ((pInterface == NULL) || (p_VirtIf == NULL))
+    {
+        CcspTraceError(("%s:%d NULL interface received\n", __FUNCTION__, __LINE__));
+        return;
+    }
+
+    ifName = (p_VirtIf->Name[0] != '\0') ? p_VirtIf->Name : pInterface->Name;
+    if ((ifName == NULL) || (ifName[0] == '\0'))
+    {
+        ifName = (p_VirtIf->IP.Ipv4Data.ifname[0] != '\0') ? p_VirtIf->IP.Ipv4Data.ifname : NULL;
+    }
+
+    /*
+     * Teardown (primary restore / secondary Down): delete LTE defaults only.
+     * Must run even when Group1 PHY is UP. Do NOT use DelDefaultGatewayRoute()
+     * (that does blanket "route del default" and can remove primary's route).
+     */
+    if (ip_state == WAN_IFACE_IP_STATE_DOWN)
+    {
+        if ((pInterface->Selection.Group != SECWAN_SECONDARY_GROUP) ||
+            (ifName == NULL) || (ifName[0] == '\0'))
+        {
+            CcspTraceWarning(("%s: DOWN teardown skipped (group=%d if=%s)\n",
+                              __FUNCTION__, pInterface->Selection.Group,
+                              (ifName != NULL) ? ifName : ""));
+            return;
+        }
+
+        if (p_VirtIf->IP.Ipv4Data.gateway[0] != '\0')
+        {
+            (void)v_secure_system("ip route del default via %s dev %s 2>/dev/null",
+                                  p_VirtIf->IP.Ipv4Data.gateway, ifName);
+        }
+        (void)v_secure_system("ip route del default dev %s 2>/dev/null", ifName);
+
+        if (p_VirtIf->IP.Ipv6RA.acDefaultGw[0] != '\0')
+        {
+            (void)v_secure_system("ip -6 route del default via %s dev %s metric 300 2>/dev/null",
+                                  p_VirtIf->IP.Ipv6RA.acDefaultGw, ifName);
+        }
+        (void)v_secure_system("ip -6 route del default dev %s 2>/dev/null", ifName);
+
+        WanManager_ClearIfaceAlias((char *)ifName);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_STATUS, "stopped", 0);
+        sysevent_set(sysevent_fd, sysevent_token, "ipv4_status", "down", 0);
+
+        CcspTraceInfo(("%s: Secondary WAN teardown on %s (removed LTE defaults)\n",
+                       __FUNCTION__, ifName));
+        return;
+    }
+
+    /* Only drive system WAN for secondary/Group2 or when Group1 has no IP. */
+    if (pInterface->Selection.Group != SECWAN_SECONDARY_GROUP)
+    {
+        if (!((pInterface->Selection.Group == SECWAN_PRIMARY_GROUP) &&
+              (p_VirtIf->IP.Ipv4Status != WAN_IFACE_IPV4_STATE_UP) &&
+              (p_VirtIf->IP.Ipv6Status != WAN_IFACE_IPV6_STATE_UP)))
+        {
+            return;
+        }
+    }
+
+    /* Primary PHY still up — do not steal default route/DNS for LTE apply. */
+    if (WanMgr_NetUtils_IsPrimaryPhysicallyDown() == FALSE)
+    {
+        CcspTraceInfo(("%s: Primary Group1 PHY UP, skipping secondary WAN apply\n", __FUNCTION__));
+        return;
+    }
+
+    if ((pInterface->Selection.Status != WAN_IFACE_ACTIVE) &&
+        (p_VirtIf->Status != WAN_IFACE_STATUS_UP))
+    {
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_STATUS, "stopped", 0);
+        CcspTraceInfo(("%s: Secondary not active/up — wan-status stopped\n", __FUNCTION__));
+        return;
+    }
+
+    if ((ifName == NULL) || (ifName[0] == '\0'))
+    {
+        CcspTraceError(("%s:%d No L3 interface name\n", __FUNCTION__, __LINE__));
+        return;
+    }
+
+    /* Use VirtIf fields filled by SecWan refresh (live iface / DHCP). No ModemInterface DM. */
+    if (p_VirtIf->IP.Ipv4Data.gateway[0] != '\0')
+    {
+        snprintf(gateway, sizeof(gateway), "%s", p_VirtIf->IP.Ipv4Data.gateway);
+    }
+
+    if (p_VirtIf->IP.Ipv4Data.mask[0] != '\0')
+    {
+        snprintf(subnet, sizeof(subnet), "%s", p_VirtIf->IP.Ipv4Data.mask);
+    }
+
+    if (p_VirtIf->IP.Ipv4Data.ifname[0] == '\0')
+    {
+        snprintf(p_VirtIf->IP.Ipv4Data.ifname, sizeof(p_VirtIf->IP.Ipv4Data.ifname), "%s", ifName);
+    }
+    if ((p_VirtIf->IP.Ipv4Data.gateway[0] == '\0') && (gateway[0] != '\0'))
+    {
+        snprintf(p_VirtIf->IP.Ipv4Data.gateway, sizeof(p_VirtIf->IP.Ipv4Data.gateway), "%s", gateway);
+    }
+
+    (void)v_secure_system("ip link set %s alias %s", ifName, SECWAN_WAN_IFACE_ALIAS);
+
+    if (0 == syscfg_set(NULL, "wan_ifname", (char *)ifName))
+    {
+        syscfg_commit();
+    }
+    if (0 == syscfg_set(NULL, SYSCFG_WAN_INTERFACE_NAME, pInterface->Name))
+    {
+        syscfg_commit();
+    }
+
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IFNAME, (char *)ifName, 0);
+
+    pWanConfigData = WanMgr_GetConfigData_locked();
+    if (pWanConfigData != NULL)
+    {
+        pWanDmlData = &(pWanConfigData->data);
+        deviceMode = pWanDmlData->DeviceNwMode;
+        snprintf(pWanDmlData->CurrentActiveInterface, sizeof(pWanDmlData->CurrentActiveInterface),
+                 "%s", ifName);
+        WanMgrDml_GetConfigData_release(pWanConfigData);
+    }
+
+    if (p_VirtIf->IP.Ipv4Data.ip[0] != '\0')
+    {
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV4_WAN_ADDRESS, p_VirtIf->IP.Ipv4Data.ip, 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_IPADDR, p_VirtIf->IP.Ipv4Data.ip, 0);
+    }
+
+    if (subnet[0] != '\0')
+    {
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_IPV4_WAN_SUBNET, subnet, 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_SUBNET, subnet, 0);
+    }
+
+    if (gateway[0] != '\0')
+    {
+        sysevent_set(sysevent_fd, sysevent_token, "wan_default_gateway", gateway, 0);
+    }
+
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_IPV4_LINK_STATE, WAN_STATUS_UP, 0);
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_CURRENT_WAN_STATE, WAN_STATUS_UP, 0);
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_STATUS, "started", 0);
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_WAN_SERVICE_STATUS, "started", 0);
+    sysevent_set(sysevent_fd, sysevent_token, "ipv4_status", "up", 0);
+
+    if ((p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP) &&
+        (p_VirtIf->IP.Ipv4Data.ip[0] != '\0'))
+    {
+        (void)WanManager_DelDefaultGatewayRoute(deviceMode, FALSE, &p_VirtIf->IP.Ipv4Data);
+        if (WanManager_AddDefaultGatewayRoute(deviceMode, &p_VirtIf->IP.Ipv4Data) != RETURN_OK)
+        {
+            CcspTraceError(("%s:%d Failed to add default gateway on %s\n",
+                            __FUNCTION__, __LINE__, ifName));
+        }
+    }
+
+    if ((p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP) &&
+        (p_VirtIf->IP.Ipv6RA.acDefaultGw[0] != '\0'))
+    {
+        (void)v_secure_system("ip -6 route replace default via %s dev %s metric 300",
+                              p_VirtIf->IP.Ipv6RA.acDefaultGw, ifName);
+    }
+
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIREWALL_RESTART, NULL, 0);
+    (void)Update_Interface_Status();
+
+    CcspTraceInfo(("%s: Secondary WAN applied on %s (v4=%s gw=%s)\n",
+                   __FUNCTION__, ifName, p_VirtIf->IP.Ipv4Data.ip, gateway));
+}
+
+/*
+ * Fill VirtIf DNS when empty (secondary / BackupWan-style sources).
+ * Hybrid dual-DNS merge is intentionally omitted — no hybrid path.
+ * Sources (in order): Cellular DM, per-if sysevents, global DNS sysevents.
+ * Concurrency: caller owns VirtIf for this secondary SM; no shared DNS globals mutated here.
+ */
+static void WanMgr_NetUtils_FillSecondaryDns(DML_WAN_IFACE *pInterface,
+                                             DML_VIRTUAL_IFACE *p_VirtIf,
+                                             const CHAR *ifName)
+{
+    CHAR dnsDm[BUFLEN_256] = {0};
+    CHAR dnsVal[BUFLEN_128] = {0};
+    CHAR dnsOut[BUFLEN_256] = {0};
+    CHAR *token = NULL;
+    CHAR *saveptr = NULL;
+    const CHAR *baseIf = NULL;
+
+    if ((pInterface == NULL) || (p_VirtIf == NULL))
+    {
+        CcspTraceError(("%s:%d NULL interface/VirtIf\n", __FUNCTION__, __LINE__));
+        return;
+    }
+
+    baseIf = (pInterface->BaseInterface[0] != '\0') ?
+             pInterface->BaseInterface : "Device.Cellular.Interface.1";
+
+    /* --- IPv4: Cellular DM (same as Backup cellular / dhcpv4_apis) --- */
+    if ((p_VirtIf->IP.Ipv4Data.dnsServer[0] == '\0') ||
+        (IsValidDnsServer(AF_INET, p_VirtIf->IP.Ipv4Data.dnsServer) != RETURN_OK))
+    {
+        memset(dnsVal, 0, sizeof(dnsVal));
+        snprintf(dnsDm, sizeof(dnsDm), "%s%s", baseIf, CELLULARMGR_PRIMARY_DNS);
+        if (WanMgr_RdkBus_GetParamValues(CELLULARMGR_COMPONENT_NAME, CELLULARMGR_DBUS_PATH,
+                                         dnsDm, dnsVal) == ANSC_STATUS_SUCCESS &&
+            dnsVal[0] != '\0' &&
+            IsValidDnsServer(AF_INET, dnsVal) == RETURN_OK)
+        {
+            snprintf(p_VirtIf->IP.Ipv4Data.dnsServer, sizeof(p_VirtIf->IP.Ipv4Data.dnsServer),
+                     "%s", dnsVal);
+        }
+    }
+
+    if ((p_VirtIf->IP.Ipv4Data.dnsServer1[0] == '\0') ||
+        (IsValidDnsServer(AF_INET, p_VirtIf->IP.Ipv4Data.dnsServer1) != RETURN_OK))
+    {
+        memset(dnsVal, 0, sizeof(dnsVal));
+        snprintf(dnsDm, sizeof(dnsDm), "%s%s", baseIf, CELLULARMGR_SECONDARY_DNS);
+        if (WanMgr_RdkBus_GetParamValues(CELLULARMGR_COMPONENT_NAME, CELLULARMGR_DBUS_PATH,
+                                         dnsDm, dnsVal) == ANSC_STATUS_SUCCESS &&
+            dnsVal[0] != '\0' &&
+            IsValidDnsServer(AF_INET, dnsVal) == RETURN_OK)
+        {
+            snprintf(p_VirtIf->IP.Ipv4Data.dnsServer1, sizeof(p_VirtIf->IP.Ipv4Data.dnsServer1),
+                     "%s", dnsVal);
+        }
+    }
+
+    /* --- IPv4 fallback: sysevents (per-if / ipv4_dns_0; not SYSEVENT_IPV4_DNS — TAD-only) --- */
+    if ((p_VirtIf->IP.Ipv4Data.dnsServer[0] == '\0') ||
+        (IsValidDnsServer(AF_INET, p_VirtIf->IP.Ipv4Data.dnsServer) != RETURN_OK))
+    {
+        memset(dnsOut, 0, sizeof(dnsOut));
+        if ((ifName != NULL) && (ifName[0] != '\0'))
+        {
+            snprintf(dnsDm, sizeof(dnsDm), SYSEVENT_IPV4_WANIFNAME_DNS_PRIMARY, ifName);
+            sysevent_get(sysevent_fd, sysevent_token, dnsDm, dnsOut, sizeof(dnsOut));
+        }
+        if ((dnsOut[0] == '\0') ||
+            (IsValidDnsServer(AF_INET, dnsOut) != RETURN_OK))
+        {
+            memset(dnsOut, 0, sizeof(dnsOut));
+            sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_PRIMARY,
+                         dnsOut, sizeof(dnsOut));
+        }
+        if ((dnsOut[0] != '\0') && (IsValidDnsServer(AF_INET, dnsOut) == RETURN_OK))
+        {
+            snprintf(p_VirtIf->IP.Ipv4Data.dnsServer, sizeof(p_VirtIf->IP.Ipv4Data.dnsServer),
+                     "%s", dnsOut);
+        }
+    }
+
+    if ((p_VirtIf->IP.Ipv4Data.dnsServer1[0] == '\0') ||
+        (IsValidDnsServer(AF_INET, p_VirtIf->IP.Ipv4Data.dnsServer1) != RETURN_OK))
+    {
+        memset(dnsOut, 0, sizeof(dnsOut));
+        if ((ifName != NULL) && (ifName[0] != '\0'))
+        {
+            snprintf(dnsDm, sizeof(dnsDm), SYSEVENT_IPV4_WANIFNAME_DNS_SECONDARY, ifName);
+            sysevent_get(sysevent_fd, sysevent_token, dnsDm, dnsOut, sizeof(dnsOut));
+        }
+        if ((dnsOut[0] == '\0') ||
+            (IsValidDnsServer(AF_INET, dnsOut) != RETURN_OK))
+        {
+            memset(dnsOut, 0, sizeof(dnsOut));
+            sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_SECONDARY,
+                         dnsOut, sizeof(dnsOut));
+        }
+        if ((dnsOut[0] != '\0') && (IsValidDnsServer(AF_INET, dnsOut) == RETURN_OK))
+        {
+            snprintf(p_VirtIf->IP.Ipv4Data.dnsServer1, sizeof(p_VirtIf->IP.Ipv4Data.dnsServer1),
+                     "%s", dnsOut);
+        }
+    }
+
+    /* --- IPv6 fallback: sysevents (wan6_ns / ipv6_dns_*) --- */
+    if ((p_VirtIf->IP.Ipv6Data.nameserver[0] == '\0') ||
+        (IsValidDnsServer(AF_INET6, p_VirtIf->IP.Ipv6Data.nameserver) != RETURN_OK))
+    {
+        memset(dnsOut, 0, sizeof(dnsOut));
+        sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_PRIMARY,
+                     dnsOut, sizeof(dnsOut));
+        if ((dnsOut[0] == '\0') ||
+            (IsValidDnsServer(AF_INET6, dnsOut) != RETURN_OK))
+        {
+            memset(dnsOut, 0, sizeof(dnsOut));
+            sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_IPV6_NS, dnsOut, sizeof(dnsOut));
+            if (dnsOut[0] != '\0')
+            {
+                token = strtok_r(dnsOut, " \t,", &saveptr);
+                if ((token != NULL) && (IsValidDnsServer(AF_INET6, token) == RETURN_OK))
+                {
+                    snprintf(p_VirtIf->IP.Ipv6Data.nameserver,
+                             sizeof(p_VirtIf->IP.Ipv6Data.nameserver), "%s", token);
+                    token = strtok_r(NULL, " \t,", &saveptr);
+                    if ((token != NULL) &&
+                        (IsValidDnsServer(AF_INET6, token) == RETURN_OK) &&
+                        (p_VirtIf->IP.Ipv6Data.nameserver1[0] == '\0'))
+                    {
+                        snprintf(p_VirtIf->IP.Ipv6Data.nameserver1,
+                                 sizeof(p_VirtIf->IP.Ipv6Data.nameserver1), "%s", token);
+                    }
+                }
+            }
+        }
+        else
+        {
+            snprintf(p_VirtIf->IP.Ipv6Data.nameserver, sizeof(p_VirtIf->IP.Ipv6Data.nameserver),
+                     "%s", dnsOut);
+        }
+    }
+
+    if ((p_VirtIf->IP.Ipv6Data.nameserver1[0] == '\0') ||
+        (IsValidDnsServer(AF_INET6, p_VirtIf->IP.Ipv6Data.nameserver1) != RETURN_OK))
+    {
+        memset(dnsOut, 0, sizeof(dnsOut));
+        sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_SECONDARY,
+                     dnsOut, sizeof(dnsOut));
+        if ((dnsOut[0] != '\0') && (IsValidDnsServer(AF_INET6, dnsOut) == RETURN_OK))
+        {
+            snprintf(p_VirtIf->IP.Ipv6Data.nameserver1, sizeof(p_VirtIf->IP.Ipv6Data.nameserver1),
+                     "%s", dnsOut);
+        }
+    }
+
+    CcspTraceInfo(("%s: secondary DNS filled if=%s v4=%s,%s v6=%s,%s\n",
+                   __FUNCTION__,
+                   (ifName != NULL) ? ifName : "?",
+                   p_VirtIf->IP.Ipv4Data.dnsServer, p_VirtIf->IP.Ipv4Data.dnsServer1,
+                   p_VirtIf->IP.Ipv6Data.nameserver, p_VirtIf->IP.Ipv6Data.nameserver1));
+}
+
+/**************************************************************************************
+ * @brief Update /etc/resolv.conf + DNS sysevents from VirtIf (secondary / failover).
+ *        Hybrid dual-DNS merge omitted (no hybrid). Secondary alone owns resolv.conf
+ *        when primary PHY is down. Bonding / IPTV-VOIP dnsmasq side-files omitted.
+ **************************************************************************************/
+void WanManager_UpdateDNS(DML_WAN_IFACE *pInterface, DML_VIRTUAL_IFACE *p_VirtIf,
+                          DML_WAN_IFACE_IP_STATE_TYPE ip_state)
+{
+    FILE *fp = NULL;
+    BOOL addIPv4 = FALSE;
+    BOOL addIPv6 = FALSE;
+    BOOL valid_dns = FALSE;
+    CHAR syseventParam[BUFLEN_128] = {0};
+    const CHAR *ifName = NULL;
+
+    if ((pInterface == NULL) || (p_VirtIf == NULL))
+    {
+        CcspTraceError(("%s:%d NULL interface received\n", __FUNCTION__, __LINE__));
+        return;
+    }
+
+    ifName = (p_VirtIf->Name[0] != '\0') ? p_VirtIf->Name : pInterface->Name;
+
+    /*
+     * When primary PHY is UP: skip secondary DNS overwrite on apply, and skip
+     * DOWN wipe of resolv.conf (primary owns DNS).
+     */
+    if ((pInterface->Selection.Group == SECWAN_SECONDARY_GROUP) &&
+        (WanMgr_NetUtils_IsPrimaryPhysicallyDown() == FALSE))
+    {
+        CcspTraceInfo(("%s: Primary PHY UP — skip secondary DNS change (ip_state=%d)\n",
+                       __FUNCTION__, (int)ip_state));
+        return;
+    }
+
+    addIPv4 = ((p_VirtIf->IP.Ipv4Status == WAN_IFACE_IPV4_STATE_UP) &&
+               (p_VirtIf->IP.Ipv4Data.ip[0] != '\0'));
+    addIPv6 = ((p_VirtIf->IP.Ipv6Status == WAN_IFACE_IPV6_STATE_UP) &&
+               (p_VirtIf->IP.Ipv6Data.address[0] != '\0'));
+
+    if ((ip_state == WAN_IFACE_IP_STATE_DOWN) ||
+        (p_VirtIf->Status == WAN_IFACE_STATUS_DISABLED) ||
+        (p_VirtIf->Status == WAN_IFACE_STATUS_INVALID))
+    {
+        addIPv4 = FALSE;
+        addIPv6 = FALSE;
+    }
+
+    /* Resolve secondary DNS into VirtIf before writing system DNS. */
+    if ((addIPv4 == TRUE) || (addIPv6 == TRUE))
+    {
+        WanMgr_NetUtils_FillSecondaryDns(pInterface, p_VirtIf, ifName);
+    }
+
+    fp = fopen(SECWAN_RESOLV_CONF_FILE, "w+");
+    if (fp == NULL)
+    {
+        CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, SECWAN_RESOLV_CONF_FILE));
+        return;
+    }
+
+    if ((addIPv4 == FALSE) && (addIPv6 == FALSE))
+    {
+        snprintf(syseventParam, sizeof(syseventParam), SYSEVENT_IPV4_WANIFNAME_DNS_PRIMARY,
+                 (ifName != NULL) ? ifName : "");
+        sysevent_set(sysevent_fd, sysevent_token, syseventParam, "", 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_PRIMARY, "", 0);
+        snprintf(syseventParam, sizeof(syseventParam), SYSEVENT_IPV4_WANIFNAME_DNS_SECONDARY,
+                 (ifName != NULL) ? ifName : "");
+        sysevent_set(sysevent_fd, sysevent_token, syseventParam, "", 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_SECONDARY, "", 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_PRIMARY, "", 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_SECONDARY, "", 0);
+
+        fprintf(fp, "nameserver %s\n", SECWAN_LOOPBACK_NS);
+        fclose(fp);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_DHCP_SERVER_RESTART, NULL, 0);
+        (void)Update_Interface_Status();
+        CcspTraceInfo(("%s: cleared DNS / set loopback nameserver\n", __FUNCTION__));
+        return;
+    }
+
+    if (addIPv4)
+    {
+        snprintf(syseventParam, sizeof(syseventParam), SYSEVENT_IPV4_WANIFNAME_DNS_PRIMARY,
+                 (ifName != NULL) ? ifName : "");
+        if (IsValidDnsServer(AF_INET, p_VirtIf->IP.Ipv4Data.dnsServer) == RETURN_OK)
+        {
+            fprintf(fp, "nameserver %s\n", p_VirtIf->IP.Ipv4Data.dnsServer);
+            sysevent_set(sysevent_fd, sysevent_token, syseventParam, p_VirtIf->IP.Ipv4Data.dnsServer, 0);
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_PRIMARY,
+                         p_VirtIf->IP.Ipv4Data.dnsServer, 0);
+            valid_dns = TRUE;
+        }
+        else
+        {
+            sysevent_set(sysevent_fd, sysevent_token, syseventParam, "", 0);
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_PRIMARY, "", 0);
+        }
+
+        snprintf(syseventParam, sizeof(syseventParam), SYSEVENT_IPV4_WANIFNAME_DNS_SECONDARY,
+                 (ifName != NULL) ? ifName : "");
+        if (IsValidDnsServer(AF_INET, p_VirtIf->IP.Ipv4Data.dnsServer1) == RETURN_OK)
+        {
+            fprintf(fp, "nameserver %s\n", p_VirtIf->IP.Ipv4Data.dnsServer1);
+            sysevent_set(sysevent_fd, sysevent_token, syseventParam, p_VirtIf->IP.Ipv4Data.dnsServer1, 0);
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_SECONDARY,
+                         p_VirtIf->IP.Ipv4Data.dnsServer1, 0);
+            valid_dns = TRUE;
+        }
+        else
+        {
+            sysevent_set(sysevent_fd, sysevent_token, syseventParam, "", 0);
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_SECONDARY, "", 0);
+        }
+    }
+    else
+    {
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_PRIMARY, "", 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV4_DNS_SECONDARY, "", 0);
+    }
+
+    if (addIPv6)
+    {
+        if (IsValidDnsServer(AF_INET6, p_VirtIf->IP.Ipv6Data.nameserver) == RETURN_OK)
+        {
+            fprintf(fp, "nameserver %s\n", p_VirtIf->IP.Ipv6Data.nameserver);
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_PRIMARY,
+                         p_VirtIf->IP.Ipv6Data.nameserver, 0);
+            valid_dns = TRUE;
+        }
+        else
+        {
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_PRIMARY, "", 0);
+        }
+
+        if (IsValidDnsServer(AF_INET6, p_VirtIf->IP.Ipv6Data.nameserver1) == RETURN_OK)
+        {
+            fprintf(fp, "nameserver %s\n", p_VirtIf->IP.Ipv6Data.nameserver1);
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_SECONDARY,
+                         p_VirtIf->IP.Ipv6Data.nameserver1, 0);
+            valid_dns = TRUE;
+        }
+        else
+        {
+            sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_SECONDARY, "", 0);
+        }
+    }
+    else
+    {
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_PRIMARY, "", 0);
+        sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_FIELD_IPV6_DNS_SECONDARY, "", 0);
+    }
+
+    if (valid_dns == FALSE)
+    {
+        fprintf(fp, "nameserver %s\n", SECWAN_LOOPBACK_NS);
+        CcspTraceError(("%s: No valid nameserver, using loopback\n", __FUNCTION__));
+    }
+
+    fclose(fp);
+    sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_DHCP_SERVER_RESTART, NULL, 0);
+    (void)Update_Interface_Status();
+
+    CcspTraceInfo(("%s: DNS updated for %s (v4=%d v6=%d ip_state=%d)\n",
+                   __FUNCTION__, (ifName != NULL) ? ifName : "?",
+                   addIPv4, addIPv6, (int)ip_state));
+}
+#endif /* FEATURE_RDKB_MULTIWAN */

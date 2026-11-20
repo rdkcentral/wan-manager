@@ -116,7 +116,7 @@
                     <parameters>
                       <parameter>
                           <name>Policy</name>
-                          <type>string: FIXED_MODE_ON_BOOTUP(1),FIXED_MODE(2),PRIMARY_PRIORITY_ON_BOOTUP(3),PRIMARY_PRIORITY(4),MULTIWAN_MODE(5),AUTOWAN_MODE(6),PARALLEL_SCAN(7)</type>
+                          <type>string: FIXED_MODE_ON_BOOTUP(1),FIXED_MODE(2),PRIMARY_PRIORITY_ON_BOOTUP(3),PRIMARY_PRIORITY(4),MULTIWAN_MODE(5),AUTOWAN_MODE(6),PARALLEL_SCAN(7),SECWAN_MODE(8)</type>
                           <syntax>uint32/mapped</syntax>
 <?ifdef WANMGR_POLICY_TR181_READONLY?>
                               <writable>false</writable>

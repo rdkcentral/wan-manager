@@ -94,7 +94,16 @@ WanManager_SetParamUlongValue(ANSC_HANDLE hInsContext, char* ParamName, ULONG uV
             {
                 CcspTraceError(("%s: PARALLEL_SCAN Not supported \n",__FUNCTION__));
                 ret = FALSE;
-            }else
+            }
+            else
+#endif
+#if !defined(FEATURE_RDKB_MULTIWAN)
+            if ((uValue == MULTIWAN_MODE) || (uValue == SECWAN_MODE))
+            {
+                CcspTraceError(("%s: MULTIWAN/SECWAN Policy Not supported \n", __FUNCTION__));
+                ret = FALSE;
+            }
+            else
 #endif
             {
                 retStatus = WanMgr_RdkBus_setWanPolicy((DML_WAN_POLICY)uValue, 0); 
@@ -447,6 +456,14 @@ WanManagerGroup_SetParamUlongValue(ANSC_HANDLE hInsContext, char* ParamName, ULO
     {
         if (strcmp(ParamName, "Policy") == 0)
         {
+#if !defined(FEATURE_RDKB_MULTIWAN)
+            if ((uValue == MULTIWAN_MODE) || (uValue == SECWAN_MODE))
+            {
+                CcspTraceError(("%s: MULTIWAN/SECWAN Policy is not supported in this build\n", __FUNCTION__));
+                WanMgrDml_GetIfaceGroup_release();
+                return FALSE;
+            }
+#endif
             retStatus = WanMgr_RdkBus_setWanPolicy((DML_WAN_POLICY)uValue, pWanIfaceGroup->groupIdx);
             if(retStatus == ANSC_STATUS_SUCCESS)
             {
