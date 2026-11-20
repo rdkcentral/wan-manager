@@ -295,7 +295,21 @@ int main(int argc, char* argv[])
     {
         if ( (strcmp(argv[idx], "-subsys") == 0) )
         {
-            AnscCopyString(g_Subsystem, argv[idx+1]);
+            if (idx + 1 >= argc)
+            {
+                fprintf(stderr, "Missing value for -subsys\n");
+                return EXIT_FAILURE;
+            }
+
+            size_t len = strlen(argv[idx + 1]);
+            if (len >= sizeof(g_Subsystem))
+            {
+                fprintf(stderr, "-subsys value exceeds %zu characters\n",
+                        sizeof(g_Subsystem) - 1);
+                return EXIT_FAILURE;
+            }
+
+            memcpy(g_Subsystem, argv[++idx], len + 1);
         }
         else if ( strcmp(argv[idx], "-c") == 0 )
         {

@@ -1365,7 +1365,8 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
 
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
-            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
+            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName) - 1);
+            voipIfName[sizeof(voipIfName) - 1] = '\0';
     }
     else if(0 == strcmp("DATA", p_VirtIf->Alias))
     {
@@ -1373,7 +1374,8 @@ static void updateInterfaceToVoiceManager(WanMgr_IfaceSM_Controller_t* pWanIface
 
         // When interface is down (due to cable removal etc) set Interface name to empty string
         if (voip_started)
-            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName));
+            strncpy(voipIfName, p_VirtIf->Name, sizeof(voipIfName) - 1);
+            voipIfName[sizeof(voipIfName) - 1] = '\0';
 
         /* If there is a VOIP interface present, then do not update DATA vlan name to TelcoVoiceManager. */
         for(int virIf_id=0; virIf_id< pWanIfaceData->NoOfVirtIfs; virIf_id++)
