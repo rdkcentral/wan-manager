@@ -27,17 +27,24 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "wanmgr_rdkbus_common.h"
 #include "wanmgr_sysevents.h"
 
 #define CONSOLE_LOG_FILE "/rdklogs/logs/Consolelog.txt.0"
 #define LOG_CONSOLE(fmt ...)     {\
                                         FILE     *fp        = NULL;\
-                                        fp = fopen ( CONSOLE_LOG_FILE, "a+");\
+                                        int       console_fd = open ( CONSOLE_LOG_FILE, O_WRONLY | O_CREAT | O_APPEND, 0644);\
+                                        fp = (console_fd >= 0) ? fdopen(console_fd, "a") : NULL;\
                                         if (fp)\
                                         {\
                                             fprintf(fp,fmt);\
                                             fclose(fp);\
+                                        }\
+                                        else if (console_fd >= 0)\
+                                        {\
+                                            close(console_fd);\
                                         }\
                                }\
 

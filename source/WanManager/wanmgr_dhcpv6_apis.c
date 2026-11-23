@@ -30,6 +30,9 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <syscfg/syscfg.h>
 #include "secure_wrapper.h"
 
@@ -338,10 +341,32 @@ iface wan0 {
 #define SERVER_CONF_LOCATION  "/etc/dibbler/server.conf"
 #define CLIENT_NOTIFY "/etc/dibbler/client-notify.sh"
 
+/* Create/truncate a private file as read-write. Mode is enforced even if the file already exists. */
+static FILE * _fopen_private_rw(const char *path)
+{
+    int fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0600);
+    FILE *fp = NULL;
+
+    if (fd < 0)
+        return NULL;
+
+    if (fchmod(fd, 0600) == 0)
+        fp = fdopen(fd, "w+");
+
+    if (!fp)
+        close(fd);
+
+    return fp;
+}
+
 static int _prepare_client_conf(PDML_DHCPCV6_CFG       pCfg)
 {
-    FILE * fp = fopen(TMP_CLIENT_CONF, "w+");
+    FILE * fp = _fopen_private_rw(TMP_CLIENT_CONF);
 
+    if (!fp)
+    {
+        return -1;
+    }
     if (fp)
     {
         /*we need this to get IANA IAPD info from dibbler*/
@@ -940,7 +965,7 @@ WanMgr_DmlDhcpv6cGetNumberOfSentOption
     option-type:option-len:option-data*/
 static int _write_dibbler_sent_option_file(void)
 {
-    FILE * fp = fopen(CLIENT_SENT_OPTIONS_FILE, "w+");
+    FILE * fp = _fopen_private_rw(CLIENT_SENT_OPTIONS_FILE);
     int  i = 0;
 
     if (fp)
