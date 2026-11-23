@@ -1096,8 +1096,17 @@ ANSC_STATUS WanMgr_RestartUpdateCfg (const char * param, int idx, char * output,
 
     if (idx > -1)
     {
-        // key has a index
-        snprintf(key, sizeof(key), param, idx);
+        // key has an index
+        const char *index_pos = strstr(param, "%d");
+        if (index_pos == NULL || strstr(index_pos + 2, "%d") != NULL ||
+            (size_t)(index_pos - param) >= sizeof(key))
+        {
+            CcspTraceError(("%s %d: Invalid indexed parameter template\n", __FUNCTION__, __LINE__));
+            fclose(orig_fp);
+            return ANSC_STATUS_FAILURE;
+        }
+        snprintf(key, sizeof(key), "%.*s%d%s",
+                 (int)(index_pos - param), param, idx, index_pos + 2);
     }
     else
         strncpy(key, param, sizeof(key)-1);
