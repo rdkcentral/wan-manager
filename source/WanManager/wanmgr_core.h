@@ -23,6 +23,8 @@
 
 #include "ansc_platform.h"
 
+extern BOOL gWanMgrRestarted;
+
 /**********************************************************************
                 STRUCTURE AND CONSTANT DEFINITIONS
 **********************************************************************/
