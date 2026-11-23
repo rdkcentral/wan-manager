@@ -1035,16 +1035,16 @@ ANSC_STATUS WanManager_StopIpoeHealthCheckService(UINT IhcPid)
 void WanManager_GetDateAndUptime( char *buffer, int *uptime )
 {
     struct  timeval  tv;
-    struct  tm       *tm;
+    struct  tm       tm_info;
     struct  sysinfo info;
     char    fmt[ 64 ], buf [64] = {0};
 
     sysinfo( &info );
     gettimeofday( &tv, NULL );
 
-    if( (tm = localtime( &tv.tv_sec ) ) != NULL)
+    if (localtime_r(&tv.tv_sec, &tm_info) != NULL)
     {
-        strftime( fmt, sizeof( fmt ), "%y%m%d-%T.%%06u", tm );
+        strftime( fmt, sizeof( fmt ), "%y%m%d-%T.%%06u", &tm_info );
         snprintf( buf, sizeof( buf ), fmt, tv.tv_usec );
     }
 
