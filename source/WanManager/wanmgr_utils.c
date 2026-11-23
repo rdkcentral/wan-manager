@@ -68,7 +68,8 @@ static bool is_nameserver_line(const char *line)
  */
 FILE *prepare_resolv_conf_for_nameservers(void)
 {
-    FILE *resolv_conf = fopen(RESOLV_CONF_FILE, "a+");
+    int resolv_fd = open(RESOLV_CONF_FILE, O_RDWR | O_CREAT | O_APPEND, 0644);
+    FILE *resolv_conf = (resolv_fd >= 0) ? fdopen(resolv_fd, "a+") : NULL;
     char *preserved_content = NULL;
     size_t preserved_length = 0;
     char *line = NULL;
@@ -77,6 +78,8 @@ FILE *prepare_resolv_conf_for_nameservers(void)
 
     if (resolv_conf == NULL)
     {
+        if (resolv_fd >= 0)
+            close(resolv_fd);
         CcspTraceError(("%s %d - Open %s error!\n", __FUNCTION__, __LINE__, RESOLV_CONF_FILE));
         return NULL;
     }
@@ -1140,7 +1143,16 @@ int WanMgr_SetRestartWanInfo (const char * param, int idx, char * value)
     FILE * orig_fp = NULL, * tmp_fp = NULL;
 
     orig_fp = fopen(WANMGR_RESTART_INFO_FILE, "r");
-    tmp_fp = fopen(WANMGR_RESTART_INFO_TMP_FILE, "w");
+
+    int tmp_fd = open(WANMGR_RESTART_INFO_TMP_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (tmp_fd >= 0 && fchmod(tmp_fd, 0600) != 0)
+    {
+        close(tmp_fd);
+        tmp_fd = -1;
+    }
+    tmp_fp = (tmp_fd >= 0) ? fdopen(tmp_fd, "w") : NULL;
+    if (tmp_fp == NULL && tmp_fd >= 0)
+        close(tmp_fd);
 
     if (tmp_fp == NULL)
     {
