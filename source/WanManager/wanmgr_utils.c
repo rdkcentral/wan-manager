@@ -1152,9 +1152,14 @@ int WanMgr_SetRestartWanInfo (const char * param, int idx, char * value)
     }
     if (tmp_fd >= 0)
     {
-        tmp_fp = fdopen(tmp_fd, "w");
-        if (!tmp_fp)
+        if (fchmod(tmp_fd, 0600) != 0)
             close(tmp_fd);
+        else
+        {
+            tmp_fp = fdopen(tmp_fd, "w");
+            if (!tmp_fp)
+                close(tmp_fd);
+        }
     }
 
     if (tmp_fp == NULL)
