@@ -58,6 +58,7 @@
 #include <syscfg/syscfg.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include "wanmgr_ssp_global.h"
 #include "wanmgr_core.h"
 #include "wanmgr_data.h"
@@ -314,7 +315,10 @@ int main(int argc, char* argv[])
     if ( bRunAsDaemon )
         daemonize();
 
-    fd = fopen("/var/tmp/wanmanager.pid", "w+");
+    int pid_fd = open("/var/tmp/wanmanager.pid", O_RDWR | O_CREAT | O_TRUNC, 0644);
+    fd = (pid_fd >= 0) ? fdopen(pid_fd, "w+") : NULL;
+    if ( !fd && pid_fd >= 0 )
+        close(pid_fd);
     if ( !fd )
     {
         CcspTraceWarning(("Create /var/tmp/wanmanager.pid error. \n"));
