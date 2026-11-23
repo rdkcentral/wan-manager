@@ -1974,7 +1974,6 @@ BOOL IsValidIpAddress(int32_t af, const char* address)
    }
 }
 
-static int ParsePrefixAddress(const char *prefixAddr, char *address, uint32_t *plen)
 static int ParsePrefixAddress(const char *prefixAddr, char *address, size_t addressSize, uint32_t *plen)
 {
    int ret = RETURN_OK;
