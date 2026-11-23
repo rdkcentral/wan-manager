@@ -30,6 +30,8 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <syscfg/syscfg.h>
 #include "secure_wrapper.h"
 
@@ -340,7 +342,15 @@ iface wan0 {
 
 static int _prepare_client_conf(PDML_DHCPCV6_CFG       pCfg)
 {
-    FILE * fp = fopen(TMP_CLIENT_CONF, "w+");
+    int fd = open(TMP_CLIENT_CONF, O_RDWR | O_CREAT | O_TRUNC, 0600);
+    FILE * fp = NULL;
+
+    if (fd >= 0)
+    {
+        fp = fdopen(fd, "w+");
+        if (!fp)
+            close(fd);
+    }
 
     if (fp)
     {
@@ -940,8 +950,16 @@ WanMgr_DmlDhcpv6cGetNumberOfSentOption
     option-type:option-len:option-data*/
 static int _write_dibbler_sent_option_file(void)
 {
-    FILE * fp = fopen(CLIENT_SENT_OPTIONS_FILE, "w+");
+    int fd = open(CLIENT_SENT_OPTIONS_FILE, O_RDWR | O_CREAT | O_TRUNC, 0600);
+    FILE * fp = NULL;
     int  i = 0;
+
+    if (fd >= 0)
+    {
+        fp = fdopen(fd, "w+");
+        if (!fp)
+            close(fd);
+    }
 
     if (fp)
     {
