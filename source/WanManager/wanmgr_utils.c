@@ -1144,6 +1144,12 @@ int WanMgr_SetRestartWanInfo (const char * param, int idx, char * value)
 
     orig_fp = fopen(WANMGR_RESTART_INFO_FILE, "r");
     int tmp_fd = open(WANMGR_RESTART_INFO_TMP_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    /* The mode passed to open() only applies when the file is created; fchmod() also covers a leftover temp file. */
+    if (tmp_fd >= 0 && fchmod(tmp_fd, 0600) != 0)
+    {
+        close(tmp_fd);
+        tmp_fd = -1;
+    }
     if (tmp_fd >= 0)
     {
         tmp_fp = fdopen(tmp_fd, "w");
