@@ -363,6 +363,10 @@ static int _prepare_client_conf(PDML_DHCPCV6_CFG       pCfg)
 {
     FILE * fp = _fopen_private_rw(TMP_CLIENT_CONF);
 
+    if (!fp)
+    {
+        return -1;
+    }
     if (fp)
     {
         /*we need this to get IANA IAPD info from dibbler*/
