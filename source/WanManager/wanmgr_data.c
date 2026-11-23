@@ -390,7 +390,7 @@ ANSC_STATUS WanMgr_VirtIfConfVLAN(DML_VIRTUAL_IFACE *p_VirtIf, UINT Ifid)
         int retPsmGet = CCSP_SUCCESS;
         _ansc_sprintf(param_name, PSM_WANMANAGER_IF_VIRIF_VLAN_INTERFACE_ENTRY, (Ifid+1), (p_VirtIf->VirIfIdx +1),(i+1));
         retPsmGet = WanMgr_RdkBus_GetParamValuesFromDB(param_name,param_value,sizeof(param_value));
-        AnscCopyString(p_VlanIf->Interface, param_value);
+        snprintf(p_VlanIf->Interface, sizeof(p_VlanIf->Interface), "%s", param_value);
 
         CcspTraceInfo(("%s %d Adding Vlan Interface entry %d \n", __FUNCTION__, __LINE__, p_VlanIf->Index));
         WanMgr_AddVirtVlanIfToList(&(p_VirtIf->VLAN.InterfaceList), p_VlanIf);
