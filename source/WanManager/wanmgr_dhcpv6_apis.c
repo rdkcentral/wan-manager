@@ -31,6 +31,7 @@
 #include <sys/ioctl.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <syscfg/syscfg.h>
 #include "secure_wrapper.h"
@@ -344,6 +345,13 @@ static int _prepare_client_conf(PDML_DHCPCV6_CFG       pCfg)
 {
     int fd = open(TMP_CLIENT_CONF, O_RDWR | O_CREAT | O_TRUNC, 0600);
     FILE * fp = NULL;
+
+    /* The mode passed to open() only applies when the file is created; fchmod() also covers a leftover temp file. */
+    if (fd >= 0 && fchmod(fd, 0600) != 0)
+    {
+        close(fd);
+        fd = -1;
+    }
 
     if (fd >= 0)
     {
@@ -953,6 +961,13 @@ static int _write_dibbler_sent_option_file(void)
     int fd = open(CLIENT_SENT_OPTIONS_FILE, O_RDWR | O_CREAT | O_TRUNC, 0600);
     FILE * fp = NULL;
     int  i = 0;
+
+    /* The mode passed to open() only applies when the file is created; fchmod() also covers an existing file. */
+    if (fd >= 0 && fchmod(fd, 0600) != 0)
+    {
+        close(fd);
+        fd = -1;
+    }
 
     if (fd >= 0)
     {
