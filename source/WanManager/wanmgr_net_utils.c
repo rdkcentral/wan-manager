@@ -2790,7 +2790,7 @@ int  WanManager_send_and_receive_rs(DML_VIRTUAL_IFACE * p_VirtIf)
         // Look for the "from" line to identify the default route address
         if (strstr(buffer, "from")) 
         {
-            if (sscanf(buffer, " from %63s", p_VirtIf->IP.Ipv6RA.acDefaultGw) == 1 &&
+            if (sscanf(buffer, " from %45s", p_VirtIf->IP.Ipv6RA.acDefaultGw) == 1 &&
                 inet_pton(AF_INET6, p_VirtIf->IP.Ipv6RA.acDefaultGw, &addr) == 1)  //check parsed value is a valid ipv6 address
             {
                 ret = 0;
