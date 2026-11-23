@@ -1154,8 +1154,8 @@ int WanMgr_SetRestartWanInfo (const char * param, int idx, char * value)
     
     if (idx > -1)
     {
-        // key has a index
-        snprintf(key, sizeof(key), param, idx);
+        // key has an index
+        snprintf(key, sizeof(key), "%s%d", param, idx);
     }
     else
         strncpy(key, param, sizeof(key)-1);
