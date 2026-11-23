@@ -28,6 +28,9 @@
 #include <sysevent/sysevent.h>
 #include <string.h>
 #include <net/if.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <ifaddrs.h>
 #include <sys/ioctl.h>
 #include <ctype.h>
 #include <syscfg/syscfg.h>
@@ -2306,6 +2309,42 @@ int setUpLanPrefixIPv6(DML_VIRTUAL_IFACE* pVirtIf)
     return RETURN_OK;
 }
 
+/* Returns 1 if present, 0 if absent, and -1 on lookup failure. */
+static int WanMgr_IsIpv6AddressPresent(const char *ifname, const struct in6_addr *address)
+{
+    struct ifaddrs *addresses = NULL;
+    struct ifaddrs *entry;
+    int present = 0;
+
+    if (getifaddrs(&addresses) != 0)
+    {
+        CcspTraceError(("%s: getifaddrs failed for '%s': %s\n", __FUNCTION__, ifname, strerror(errno)));
+        return -1;
+    }
+
+    for (entry = addresses; entry != NULL; entry = entry->ifa_next)
+    {
+        if (entry->ifa_addr == NULL ||
+            entry->ifa_name == NULL ||
+            entry->ifa_addr->sa_family != AF_INET6 ||
+            strncmp(entry->ifa_name, ifname, IFNAMSIZ) != 0)
+        {
+            continue;
+        }
+
+        const struct sockaddr_in6 *addr = (const struct sockaddr_in6 *)entry->ifa_addr;
+
+        if (IN6_ARE_ADDR_EQUAL(&addr->sin6_addr, address))
+        {
+            present = 1;
+            break;
+        }
+    }
+
+    freeifaddrs(addresses);
+    return present;
+}
+
 /** WanMgr_Handle_Dhcpv6_NetLink_Address_Event() */
 ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pstAddrEvent)
 {
@@ -2316,6 +2355,8 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
         CcspTraceError(("%s %d - Invalid memory \n", __FUNCTION__, __LINE__));
         return ret;
     }
+
+    ret = ANSC_STATUS_SUCCESS;
 
     UINT uiLoopCount;
     UINT TotalIfaces = WanMgr_IfaceData_GetTotalWanIface();
@@ -2365,6 +2406,54 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
                             p_VirtIf->IP.Ipv6Status              = WAN_IFACE_IPV6_STATE_DOWN;
                         }
                     }
+                    /* DHCPv6-sourced interfaces (dibbler): the kernel netlink DELADDR event may be the
+                     * only notification we get if dibbler itself does not report the removal via IPC
+                     * (e.g. global address expiry without a corresponding lease-expired message).
+                     * Detect that case here and directly mark the interface IPv6Status DOWN so that
+                     * status reporting (e.g. IPv6Status Device Model parameter) stays consistent with
+                     * the actual kernel address state instead of remaining stale as UP. */
+                    else if ( ( p_VirtIf->Enable == TRUE ) &&
+                            ( DML_WAN_IP_SOURCE_DHCP == p_VirtIf->IP.IPv6Source ) &&
+                            ( 0 == strncmp( p_VirtIf->Name, pstAddrEvent->ifname, sizeof(pstAddrEvent->ifname) ) ) &&
+                            ( 0 == strncmp(pstAddrEvent->event, "DELADDR", sizeof("DELADDR")) ) )
+                    {
+                        if ( !IS_EMPTY_STRING(p_VirtIf->IP.Ipv6Data.address) &&
+                             ( WAN_IFACE_IPV6_STATE_UP == p_VirtIf->IP.Ipv6Status ) &&
+                             ( p_VirtIf->IP.Ipv6Changed != TRUE ) )
+                        {
+                            struct in6_addr currentAddress;
+                            struct in6_addr deletedAddress;
+
+                            if ( ( inet_pton(AF_INET6, p_VirtIf->IP.Ipv6Data.address, &currentAddress) != 1 ) ||
+                                 ( inet_pton(AF_INET6, pstAddrEvent->addr, &deletedAddress) != 1 ) )
+                            {
+                                CcspTraceError(("%s: Invalid IPv6 address for '%s': current='%s', deleted='%s'\n", __FUNCTION__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address, pstAddrEvent->addr));
+                                ret = ANSC_STATUS_FAILURE;
+                            }
+                            else if (IN6_ARE_ADDR_EQUAL(&currentAddress, &deletedAddress))
+                            {
+                                /* A queued DELADDR can arrive after WanMgr reinstalls the address. */
+                                int present = WanMgr_IsIpv6AddressPresent(p_VirtIf->Name, &currentAddress);
+
+                                if (present < 0)
+                                {
+                                    ret = ANSC_STATUS_FAILURE;
+                                }
+                                else if (present)
+                                {
+                                    CcspTraceInfo(("%s: [DHCPv6] Ignoring stale DELADDR for '%s': address[%s] is currently present in kernel\n", __FUNCTION__, p_VirtIf->Name, p_VirtIf->IP.Ipv6Data.address));
+                                }
+                                else
+                                {
+                                    CcspTraceInfo(("%s: [DHCPv6] Address[%s] is absent from '%s', marking IPv6 status DOWN\n", __FUNCTION__, p_VirtIf->IP.Ipv6Data.address, p_VirtIf->Name));
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE)
+                                    p_VirtIf->IP.Ipv6Data.addrCmd = IFADDRCONF_REMOVE;
+#endif /** FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE */
+                                    p_VirtIf->IP.Ipv6Status = WAN_IFACE_IPV6_STATE_DOWN;
+                                }
+                            }
+                        }
+                    }
 
                     WanMgr_VirtualIfaceData_release(p_VirtIf);
                 }
@@ -2376,5 +2465,5 @@ ANSC_STATUS WanMgr_Handle_Dhcpv6_NetLink_Address_Event(IPv6NetLinkAddrEvent *pst
         WanMgrDml_GetIfaceData_release(pWanDmlIfaceData);
     }
                         
-    return ANSC_STATUS_SUCCESS;
+    return ret;
 }
