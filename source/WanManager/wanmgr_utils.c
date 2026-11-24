@@ -1037,15 +1037,15 @@ void WanManager_GetDateAndUptime( char *buffer, int *uptime )
     struct  timeval  tv;
     struct  tm       *tm;
     struct  sysinfo info;
-    char    fmt[ 64 ], buf [64] = {0};
+    char    date_prefix[ 64 ] = {0}, buf [64] = {0};
 
     sysinfo( &info );
     gettimeofday( &tv, NULL );
 
     if( (tm = localtime( &tv.tv_sec ) ) != NULL)
     {
-        strftime( fmt, sizeof( fmt ), "%y%m%d-%T.%%06u", tm );
-        snprintf( buf, sizeof( buf ), fmt, tv.tv_usec );
+        strftime( date_prefix, sizeof( date_prefix ), "%y%m%d-%T", tm );
+        snprintf( buf, sizeof( buf ), "%s.%06u", date_prefix, (unsigned int)tv.tv_usec );
     }
 
     snprintf( buffer, sizeof(buf)-1, "%s", buf);
