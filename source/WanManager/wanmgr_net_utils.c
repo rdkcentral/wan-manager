@@ -1947,7 +1947,7 @@ BOOL IsValidIpAddress(int32_t af, const char* address)
       uint32_t plen;
       char   addr[IP_ADDR_LENGTH];
 
-      if (ParsePrefixAddress(address, addr, &plen) != ANSC_STATUS_SUCCESS)
+      if (ParsePrefixAddress(address, addr, sizeof(addr), &plen) != ANSC_STATUS_SUCCESS)
       {
          CcspTraceInfo(("Invalid ipv6 address=%s", address));
          return FALSE;
