@@ -2014,7 +2014,8 @@ static int ParsePrefixAddress(const char *prefixAddr, char *address, size_t addr
          *plen = atoi(separator);
       }
 
-      if (strlen(tmpBuf) < BUFLEN_40 && *plen <= 128 && strlen(tmpBuf) < addressSize)
+      size_t tmpBufLen = strlen(tmpBuf);
+      if (tmpBufLen < BUFLEN_40 && *plen <= 128 && tmpBufLen < addressSize)
       {
          strncpy(address, tmpBuf, addressSize - 1);
          address[addressSize - 1] = '\0';
