@@ -137,7 +137,7 @@ static BOOL IsZeroIpvxAddress(uint32_t ipvx, const char *addr);
  * @param plen holds length of the prefix address
  * @return TRUE if its a valid IP address else returned false.
  ****************************************************************************/
-static int ParsePrefixAddress(const char *prefixAddr, char *address, uint32_t *plen);
+static int ParsePrefixAddress(const char *prefixAddr, char *address, size_t addressSize, uint32_t *plen);
 
 static int WanManager_CalculatePsidAndV4Index(char *pdIPv6Prefix, int v6PrefixLen, int iapdPrefixLen, int v4PrefixLen, int *psidValue, int *ipv4IndexValue, int *psidLen);
 
@@ -1947,7 +1947,7 @@ BOOL IsValidIpAddress(int32_t af, const char* address)
       uint32_t plen;
       char   addr[IP_ADDR_LENGTH];
 
-      if (ParsePrefixAddress(address, addr, &plen) != ANSC_STATUS_SUCCESS)
+      if (ParsePrefixAddress(address, addr, sizeof(addr), &plen) != ANSC_STATUS_SUCCESS)
       {
          CcspTraceInfo(("Invalid ipv6 address=%s", address));
          return FALSE;
@@ -1974,14 +1974,14 @@ BOOL IsValidIpAddress(int32_t af, const char* address)
    }
 }
 
-static int ParsePrefixAddress(const char *prefixAddr, char *address, uint32_t *plen)
+static int ParsePrefixAddress(const char *prefixAddr, char *address, size_t addressSize, uint32_t *plen)
 {
    int ret = RETURN_OK;
    char *tmpBuf;
    char *separator;
    uint32_t len;
 
-   if (prefixAddr == NULL || address == NULL || plen == NULL)
+   if (prefixAddr == NULL || address == NULL || plen == NULL || addressSize == 0)
    {
       return RETURN_ERR;
    }
@@ -2014,9 +2014,11 @@ static int ParsePrefixAddress(const char *prefixAddr, char *address, uint32_t *p
          *plen = atoi(separator);
       }
 
-      if (strlen(tmpBuf) < BUFLEN_40 && *plen <= 128)
+      size_t tmpBufLen = strlen(tmpBuf);
+      if (tmpBufLen < BUFLEN_40 && *plen <= 128 && tmpBufLen < addressSize)
       {
-         strncpy(address, tmpBuf, strlen(tmpBuf) + 1);
+         strncpy(address, tmpBuf, addressSize - 1);
+         address[addressSize - 1] = '\0';
       }
       else
       {
